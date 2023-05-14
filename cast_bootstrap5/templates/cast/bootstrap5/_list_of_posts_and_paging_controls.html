@@ -1,0 +1,27 @@
+<main>
+  {% for post in posts %}
+    {% include "./post_body.html" with render_detail=False page=post %}
+    <hr class="my-4">
+  {% endfor %}
+  <script>
+  // dunno why this is necessary but it is
+    var curImage = null
+    var modalImage = $('.modal-image')
+    var modalFooter = $('.modal-footer')
+
+    $(document).on('click', '.cast-gallery-modal', function (e) {
+      setModalImage($(e.target))
+    });
+  </script>
+  {% if use_audio_player %}
+    {% for post in posts %}
+      {% for pk, audio in post.media_lookup.audio.items %}
+        <script>podlovePlayer("#audio_{{ audio.pk }}", "{{ audio.podlove_url }}");</script>
+      {% endfor %}
+    {% endfor %}
+  {% endif %}
+</main>
+
+<footer>
+  <p>{% include "./pagination.html" %}</p>
+</footer>
