@@ -1,0 +1,94 @@
+[build-system]
+requires = ["flit_core >=3.2,<4"]
+build-backend = "flit_core.buildapi"
+
+[project]
+name = "cast-bootstrap5"
+authors = [
+    {name = "Jochen Wersdörfer", email = "jochen-castbootstrap5@wersdoerfer.de"},
+]
+dynamic = ["version", "description"]
+requires-python = ">=3.9"
+keywords = [
+    "blog",
+    "podcast",
+    "video",
+    "audio"
+]
+classifiers = [
+    "Environment :: Web Environment",
+    "Framework :: Django",
+    "Framework :: Django :: 4.0",
+    "Framework :: Django :: 4.1",
+    "Framework :: Django :: 4.2",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: BSD License",
+    "Topic :: Internet",
+    "Development Status :: 3 - Alpha",
+    "Environment :: Web Environment",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Internet :: WWW/HTTP",
+    "Topic :: Internet :: WWW/HTTP :: Dynamic Content",
+]
+
+dependencies = [
+    "django-cast",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest >= 6",
+    "pytest-cov >= 3",
+    "pytest-django",
+    "pytest-mock",
+]
+doc = [
+    "furo",
+]
+dev = [
+    "black",
+    "flake8",
+    "django-environ",
+    "django_extensions",
+    "django-stubs[compatible-mypy]",
+    "isort",
+    "jupyter",
+    "mypy",
+    "rich",
+    "tox",
+    "typer",
+]
+
+[project.urls]
+Documentation = "https://cast-vue.readthedocs.io/en/latest/"
+Source = "https://github.com/ephes/cast-vue"
+
+[tool.flit.module]
+name = "cast_bootstrap5"
+
+[tool.isort]
+profile = "black"
+
+[tool.black]
+line-length = 119
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "tests.settings"
+minversion = "6.0"
+testpaths = ["tests"]
+filterwarnings = [
+    "ignore::django.utils.deprecation.RemovedInDjango50Warning",
+    # "ignore::django.utils.deprecation.RemovedInDjango51Warning",
+    "ignore::wagtail.utils.deprecation.RemovedInWagtail60Warning",
+    "ignore::DeprecationWarning",
+]
+addopts = [
+    "-ra",
+    "--reuse-db",
+    "--no-migrations",
+    "--randomly-seed=1234",
+]
