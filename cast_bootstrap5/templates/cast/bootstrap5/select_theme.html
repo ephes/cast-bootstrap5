@@ -9,14 +9,14 @@
   <ul class="dropdown-menu dropdown-menu-light">
     {% for theme_slug, theme_name in template_base_dir_choices %}
       <li>
-        <a class="dropdown-item"
-           hx-post="{% url 'cast:select-theme' %}"
-           hx-vals='{"template_base_dir": "{{ theme_slug }}", "next": "{{ next_url }}"}'
-           hx-trigger="click"
-           href="#"
-        >
-          {{ theme_name }}
-        </a>
+        <form action="{% url 'cast:select-theme' %}" method="post">
+          {% csrf_token %}
+          <input type="hidden" name="template_base_dir" value="{{ theme_slug }}">
+          <input type="hidden" name="next" value="{{ next_url }}">
+          <button type="submit" class="btn dropdown-item">
+            {{ theme_name }}
+          </button>
+        </form>
       </li>
     {% endfor %}
   </ul>
