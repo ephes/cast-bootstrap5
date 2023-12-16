@@ -49,7 +49,7 @@
 
   <!-- block.super needs to be below full jquery because otherwise jquery-slim would overwrite calls necessary for comments -->
   {{ block.super }}
-  <script src="{% static 'js/cast/gallery.js' %}"></script>
+  <script src="{% static 'cast_bootstrap5/js/image-gallery-bs5.js' %}"></script>
   <script type="text/javascript" src="{% static 'fluent_comments/js/ajaxcomments.js' %}"></script>
   {% if page.has_audio %}
     <script src={% static 'js/cast/web-player/embed.4.js' %}></script>
