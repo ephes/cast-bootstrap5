@@ -41,3 +41,29 @@ complete site or just one blog.
 
 That's it! You have successfully installed and set up the Bootstrap5 theme
 for [`django-cast`](https://github.com/ephes/django-cast).
+
+## Development
+### Install javascript dependencies
+
+```shell
+npm install
+```
+
+### Build javascript
+
+```shell
+npx vite build
+```
+
+### Run tests
+
+```shell
+npx vitest run  # run tests once
+npx vitest watch  # run tests on file changes
+```
+
+### Run development server
+
+```shell
+npx vite
+```

@@ -2,6 +2,7 @@
 {% load wagtailcore_tags %}
 {% load crispy_forms_tags %}
 {% load static %}
+{% load django_vite %}
 
 {% block body_class %}template-bloglistpage{% endblock %}
 
@@ -88,9 +89,10 @@
 
 {% block javascript %}
   {{ block.super }}
-  <script src="{% static 'cast_bootstrap5/js/image-gallery-bs5.js' %}"></script>
+  {% vite_hmr_client app="cast-bootstrap5" %}
+  {% vite_asset 'src/gallery/image-gallery.ts' app="cast-bootstrap5" %}
   {% if use_audio_player %}
-    <script src={% static 'js/cast/web-player/embed.4.js' %}></script>
+    <script src="{% static 'js/cast/web-player/embed.4.js' %}"></script>
     {% for post in posts %}
       {% for pk, audio in post.media_lookup.audio.items %}
         <script>podlovePlayer("#audio_{{ audio.pk }}", "{{ audio.podlove_url }}");</script>
