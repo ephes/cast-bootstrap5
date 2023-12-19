@@ -55,6 +55,22 @@ npm install
 npx vite build
 ```
 
+After that you have to copy the contents of the `bundler` folder
+to the `cast_bootstrap5/static/cast_bootstrap5` folder. This is necessary,
+but I don't know why. It seems that `django-vite` is only looking for
+the `manifest.json` in the top level of the `static` folder, no matter
+what `manifest_path` is set to.
+
+```shell
+cd cast_bootstrap5/static/cast_bootstrap5
+mv bundler/* .
+```
+
+What also does not work is to set `outDir` to `cast_bootstrap5/static/cast_bootstrap5`
+because then all the other assets will be removed :/.
+
+Yes, this is a mess.
+
 ### Run tests
 
 ```shell
