@@ -26,7 +26,7 @@
       <div>
         <div class="cast-feeds-container">
           <div class="cast-feed-item">
-            <img class="cast-feed-icon" src="{% static 'cast/img/Feed-icon.svg' %}" height=64 width=64></img>
+            <img alt="RSS feed icon" class="cast-feed-icon" src="{% static 'cast/img/Feed-icon.svg' %}" height=64 width=64></img>
             <a href="{% url "cast:latest_entries_feed" slug=blog.slug %}">
               Plain RSS
             </a>
