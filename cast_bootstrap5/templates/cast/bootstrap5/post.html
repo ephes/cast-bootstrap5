@@ -45,7 +45,7 @@
 {% block javascript %}
   {{ block.super }}
   {% vite_hmr_client app="cast-bootstrap5" %}
-  {% vite_asset 'src/gallery/image-gallery.ts' app="cast-bootstrap5" %}
+  {% vite_asset 'src/gallery/image-gallery-bs5.ts' app="cast-bootstrap5" %}
 
   <!-- full query is needed for comments -->
   <script defer src="{% static 'cast_bootstrap5/js/jquery/jquery-3.7.1.min.js' %}"></script>
