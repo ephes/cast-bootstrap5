@@ -66,9 +66,8 @@
     {% block modal %}{% endblock modal %}
     <div class="additional_javascript">
       {% block javascript %}
-        <!-- recent jquery (not slim) is needed for fluent-comments -->
-        <script src="{% static 'cast_bootstrap5/js/bootstrap5/bootstrap.bundle.min.js' %}"></script>
-        <script src="{% static 'cast_bootstrap5/js/htmx.min.js' %}"></script>
+        <script defer src="{% static 'cast_bootstrap5/js/bootstrap5/bootstrap.bundle.min.js' %}"></script>
+        <script defer src="{% static 'cast_bootstrap5/js/htmx.min.js' %}"></script>
 
         <!-- place project specific Javascript in this file -->
         {% block template_script %}{% endblock template_script %}
