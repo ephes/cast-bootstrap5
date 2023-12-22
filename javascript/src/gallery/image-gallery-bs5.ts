@@ -1,4 +1,4 @@
-export default class ImageGallery extends HTMLElement {
+export default class ImageGalleryBs5 extends HTMLElement {
 	constructor () {
 		super();
         this.currentImage = null;
@@ -6,7 +6,7 @@ export default class ImageGallery extends HTMLElement {
     static register(tagName) {
         console.log("Registering image-gallery from src - yes!");
         if ("customElements" in window) {
-            customElements.define(tagName || "image-gallery", ImageGallery);
+            customElements.define(tagName || "image-gallery", ImageGalleryBs5);
         }
     }
     replaceImage (direction) {
@@ -119,4 +119,4 @@ export default class ImageGallery extends HTMLElement {
 }
 
 // Define the new web component
-ImageGallery.register();
+ImageGalleryBs5.register();

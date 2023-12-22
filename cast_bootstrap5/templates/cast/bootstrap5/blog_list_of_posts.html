@@ -90,7 +90,7 @@
 {% block javascript %}
   {{ block.super }}
   {% vite_hmr_client app="cast-bootstrap5" %}
-  {% vite_asset 'src/gallery/image-gallery.ts' app="cast-bootstrap5" %}
+  {% vite_asset 'src/gallery/image-gallery-bs5.ts' app="cast-bootstrap5" %}
   {% if use_audio_player %}
     <script src="{% static 'cast/js/web-player/embed.4.js' %}"></script>
     {% for post in posts %}

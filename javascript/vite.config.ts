@@ -12,7 +12,7 @@ const vitestConfig: VitestUserConfigInterface = {
 export default defineConfig({
   plugins: [],
   test: vitestConfig.test,
-  root: resolve("./js/"),
+  root: resolve("./"),
   base: "/static/",
   server: {
     host: "0.0.0.0",
@@ -26,18 +26,18 @@ export default defineConfig({
   resolve: {
     extensions: [".js", ".json", ".ts"],
     alias: {
-      "@": resolve("./js/src/"),
+      "@": resolve("./src/"),
     },
   },
   build: {
-    outDir: resolve("./cast_bootstrap5/static/cast_bootstrap5/bundler"),
+    outDir: resolve("./dist"),
     assetsDir: "",
     manifest: true,
     emptyOutDir: true,
     target: "es2015",
     rollupOptions: {
       input: {
-        main: resolve("./js/src/gallery/image-gallery.ts")
+        main: resolve("./src/gallery/image-gallery-bs5.ts")
       },
       output: {
         chunkFileNames: undefined,

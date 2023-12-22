@@ -1,10 +1,10 @@
 import { expect, test, describe } from "vitest";
-import ImageGallery from "@/gallery/image-gallery";
+import ImageGalleryBs5 from "@/gallery/image-gallery-bs5";
 
 
 describe("image gallery test", () => {
     test("gallery test current image is null", () => {
-        const gallery = new ImageGallery()
+        const gallery = new ImageGalleryBs5()
         console.log("gallery: ", gallery)
         expect(gallery.currentImage).toBe(null)
         // const sum: number = 1 + 1

@@ -45,6 +45,14 @@ for [`django-cast`](https://github.com/ephes/django-cast).
 ## Development
 ### Install javascript dependencies
 
+All javascript stuff lives in the `javascript` folder. So the first thing
+to do is to change to that folder.
+```shell
+cd javascript
+```
+
+Then install the dependencies:
+
 ```shell
 npm install
 ```
@@ -55,21 +63,14 @@ npm install
 npx vite build
 ```
 
-After that you have to copy the contents of the `bundler` folder
-to the `cast_bootstrap5/static/cast_bootstrap5` folder. This is necessary,
-but I don't know why. It seems that `django-vite` is only looking for
-the `manifest.json` in the top level of the `static` folder, no matter
-what `manifest_path` is set to.
+After that you have to copy the contents of the `dist` folder
+to the `cast_bootstrap5/static/cast_bootstrap5/vite` folder. Including
+the manifest file from `dist/.vite/manifest.json`.
 
 ```shell
-cd cast_bootstrap5/static/cast_bootstrap5
-mv bundler/* .
+cp dist/main* ../cast_bootstrap5/static/cast_bootstrap5/vite
+cp dist/.vite/manifest.json ../cast_bootstrap5/static/cast_bootstrap5/vite
 ```
-
-What also does not work is to set `outDir` to `cast_bootstrap5/static/cast_bootstrap5`
-because then all the other assets will be removed :/.
-
-Yes, this is a mess.
 
 ### Run tests
 

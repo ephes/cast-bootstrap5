@@ -4,17 +4,13 @@ module.exports = {
   moduleFileExtensions: [
     'js',
     'json',
-    // tell Jest to handle `*.vue` files
-    'vue',
     'ts'
   ],
   transform: {
-    // process `*.vue` files with `vue-jest`
-    '.*\\.(vue)$': 'vue-jest',
     '^.+\\.ts$': 'ts-jest'
   },
   setupFiles: [
-    '<rootDir>/tests/unit/setup.ts'
+    '<rootDir>src/tests/unit/setup.ts'
   ],
   globals: {
     'ts-jest': {
