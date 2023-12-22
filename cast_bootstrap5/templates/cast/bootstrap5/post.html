@@ -43,19 +43,15 @@
 {% endblock %}
 
 {% block javascript %}
-  <!-- block.super needs to be below full jquery because otherwise jquery-slim would overwrite calls necessary for comments -->
   {{ block.super }}
   {% vite_hmr_client app="cast-bootstrap5" %}
   {% vite_asset 'src/gallery/image-gallery.ts' app="cast-bootstrap5" %}
 
-  <!-- recent jquery (not slim) is needed for fluent-comments -->
-  <script type="text/javascript" src="{% static 'fluent_comments/js/ajaxcomments.js' %}"></script>
-
-  <!-- block.super needs to be below full jquery because otherwise jquery-slim would overwrite calls necessary for comments -->
-  {{ block.super }}
+  <!-- full query is needed for comments -->
+  <script src="{% static 'cast_bootstrap5/js/jquery/jquery-3.7.1.min.js' %}"></script>
   <script type="text/javascript" src="{% static 'fluent_comments/js/ajaxcomments.js' %}"></script>
   {% if page.has_audio %}
-    <script src={% static 'cast/js/web-player/embed.4.js' %}></script>
+    <script src="{% static 'cast/js/web-player/embed.4.js' %}"></script>
     {% for pk, audio in page.media_lookup.audio.items %}
       <script>podlovePlayer("#audio_{{ audio.pk }}", "{{ audio.podlove_url }}");</script>
     {% endfor %}
