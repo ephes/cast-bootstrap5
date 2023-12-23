@@ -4,7 +4,7 @@ export default class ImageGalleryBs5 extends HTMLElement {
         this.currentImage = null;
 	}
     static register(tagName) {
-        console.log("Registering image-gallery from src - yes!");
+        console.log("Registering image-gallery-bs5!");
         if ("customElements" in window) {
             customElements.define(tagName || "image-gallery-bs5", ImageGalleryBs5);
         }
