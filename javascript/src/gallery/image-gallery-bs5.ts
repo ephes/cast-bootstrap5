@@ -6,7 +6,7 @@ export default class ImageGalleryBs5 extends HTMLElement {
     static register(tagName) {
         console.log("Registering image-gallery from src - yes!");
         if ("customElements" in window) {
-            customElements.define(tagName || "image-gallery", ImageGalleryBs5);
+            customElements.define(tagName || "image-gallery-bs5", ImageGalleryBs5);
         }
     }
     replaceImage (direction) {
@@ -119,4 +119,4 @@ export default class ImageGalleryBs5 extends HTMLElement {
 }
 
 // Define the new web component
-ImageGalleryBs5.register();
+ImageGalleryBs5.register("image-gallery-bs5");
