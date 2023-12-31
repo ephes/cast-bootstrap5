@@ -51,7 +51,7 @@
   <script defer src="{% static 'cast_bootstrap5/js/jquery/jquery-3.7.1.min.js' %}"></script>
   <script defer type="text/javascript" src="{% static 'fluent_comments/js/ajaxcomments.js' %}"></script>
   {% if page.has_audio %}
-    <script defer src="{% static 'cast/js/web-player/embed.4.js' %}"></script>
+    <script src="{% static 'cast/js/web-player/embed.4.js' %}"></script>
     {% for pk, audio in page.media_lookup.audio.items %}
       <script>podlovePlayer("#audio_{{ audio.pk }}", "{{ audio.podlove_url }}");</script>
     {% endfor %}
