@@ -22,7 +22,7 @@ Then, set the CRISPY_TEMPLATE_PACK and CRISPY_ALLOWED_TEMPLATE_PACKS like so:
 
 ```python
 INSTALLED_APPS = [
-    ...
+    ...,
     'crispy_forms',
     'crispy_bootstrap5',
     'cast_bootstrap5.apps.CastBootstrap5Config',
