@@ -12,6 +12,9 @@
     <meta name="robots" content="noindex">
   {% endif %}
   <link rel="canonical" href="{{ canonical_url }}">
+  {% if use_audio_player %}
+    <link rel="preconnect" href="https://cdn.podlove.org" />
+  {% endif %}
 {% endblock %}
 
 {% block content %}

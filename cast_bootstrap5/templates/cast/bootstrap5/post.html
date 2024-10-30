@@ -40,6 +40,9 @@
     todo
     <meta name="twitter:creator" content="@ephes">
   -->
+  {% if use_audio_player %}
+    <link rel="preconnect" href="https://cdn.podlove.org" />
+  {% endif %}
 {% endblock %}
 
 {% block body_class %}template-blogpage{% endblock %}
