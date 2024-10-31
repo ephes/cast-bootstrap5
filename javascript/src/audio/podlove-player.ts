@@ -86,6 +86,7 @@ class PodlovePlayerElement extends HTMLElement {
       if (hostname === 'localhost' && embedUrl.startsWith("/")) {
         embedUrl = `http://localhost:${port}${embedUrl}`;
       }
+      console.log("importing embed via url: ", embedUrl);
       // Dynamically load the Podlove player script
       import(embedUrl).then(() => {
         // Create a div with a unique ID inside the shadow DOM
