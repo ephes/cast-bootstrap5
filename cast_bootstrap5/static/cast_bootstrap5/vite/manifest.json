@@ -1,6 +1,12 @@
 {
+  "src/audio/podlove-player.ts": {
+    "file": "podlovePlayer-CIMEzcPv.js",
+    "name": "podlovePlayer",
+    "src": "src/audio/podlove-player.ts",
+    "isEntry": true
+  },
   "src/gallery/image-gallery-bs5.ts": {
-    "file": "main-iSh8k5Af.js",
+    "file": "main-aYuhvX1G.js",
     "name": "main",
     "src": "src/gallery/image-gallery-bs5.ts",
     "isEntry": true
