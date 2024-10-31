@@ -10,7 +10,7 @@ module.exports = {
     '^.+\\.ts$': 'ts-jest'
   },
   setupFiles: [
-    '<rootDir>src/tests/unit/setup.ts'
+    '<rootDir>src/tests/setup.ts'
   ],
   globals: {
     'ts-jest': {

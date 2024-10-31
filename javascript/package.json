@@ -1,6 +1,6 @@
 {
   "dependencies": {
-    "vite": "^5.2.8"
+    "vite": "^5"
   },
   "scripts": {
     "dev": "vite",
@@ -10,8 +10,9 @@
     "preview": "vite preview"
   },
   "devDependencies": {
-    "@vue/test-utils": "^2.4.5",
-    "jsdom": "^24.0.0",
-    "vitest": "^1.4.0"
+    "@testing-library/jest-dom": "^6",
+    "@vue/test-utils": "^2",
+    "jsdom": "^25",
+    "vitest": "^2"
   }
 }
