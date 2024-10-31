@@ -68,7 +68,7 @@ to the `cast_bootstrap5/static/cast_bootstrap5/vite` folder. Including
 the manifest file from `dist/.vite/manifest.json`.
 
 ```shell
-cp dist/main* ../cast_bootstrap5/static/cast_bootstrap5/vite
+cp dist/* ../cast_bootstrap5/static/cast_bootstrap5/vite
 cp dist/.vite/manifest.json ../cast_bootstrap5/static/cast_bootstrap5/vite
 ```
 
