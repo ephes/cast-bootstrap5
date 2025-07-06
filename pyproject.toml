@@ -1,13 +1,14 @@
 [build-system]
-requires = ["flit_core >=3.2,<4"]
-build-backend = "flit_core.buildapi"
+requires = ["uv_build>=0.7.19,<0.8.0"]
+build-backend = "uv_build"
 
 [project]
 name = "cast-bootstrap5"
+version = "0.0.58"
+description = "Bootstrap5 theme for django-cast"
 authors = [
     {name = "Jochen Wersdörfer", email = "jochen-castbootstrap5@wersdoerfer.de"},
 ]
-dynamic = ["version", "description"]
 requires-python = ">=3.10"
 keywords = [
     "blog",
@@ -68,8 +69,10 @@ dev = [
 Documentation = "https://cast-vue.readthedocs.io/en/latest/"
 Source = "https://github.com/ephes/cast-vue"
 
-[tool.flit.module]
-name = "cast_bootstrap5"
+
+[tool.uv.build-backend]
+module-root = ""
+module-name = "cast_bootstrap5"
 
 [tool.isort]
 profile = "black"
