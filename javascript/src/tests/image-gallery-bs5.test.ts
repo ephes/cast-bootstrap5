@@ -13,6 +13,11 @@ describe("image gallery test", () => {
         global.document = document;
         global.window = dom.window as any;
         global.HTMLElement = dom.window.HTMLElement;
+        global.customElements = dom.window.customElements;
+        global.Element = dom.window.Element;
+
+        // Register the custom element
+        ImageGalleryBs5.register("image-gallery-bs5");
     });
 
     afterEach(() => {
@@ -26,46 +31,52 @@ describe("image gallery test", () => {
     })
 
     test("gallery handles duplicate images correctly", () => {
-        // Create gallery HTML with duplicate images (same image used multiple times)
-        document.body.innerHTML = `
-            <image-gallery-bs5 id="gallery-test">
-                <div class="cast-gallery-container">
-                    <a class="cast-image-gallery-thumbnail">
-                        <picture>
-                            <img id="img-0" data-prev="false" data-next="img-1" alt="Image 1" />
-                        </picture>
-                    </a>
-                    <a class="cast-image-gallery-thumbnail">
-                        <picture>
-                            <img id="img-1" data-prev="img-0" data-next="img-2" alt="Image 2" />
-                        </picture>
-                    </a>
-                    <a class="cast-image-gallery-thumbnail">
-                        <picture>
-                            <img id="img-2" data-prev="img-1" data-next="img-3" alt="Duplicate of Image 1" />
-                        </picture>
-                    </a>
-                    <a class="cast-image-gallery-thumbnail">
-                        <picture>
-                            <img id="img-3" data-prev="img-2" data-next="img-4" alt="Image 3" />
-                        </picture>
-                    </a>
-                    <a class="cast-image-gallery-thumbnail">
-                        <picture>
-                            <img id="img-4" data-prev="img-3" data-next="false" alt="Duplicate of Image 2" />
-                        </picture>
-                    </a>
+        // Create gallery instance and set its content
+        const gallery = new ImageGalleryBs5();
+        gallery.id = "gallery-test";
+
+        gallery.innerHTML = `
+            <div class="cast-gallery-container">
+                <a class="cast-image-gallery-thumbnail" data-full="full-image.jpg">
+                    <picture>
+                        <source data-modal-srcset="test.jpg" />
+                        <img id="img-0" data-prev="false" data-next="img-1" alt="Image 1" />
+                    </picture>
+                </a>
+                <a class="cast-image-gallery-thumbnail" data-full="full-image.jpg">
+                    <picture>
+                        <source data-modal-srcset="test.jpg" />
+                        <img id="img-1" data-prev="img-0" data-next="img-2" alt="Image 2" />
+                    </picture>
+                </a>
+                <a class="cast-image-gallery-thumbnail" data-full="full-image.jpg">
+                    <picture>
+                        <source data-modal-srcset="test.jpg" />
+                        <img id="img-2" data-prev="img-1" data-next="img-3" alt="Duplicate of Image 1" />
+                    </picture>
+                </a>
+                <a class="cast-image-gallery-thumbnail" data-full="full-image.jpg">
+                    <picture>
+                        <source data-modal-srcset="test.jpg" />
+                        <img id="img-3" data-prev="img-2" data-next="img-4" alt="Image 3" />
+                    </picture>
+                </a>
+                <a class="cast-image-gallery-thumbnail" data-full="full-image.jpg">
+                    <picture>
+                        <source data-modal-srcset="test.jpg" />
+                        <img id="img-4" data-prev="img-3" data-next="false" alt="Duplicate of Image 2" />
+                    </picture>
+                </a>
+            </div>
+            <div id="gallery-test" class="modal">
+                <div class="modal-body">
+                    <a><picture><source /><img /></picture></a>
                 </div>
-                <div class="modal">
-                    <div class="modal-body">
-                        <picture><source /><img /></picture>
-                    </div>
-                    <div class="modal-footer"></div>
-                </div>
-            </image-gallery-bs5>
+                <div class="modal-footer"></div>
+            </div>
         `;
 
-        const gallery = document.querySelector("image-gallery-bs5") as ImageGalleryBs5;
+        document.body.appendChild(gallery);
 
         // Test navigation to each unique image using position-based IDs
         const img0 = document.querySelector("#img-0") as HTMLElement;
@@ -99,30 +110,34 @@ describe("image gallery test", () => {
     });
 
     test("gallery navigation buttons disabled correctly at boundaries", () => {
-        document.body.innerHTML = `
-            <image-gallery-bs5 id="gallery-test">
-                <div class="cast-gallery-container">
-                    <a class="cast-image-gallery-thumbnail">
-                        <picture>
-                            <img id="img-0" data-prev="false" data-next="img-1" alt="First" />
-                        </picture>
-                    </a>
-                    <a class="cast-image-gallery-thumbnail">
-                        <picture>
-                            <img id="img-1" data-prev="img-0" data-next="false" alt="Last" />
-                        </picture>
-                    </a>
+        // Create gallery instance and set its content
+        const gallery = new ImageGalleryBs5();
+        gallery.id = "gallery-test";
+
+        gallery.innerHTML = `
+            <div class="cast-gallery-container">
+                <a class="cast-image-gallery-thumbnail" data-full="full-image.jpg">
+                    <picture>
+                        <source data-modal-srcset="test.jpg" />
+                        <img id="img-0" data-prev="false" data-next="img-1" alt="First" />
+                    </picture>
+                </a>
+                <a class="cast-image-gallery-thumbnail" data-full="full-image.jpg">
+                    <picture>
+                        <source data-modal-srcset="test.jpg" />
+                        <img id="img-1" data-prev="img-0" data-next="false" alt="Last" />
+                    </picture>
+                </a>
+            </div>
+            <div id="gallery-test" class="modal">
+                <div class="modal-body">
+                    <a><picture><source /><img /></picture></a>
                 </div>
-                <div class="modal">
-                    <div class="modal-body">
-                        <picture><source /><img /></picture>
-                    </div>
-                    <div class="modal-footer"></div>
-                </div>
-            </image-gallery-bs5>
+                <div class="modal-footer"></div>
+            </div>
         `;
 
-        const gallery = document.querySelector("image-gallery-bs5") as ImageGalleryBs5;
+        document.body.appendChild(gallery);
         const firstImg = document.querySelector("#img-0") as HTMLElement;
         const lastImg = document.querySelector("#img-1") as HTMLElement;
 
