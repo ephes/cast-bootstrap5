@@ -4,18 +4,13 @@ build-backend = "uv_build"
 
 [project]
 name = "cast-bootstrap5"
-version = "0.0.60"
+version = "0.0.61"
 description = "Bootstrap5 theme for django-cast"
 authors = [
-    {name = "Jochen Wersdörfer", email = "jochen-castbootstrap5@wersdoerfer.de"},
+    { name = "Jochen Wersdörfer", email = "jochen-castbootstrap5@wersdoerfer.de" },
 ]
 requires-python = ">=3.10"
-keywords = [
-    "blog",
-    "podcast",
-    "video",
-    "audio"
-]
+keywords = ["blog", "podcast", "video", "audio"]
 classifiers = [
     "Environment :: Web Environment",
     "Framework :: Django",
@@ -36,21 +31,11 @@ classifiers = [
     "Topic :: Internet :: WWW/HTTP :: Dynamic Content",
 ]
 
-dependencies = [
-    "django-cast",
-    "crispy-bootstrap5",
-]
+dependencies = ["django-cast", "crispy-bootstrap5"]
 
 [project.optional-dependencies]
-test = [
-    "pytest >= 6",
-    "pytest-cov >= 3",
-    "pytest-django",
-    "pytest-mock",
-]
-doc = [
-    "furo",
-]
+test = ["pytest >= 6", "pytest-cov >= 3", "pytest-django", "pytest-mock"]
+doc = ["furo"]
 dev = [
     "black",
     "flake8",
@@ -90,9 +75,4 @@ filterwarnings = [
     "ignore::wagtail.utils.deprecation.RemovedInWagtail60Warning",
     "ignore::DeprecationWarning",
 ]
-addopts = [
-    "-ra",
-    "--reuse-db",
-    "--no-migrations",
-    "--randomly-seed=1234",
-]
+addopts = ["-ra", "--reuse-db", "--no-migrations", "--randomly-seed=1234"]
