@@ -18,6 +18,7 @@ export default defineConfig({
     host: "0.0.0.0",
     port: 5174,
     open: false,
+    cors: true,
     watch: {
       usePolling: true,
       disableGlobbing: false,
