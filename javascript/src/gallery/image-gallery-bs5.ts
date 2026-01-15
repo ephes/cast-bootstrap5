@@ -75,7 +75,7 @@ export default class ImageGalleryBs5 extends HTMLElement {
             { attr: "alt", prop: "alt" },
             { attr: "data-prev", prop: "data-prev" },
             { attr: "data-next", prop: "data-next" },
-            { attr: "data-fullsrc", prop: "src" },
+            { attr: "data-modal-src", prop: "src" },
             { attr: "data-modal-srcset", prop: "srcset" },
             { attr: "data-modal-sizes", prop: "sizes" },
             { attr: "data-modal-height", prop: "height"},
