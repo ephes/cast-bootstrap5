@@ -1,8 +1,10 @@
 export default class ImageGalleryBs5 extends HTMLElement {
     currentImage: HTMLElement | null;
+    currentModal: HTMLElement | null;
 	constructor () {
 		super();
         this.currentImage = null;
+        this.currentModal = null;
 	}
     static register(tagName: string):void {
         console.log("Registering image-gallery-bs5!");
@@ -22,7 +24,21 @@ export default class ImageGalleryBs5 extends HTMLElement {
             }
         }
     }
-    setModalImage(img: HTMLElement):void {
+    private resolveModal(link?: HTMLElement): HTMLElement | null {
+        if (link) {
+            const target = link.getAttribute("data-bs-target");
+            if (target) {
+                const modal = document.querySelector<HTMLElement>(target);
+                if (modal) {
+                    return modal;
+                }
+            }
+        }
+
+        return this.querySelector<HTMLElement>(".modal");
+    }
+
+    setModalImage(img: HTMLElement, modal?: HTMLElement | null):void {
         this.currentImage = img;
         if (!img.parentNode) {
             console.error("No parent node for image: ", img);
@@ -39,14 +55,20 @@ export default class ImageGalleryBs5 extends HTMLElement {
             console.error("No thumbnail source for picture: ", thumbnailPicture);
             return;
         }
-        const modalBody = this.querySelector(".modal-body");
+        const resolvedModal = modal ?? this.currentModal ?? this.resolveModal();
+        if (!resolvedModal) {
+            console.error("No modal for image gallery: ", this);
+            return;
+        }
+        this.currentModal = resolvedModal;
+        const modalBody = resolvedModal.querySelector(".modal-body");
         if (!modalBody) {
             console.error("No modal body for modal: ", this);
             return;
         }
         console.log("modalBody: ", modalBody)
         // console.log("modalBody parent.parent.parent: ", modalBody.parentNode.parentNode.parentNode);
-        const modalFooter = this.querySelector(".modal-footer");
+        const modalFooter = resolvedModal.querySelector(".modal-footer");
         if (!modalFooter) {
             console.error("No modal footer for modal: ", this);
             return;
@@ -116,12 +138,12 @@ export default class ImageGalleryBs5 extends HTMLElement {
 
     private handleThumbnailClick(event: Event) {
         event.preventDefault();
-        const target = event.target as HTMLElement;
         // Find the img element within the clicked link
         const link = event.currentTarget as HTMLElement;
         const img = link.querySelector('img');
         if (img) {
-            this.setModalImage(img);
+            const modal = this.resolveModal(link);
+            this.setModalImage(img, modal);
         } else {
             console.error("No img element found in clicked thumbnail");
         }
