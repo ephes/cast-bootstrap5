@@ -4,7 +4,7 @@ build-backend = "uv_build"
 
 [project]
 name = "cast-bootstrap5"
-version = "0.0.67"
+version = "0.0.68"
 description = "Bootstrap5 theme for django-cast"
 authors = [
     { name = "Jochen Wersdörfer", email = "jochen-castbootstrap5@wersdoerfer.de" },
