@@ -39,14 +39,14 @@ export default class ImageGalleryBs5 extends HTMLElement {
             console.error("No thumbnail source for picture: ", thumbnailPicture);
             return;
         }
-        const modalBody = this.querySelector(`#${this.id} .modal-body`);
+        const modalBody = this.querySelector(".modal-body");
         if (!modalBody) {
             console.error("No modal body for modal: ", this);
             return;
         }
         console.log("modalBody: ", modalBody)
         // console.log("modalBody parent.parent.parent: ", modalBody.parentNode.parentNode.parentNode);
-        const modalFooter = this.querySelector(`#${this.id} .modal-footer`);
+        const modalFooter = this.querySelector(".modal-footer");
         if (!modalFooter) {
             console.error("No modal footer for modal: ", this);
             return;
