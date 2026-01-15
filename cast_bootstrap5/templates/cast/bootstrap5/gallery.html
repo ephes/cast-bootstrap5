@@ -2,7 +2,9 @@
   <div class="cast-gallery-container">
     {% for image in images %}
       <a
+        href="{{ image.file.url }}"
         class="cast-image-gallery-thumbnail"
+        aria-label="{% if image.default_alt_text %}Open image: {{ image.default_alt_text }}{% else %}Open image{% endif %}"
         data-full="{{ image.file.url }}"
         data-bs-toggle="modal"
         data-bs-target="#imageGalleryModal-{{ block.id }}"
@@ -33,6 +35,7 @@
             data-prev="{% if forloop.first %}false{% else %}img-{{ block.id }}-{{ forloop.counter0|add:"-1" }}{% endif %}"
             data-next="{% if forloop.last %}false{% else %}img-{{ block.id }}-{{ forloop.counter0|add:"1" }}{% endif %}"
             loading="lazy"
+            decoding="async"
           />
         </picture>
       </a>
@@ -48,7 +51,7 @@
             </button>
           </div>
           <div class="modal-body cast-gallery-body">
-            <a href="#">
+            <a href="{% if images %}{{ images.0.file.url }}{% else %}#{% endif %}" aria-label="Open full-size image">
               {% with placeholder_src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==" %}
                 <picture class="modal-picture">
                   <source class="modal-source" srcset="{{ placeholder_src }} 1w" sizes="1px" type="image/avif">
@@ -58,6 +61,8 @@
                     src="{{ placeholder_src }}"
                     srcset="{{ placeholder_src }} 1w"
                     sizes="1px"
+                    loading="lazy"
+                    decoding="async"
                   >
                 </picture>
               {% endwith %}

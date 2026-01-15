@@ -75,7 +75,9 @@
   {{ block.super }}
   {% vite_hmr_client app="cast-bootstrap5" %}
   {% vite_asset 'src/gallery/image-gallery-bs5.ts' app="cast-bootstrap5" %}
-  {% vite_asset 'src/audio/podlove-player.ts' app="cast-bootstrap5" %}
+  {% if use_audio_player %}
+    {% vite_asset 'src/audio/podlove-player.ts' app="cast-bootstrap5" %}
+  {% endif %}
 
   <!-- full query is needed for comments -->
   <script defer src="{% static 'cast_bootstrap5/js/jquery/jquery-3.7.1.min.js' %}"></script>

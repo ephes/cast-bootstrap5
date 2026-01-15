@@ -168,6 +168,11 @@
     justify-content: space-between;
 }
 
+#paging-area {
+    content-visibility: auto;
+    contain-intrinsic-size: 1px 1200px;
+}
+
 .cast-date-facet-container {
     display: flex;
     flex-wrap: wrap;

@@ -63,7 +63,7 @@
       <div class="card">
         <div class="card-header" id="headingOne">
           <h2 class="mb-0 h5">
-            <button class="btn btn-link text-dark" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-expanded="false" aria-controls="collapseOne">
+            <button class="btn btn-link link-dark text-decoration-none" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-expanded="false" aria-controls="collapseOne">
               Filters / Fulltext-Search
             </button>
           </h2>
@@ -99,5 +99,7 @@
   {{ block.super }}
   {% vite_hmr_client app="cast-bootstrap5" %}
   {% vite_asset 'src/gallery/image-gallery-bs5.ts' app="cast-bootstrap5" %}
-  {% vite_asset 'src/audio/podlove-player.ts' app="cast-bootstrap5" %}
+  {% if use_audio_player %}
+    {% vite_asset 'src/audio/podlove-player.ts' app="cast-bootstrap5" %}
+  {% endif %}
 {% endblock javascript %}
