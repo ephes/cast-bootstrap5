@@ -1,11 +1,47 @@
 {% extends "./base.html" %}
+{% load i18n %}
+
+{% block title %}
+  {% if episode %}
+    {% blocktrans with title=episode.title %}Transcript: {{ title }}{% endblocktrans %}
+  {% else %}
+    {% translate "Transcript" %}
+  {% endif %}
+{% endblock title %}
 
 {% block content %}
-  {% for segment in transcript.transcripts %}
-    <div class="transcript-segment">
-      {{ segment.start }}
-      {{ segment.text }}
-      {{ segment.end }}
-    </div>
-  {% endfor %}
+  <article class="transcript">
+    <header class="mb-4">
+      <h1 class="h3">
+        {% if episode %}
+          {% blocktrans with title=episode.title %}Transcript: {{ title }}{% endblocktrans %}
+        {% else %}
+          {% translate "Transcript" %}
+        {% endif %}
+      </h1>
+      {% if episode %}
+        <p class="text-body-secondary">
+          <time datetime="{{ episode.visible_date|date:"c" }}">{{ episode.visible_date|date }}</time>
+          · <a href="{{ episode_url|default:episode.url }}">{% translate "Back to episode" %}</a>
+        </p>
+      {% endif %}
+    </header>
+    {% if transcript.transcripts %}
+      {% for segment in transcript.transcripts %}
+        <div class="transcript-segment mb-3">
+          <div class="d-flex flex-wrap gap-2 small text-body-secondary">
+            {% if segment.speaker %}
+              <span class="transcript-speaker fw-semibold">{{ segment.speaker }}</span>
+            {% endif %}
+            {% if segment.start %}
+              <time datetime="{{ segment.start }}">{{ segment.start }}</time>
+            {% endif %}
+          </div>
+          <div class="transcript-text">{{ segment.text }}</div>
+        </div>
+      {% endfor %}
+    {% else %}
+      <p>{% translate "No transcript segments available." %}</p>
+    {% endif %}
+  </article>
 {% endblock content %}
