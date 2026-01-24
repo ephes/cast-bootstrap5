@@ -56,7 +56,7 @@ describe('PodlovePlayerElement', () => {
     const element = document.createElement('podlove-player');
     document.body.appendChild(element);
 
-    const container = element.shadowRoot.querySelector('.podlove-player-container');
+    const container = element.querySelector('.podlove-player-container');
     expect(container).not.toBeNull();
   });
 
@@ -94,7 +94,7 @@ describe('PodlovePlayerElement', () => {
 
     // Check that podlovePlayer was called
     expect(global.podlovePlayer).toHaveBeenCalledWith(
-      element.shadowRoot.querySelector(`#${element.getAttribute('id')}`),
+      `#${element.getAttribute('id')}-player`,
       '/api/audios/podlove/63/post/75/',
       '/api/audios/player_config/'
     );
