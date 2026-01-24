@@ -35,16 +35,9 @@
                   <a class="nav-link" href="{{ link }}">{{ text }}</a>
                 </li>
               {% endfor %}
-              <li class="nav-item dropdown">
-                <button class="btn btn-dark dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
-                  Select Theme ({{ cast_site_template_base_dir}})
-                </button>
-                <ul class="dropdown-menu dropdown-menu-dark">
-                  <li><a class="dropdown-item" href="#">Action</a></li>
-                  <li><a class="dropdown-item" href="#">Another action</a></li>
-                  <li><a class="dropdown-item" href="#">Something else here</a></li>
-                </ul>
-              </li>
+              {% if has_selectable_themes %}
+                {% include "./select_theme.html" %}
+              {% endif %}
             </ul>
           </div>
         </div>
