@@ -4,10 +4,48 @@ declare const podlovePlayer:
   | undefined;
 
 let embedScriptPromise: Promise<void> | null = null;
+let playerInstanceCounter = 0;
+let pageLoadPromise: Promise<void> | null = null;
+let sharedObserver: IntersectionObserver | null = null;
 const EMBED_SCRIPT_ATTR = "data-podlove-embed";
 const EMBED_SCRIPT_LOADED_ATTR = "data-podlove-embed-loaded";
 const EMBED_SCRIPT_FAILED_ATTR = "data-podlove-embed-failed";
 const PLAYER_STYLE_ID = "podlove-player-styles";
+
+function waitForPageLoad(): Promise<void> {
+  if (document.readyState === "complete") {
+    return Promise.resolve();
+  }
+
+  if (!pageLoadPromise) {
+    pageLoadPromise = new Promise((resolve) => {
+      window.addEventListener("load", () => resolve(), { once: true });
+    });
+  }
+
+  return pageLoadPromise;
+}
+
+function getSharedObserver(): IntersectionObserver {
+  if (!sharedObserver) {
+    sharedObserver = new IntersectionObserver((entries, observer) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) {
+          return;
+        }
+
+        const target = entry.target;
+        if (target instanceof PodlovePlayerElement) {
+          target.initializePlayer();
+        }
+
+        observer.unobserve(target);
+      });
+    });
+  }
+
+  return sharedObserver;
+}
 
 function loadEmbedScript(embedUrl: string): Promise<void> {
   if (typeof podlovePlayer === "function") {
@@ -75,31 +113,30 @@ function loadEmbedScript(embedUrl: string): Promise<void> {
 }
 class PodlovePlayerElement extends HTMLElement {
   observer: IntersectionObserver | null;
+  isInitialized: boolean;
   playerDiv: HTMLDivElement | null;
 
   constructor() {
     super();
     this.observer = null;
+    this.isInitialized = false;
     this.playerDiv = null;
   }
 
   connectedCallback() {
     this.renderPlaceholder();
 
-    if (document.readyState === 'complete') {
-      // The page is already fully loaded
+    if (document.readyState === "complete") {
       this.observeElement();
-    } else {
-      // Wait for the 'load' event before initializing
-      window.addEventListener('load', () => {
-        this.observeElement();
-      }, { once: true });
+      return;
     }
+
+    waitForPageLoad().then(() => this.observeElement());
   }
 
   disconnectedCallback() {
     if (this.observer) {
-      this.observer.disconnect();
+      this.observer.unobserve(this);
     }
   }
 
@@ -141,18 +178,15 @@ class PodlovePlayerElement extends HTMLElement {
   }
 
   observeElement() {
-    this.observer = new IntersectionObserver((entries, observer) => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          this.initializePlayer();
-          observer.unobserve(this);
-        }
-      });
-    });
+    this.observer = getSharedObserver();
     this.observer.observe(this);
   }
 
   initializePlayer() {
+    if (this.isInitialized) {
+      return;
+    }
+
     const container = this.querySelector('.podlove-player-container');
     if (!container) {
       return;
@@ -163,23 +197,28 @@ class PodlovePlayerElement extends HTMLElement {
       audioId = `podlove-player-${Date.now()}`;
       this.setAttribute('id', audioId);
     }
-    const playerId = `${audioId}-player`;
+    if (!this.dataset.playerInstanceId) {
+      playerInstanceCounter += 1;
+      this.dataset.playerInstanceId = String(playerInstanceCounter);
+    }
+    const playerId = `${audioId}-player-${this.dataset.playerInstanceId}`;
 
     const url = this.getAttribute('data-url');
     if (!url) {
       return;
     }
+    this.isInitialized = true;
     const configUrl = this.getAttribute('data-config') || '/api/audios/player_config/';
     const podloveTemplate = this.getAttribute('data-template');
     let embedUrl = this.getAttribute('data-embed') || 'https://cdn.podlove.org/web-player/5.x/embed.js';
 
     // If host is localhost use local embed url
     const { hostname, port } = window.location;
-    this.getOrCreatePlayerDiv(container, playerId, podloveTemplate);
+    const playerHost = this.getOrCreatePlayerDiv(container, playerId, podloveTemplate);
 
     if (typeof podlovePlayer === 'function') {
       // Initialize existing Podlove player
-      podlovePlayer(`#${playerId}`, url, configUrl);
+      podlovePlayer(playerHost, url, configUrl);
     } else {
       // If in dev mode on localhost and embedUrl starts with a slash, use the local embedUrl
       // otherwise the vite url 5173 will be used -> which will not work
@@ -189,12 +228,13 @@ class PodlovePlayerElement extends HTMLElement {
       loadEmbedScript(embedUrl)
         .then(() => {
           if (typeof podlovePlayer === "function") {
-            podlovePlayer(`#${playerId}`, url, configUrl);
+            podlovePlayer(playerHost, url, configUrl);
             return;
           }
           throw new Error("Podlove embed script did not register.");
         })
         .catch(() => {
+          this.isInitialized = false;
           // Intentionally silent: the placeholder remains and avoids console spam.
         });
     }
@@ -222,5 +262,4 @@ class PodlovePlayerElement extends HTMLElement {
   }
 }
 
-console.log("Registering podlove-player!");
 customElements.define('podlove-player', PodlovePlayerElement);

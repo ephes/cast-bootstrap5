@@ -93,8 +93,10 @@ describe('PodlovePlayerElement', () => {
     observerInstance.callback(entries, observerInstance);
 
     // Check that podlovePlayer was called
+    const playerHost = element.querySelector('.podlove-player-host') as HTMLDivElement | null;
+    expect(playerHost).not.toBeNull();
     expect(global.podlovePlayer).toHaveBeenCalledWith(
-      `#${element.getAttribute('id')}-player`,
+      playerHost,
       '/api/audios/podlove/63/post/75/',
       '/api/audios/player_config/'
     );
@@ -149,14 +151,34 @@ describe('PodlovePlayerElement', () => {
     unobserveSpy.mockRestore();
   });
 
-  it('should disconnect the observer when the element is removed', () => {
-    const disconnectSpy = vi.spyOn(IntersectionObserver.prototype, 'disconnect');
+  it('should not reinitialize the player when reattached', () => {
+    const element = document.createElement('podlove-player');
+    element.setAttribute('id', 'audio_63');
+    element.setAttribute('data-url', '/api/audios/podlove/63/post/75/');
+    document.body.appendChild(element);
+
+    const observerInstance = element.observer as IntersectionObserverMock;
+    observerInstance.trigger([{ isIntersecting: true, target: element } as IntersectionObserverEntry]);
+
+    expect(globalThis.podlovePlayer).toHaveBeenCalledTimes(1);
+
+    document.body.removeChild(element);
+    document.body.appendChild(element);
+
+    const reattachObserver = element.observer as IntersectionObserverMock;
+    reattachObserver.trigger([{ isIntersecting: true, target: element } as IntersectionObserverEntry]);
+
+    expect(globalThis.podlovePlayer).toHaveBeenCalledTimes(1);
+  });
+
+  it('should unobserve the element when it is removed', () => {
+    const unobserveSpy = vi.spyOn(IntersectionObserver.prototype, 'unobserve');
 
     const element = document.createElement('podlove-player');
     document.body.appendChild(element);
     document.body.removeChild(element);
 
-    expect(disconnectSpy).toHaveBeenCalled();
-    disconnectSpy.mockRestore();
+    expect(unobserveSpy).toHaveBeenCalledWith(element);
+    unobserveSpy.mockRestore();
   });
 });
