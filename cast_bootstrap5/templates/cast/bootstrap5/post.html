@@ -57,7 +57,7 @@
 {% block title %}{% if page.seo_title %}{{ page.seo_title }}{% else %}{{ page.title }}{% endif %}{% endblock title %}
 
 {% block content %}
-  <main>
+  <article>
     {% include "./post_body.html" with render_detail=True %}
 
     {% if comments_are_enabled %}
@@ -66,8 +66,8 @@
     {% endif %}
 
 
-    <p><a href="{{ blog_url }}">Return to blog</a></p>
-  </main>
+    <p><a class="return-to-blog" href="{{ blog_url }}">Return to blog</a></p>
+  </article>
 
 {% endblock %}
 

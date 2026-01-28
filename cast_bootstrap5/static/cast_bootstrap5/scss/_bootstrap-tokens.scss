@@ -150,12 +150,41 @@
 .form-control,
 .form-select {
   --bs-border-color: var(--cast-border);
+  background-color: var(--cast-surface);
+  color: var(--cast-text);
 }
 
 .form-control:focus,
 .form-select:focus {
   border-color: var(--cast-accent);
   box-shadow: 0 0 0 0.25rem var(--bs-focus-ring-color);
+}
+
+// Form select dropdown option styling (native browser behavior)
+// Note: Native select options cannot be fully styled in CSS
+// But we can style the select element itself
+.form-select option {
+  background-color: var(--cast-surface);
+  color: var(--cast-text);
+}
+
+.form-select option:checked,
+.form-select option:hover {
+  background-color: var(--cast-accent);
+  color: #fff;
+}
+
+// Dark mode form controls
+[data-bs-theme="dark"] .form-control,
+[data-bs-theme="dark"] .form-select {
+  background-color: var(--cast-surface);
+  color: var(--cast-text);
+  border-color: var(--cast-border);
+}
+
+[data-bs-theme="dark"] .form-select option {
+  background-color: var(--cast-surface);
+  color: var(--cast-text);
 }
 
 // -----------------------------------------------------------------------------
@@ -224,6 +253,41 @@
   --bs-accordion-btn-focus-box-shadow: 0 0 0 0.25rem var(--bs-focus-ring-color);
   --bs-accordion-active-bg: var(--cast-bg-alt);
   --bs-accordion-active-color: var(--cast-text);
+}
+
+// Dark mode accordion - ensure text is visible
+[data-bs-theme="dark"] .accordion {
+  --bs-accordion-btn-color: var(--cast-text);
+  --bs-accordion-active-color: var(--cast-text);
+  --bs-accordion-color: var(--cast-text);
+}
+
+// Force accordion button text color in dark mode (Bootstrap override)
+[data-bs-theme="dark"] .accordion-button {
+  color: var(--cast-text) !important;
+}
+
+[data-bs-theme="dark"] .accordion-button:not(.collapsed) {
+  color: var(--cast-text) !important;
+  background-color: var(--cast-bg-alt);
+}
+
+// Dark mode for Bootstrap 4-style collapse toggle (used in filters)
+// The template uses .btn.btn-link.link-dark inside #accordion
+// Scoped to #accordion to avoid affecting other .link-dark usage
+[data-bs-theme="dark"] #accordion .btn-link,
+[data-bs-theme="dark"] #accordion .link-dark {
+  color: var(--cast-text) !important;
+}
+
+[data-bs-theme="dark"] #accordion .card {
+  background-color: var(--cast-surface);
+  border-color: var(--cast-border);
+}
+
+[data-bs-theme="dark"] #accordion .card-header {
+  background-color: var(--cast-bg-alt);
+  border-color: var(--cast-border);
 }
 
 // -----------------------------------------------------------------------------

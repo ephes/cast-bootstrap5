@@ -30,6 +30,50 @@
 }
 
 // -----------------------------------------------------------------------------
+// Content Flow Spacing
+// -----------------------------------------------------------------------------
+// Consistent vertical rhythm for content blocks
+// Target actual template structure: article > section.block-overview/detail > section.block-*
+.post-content,
+.content-body,
+article .block-overview,
+article .block-detail {
+  // Base spacing for direct children (paragraphs, etc.)
+  > * + * {
+    margin-top: var(--cast-spacer-3);
+  }
+
+  // Section-to-section spacing (1.5rem) - higher specificity to override above
+  > section + section {
+    margin-top: var(--cast-spacer-4);
+  }
+
+  // Larger spacing after media sections
+  > section.block-gallery + section,
+  > section.block-video + section,
+  > section.block-image + section {
+    margin-top: var(--cast-spacer-4);
+  }
+}
+
+// Spacing inside content sections
+section.block-paragraph,
+section.block-code,
+section.block-heading {
+  > * + * {
+    margin-top: var(--cast-spacer-3);
+  }
+}
+
+// Comment section spacing
+.comments-section,
+#comments {
+  margin-top: var(--cast-spacer-5);
+  padding-top: var(--cast-spacer-4);
+  border-top: 1px solid var(--cast-border);
+}
+
+// -----------------------------------------------------------------------------
 // Images
 // -----------------------------------------------------------------------------
 .cast-image {
@@ -40,11 +84,16 @@
   border-radius: var(--cast-border-radius);
 }
 
+.cast-image-container {
+  margin-bottom: var(--cast-spacer-3);
+}
+
 // -----------------------------------------------------------------------------
 // Gallery
 // -----------------------------------------------------------------------------
 .cast-gallery-container {
-  padding: 30px 0 0 0;
+  padding-top: var(--cast-spacer-3);
+  padding-bottom: var(--cast-spacer-3);
 }
 
 .cast-gallery-content {
@@ -106,33 +155,87 @@
   max-height: 800px;
   max-width: 100%;
   border-radius: var(--cast-border-radius);
+  margin-bottom: var(--cast-spacer-3);
+}
+
+video {
+  margin-bottom: var(--cast-spacer-3);
 }
 
 // -----------------------------------------------------------------------------
-// Feeds
+// Feeds / RSS Links
 // -----------------------------------------------------------------------------
 .cast-feeds-container {
   display: flex;
   flex-flow: row wrap;
-  justify-content: space-around;
-  gap: 0.5rem;
+  justify-content: flex-start;
+  gap: 0.75rem;
+  margin-bottom: var(--cast-spacer-3);
 }
 
 .cast-feed-item {
   display: inline-flex;
   align-items: center;
-  gap: 0.25rem;
-  color: var(--cast-text-muted);
-  transition: color var(--cast-transition-fast);
+  gap: 0.375rem;
+  padding: 0.25rem 0.75rem;
+  font-size: var(--cast-font-size-sm);
+  background-color: var(--cast-bg-alt);
+  border: 1px solid var(--cast-border);
+  border-radius: 2rem;
+  transition: all var(--cast-transition-fast);
+
+  // Style the inner link
+  a {
+    color: var(--cast-text-muted);
+    text-decoration: none;
+  }
 
   &:hover {
-    color: var(--cast-accent);
+    border-color: var(--cast-accent);
+    background-color: var(--cast-accent-light);
+
+    a {
+      color: var(--cast-accent);
+      text-decoration: none;
+    }
   }
 }
 
 .cast-feed-icon {
-  width: 1em;
-  height: 1em;
+  width: 0.875em;
+  height: 0.875em;
+  color: var(--cast-accent);
+}
+
+// -----------------------------------------------------------------------------
+// Return to Blog Link
+// -----------------------------------------------------------------------------
+.return-to-blog,
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  font-weight: var(--cast-font-weight-medium);
+  color: var(--cast-text);
+  background-color: var(--cast-bg-alt);
+  border: 1px solid var(--cast-border);
+  border-radius: var(--cast-border-radius);
+  text-decoration: none;
+  transition: all var(--cast-transition-fast);
+
+  &:hover {
+    background-color: var(--cast-surface);
+    border-color: var(--cast-accent);
+    color: var(--cast-accent);
+    text-decoration: none;
+  }
+
+  // Arrow icon before the link text
+  &::before {
+    content: "←";
+    margin-right: 0.25rem;
+  }
 }
 
 // -----------------------------------------------------------------------------
@@ -171,8 +274,31 @@
   }
 }
 
+// Post/Episode detail page title
+.post-title {
+  font-size: 1.75rem;
+  font-weight: var(--cast-font-weight-bold);
+  margin-bottom: 0.5rem;
+  color: var(--cast-text);
+
+  a {
+    color: var(--cast-text);
+    text-decoration: none;
+
+    &:hover {
+      color: var(--cast-accent);
+    }
+  }
+
+  // Ensure dark mode contrast
+  [data-bs-theme="dark"] & a {
+    color: var(--cast-text);
+  }
+}
+
+// Post card title in list views
 .post-card-title {
-  font-size: 1.5rem;
+  font-size: 1.375rem;
   font-weight: var(--cast-font-weight-semibold);
   margin-bottom: 0.5rem;
 
@@ -184,6 +310,18 @@
       color: var(--cast-accent);
     }
   }
+
+  // Ensure dark mode contrast
+  [data-bs-theme="dark"] & a {
+    color: var(--cast-text);
+  }
+}
+
+// Blog/Podcast index page title
+.blog-title {
+  font-size: 1.75rem;
+  font-weight: var(--cast-font-weight-bold);
+  margin-bottom: var(--cast-spacer-3);
 }
 
 .post-card-meta {
@@ -320,6 +458,17 @@ podlove-player {
   }
 }
 
+// Add spacing below sticky navbar for main content
+.navbar-sticky + main,
+.navbar-sticky ~ main {
+  padding-top: var(--cast-spacer-4);
+}
+
+// Direct main content padding when using sticky navbar
+main#main-content {
+  padding-top: var(--cast-spacer-3);
+}
+
 // Theme selector styling
 .theme-selector {
   .dropdown-toggle {
@@ -338,6 +487,28 @@ podlove-player {
     width: 1.25rem;
     height: 1.25rem;
   }
+}
+
+// Theme toggle button in navbar - ensure proper dark mode styling
+#colorModeToggle {
+  background-color: transparent;
+  border: none;
+  color: var(--cast-text);
+
+  &:hover {
+    color: var(--cast-accent);
+  }
+}
+
+// Ensure dropdown toggle doesn't have unwanted background in dark mode
+[data-bs-theme="dark"] .nav-link.dropdown-toggle {
+  background-color: transparent;
+}
+
+// Theme icon visibility - let JS control which icon shows
+.theme-icon-active {
+  width: 1em;
+  height: 1em;
 }
 
 // -----------------------------------------------------------------------------

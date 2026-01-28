@@ -65,28 +65,62 @@ h1, h2, h3, h4, h5, h6,
 }
 
 h1, .h1 {
-  font-size: 2.5rem;
+  font-size: 2rem;
   font-weight: var(--cast-font-weight-bold);
 }
 
 h2, .h2 {
-  font-size: 2rem;
-}
-
-h3, .h3 {
   font-size: 1.75rem;
 }
 
-h4, .h4 {
+h3, .h3 {
   font-size: 1.5rem;
 }
 
-h5, .h5 {
+h4, .h4 {
   font-size: 1.25rem;
+}
+
+h5, .h5 {
+  font-size: 1.125rem;
 }
 
 h6, .h6 {
   font-size: 1rem;
+}
+
+// -----------------------------------------------------------------------------
+// Post/Article Content Headings
+// -----------------------------------------------------------------------------
+// Headings within post content should be smaller than the post title itself
+// to maintain proper visual hierarchy
+.post-content,
+.content-body,
+article .block-paragraph,
+article .block-heading {
+  h1, .h1 {
+    font-size: 1.5rem;
+  }
+
+  h2, .h2 {
+    font-size: 1.375rem;
+  }
+
+  h3, .h3 {
+    font-size: 1.25rem;
+  }
+
+  h4, .h4 {
+    font-size: 1.125rem;
+  }
+
+  h5, .h5 {
+    font-size: 1rem;
+  }
+
+  h6, .h6 {
+    font-size: 0.875rem;
+  }
 }
 
 // -----------------------------------------------------------------------------
@@ -165,6 +199,33 @@ blockquote,
   p:last-child {
     margin-bottom: 0;
   }
+}
+
+// Fix for consecutive blockquotes (common when markdown blockquotes are
+// rendered as separate elements for each line)
+// Use higher specificity to override flow spacing rules
+blockquote + blockquote,
+.blockquote + .blockquote,
+section blockquote + blockquote,
+article blockquote + blockquote {
+  margin-top: -1.25rem !important; // Pull up to overlap with previous blockquote
+  padding-top: 0.25rem; // Reduce top padding since we're connected
+  border-radius: 0 0 var(--cast-border-radius) 0; // Only round bottom corners
+}
+
+// First blockquote in a consecutive series should only round top corners
+// Note: :has() not supported in older Safari/Firefox - graceful degradation
+blockquote:has(+ blockquote),
+.blockquote:has(+ .blockquote) {
+  margin-bottom: 0;
+  padding-bottom: 0.25rem;
+  border-radius: 0 var(--cast-border-radius) 0 0;
+}
+
+// Middle blockquotes in a series - no rounded corners
+blockquote + blockquote:has(+ blockquote),
+.blockquote + .blockquote:has(+ .blockquote) {
+  border-radius: 0;
 }
 
 .blockquote-footer {

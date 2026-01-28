@@ -3,8 +3,8 @@
 
 <article>
   <header>
-    <h2>
-      <a class="link-body-emphasis text-decoration-none" href="{{ page.page_url }}">{{ page.title }}</a>
+    <h2 class="{% if render_detail %}post-title{% else %}post-card-title{% endif %}">
+      <a href="{{ page.page_url }}">{{ page.title }}</a>
       {% if render_for_feed and comments_are_enabled %}
         {% translate "(click here to comment)" %}
       {% endif %}

@@ -20,7 +20,7 @@
 {% block content %}
   <div class="cast-post-list-header">
     <div>
-      <h1 class="display-3">{{ page.title }}</h1>
+      <h1 class="blog-title">{{ page.title }}</h1>
       <div class="intro lead">{{ page.description|richtext }}</div>
     </div>
 
@@ -82,12 +82,12 @@
   <hr class="my-4">
 
   <div id="paging-area">
-    <main>
+    <div class="post-list">
       {% for post in posts %}
         {% include "./post_body.html" with render_detail=False page=post %}
         <hr class="my-4">
       {% endfor %}
-    </main>
+    </div>
 
     <footer>
       {% include "./pagination.html" %}
