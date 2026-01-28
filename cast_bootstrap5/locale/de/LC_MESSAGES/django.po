@@ -1,0 +1,218 @@
+# German translations for cast-bootstrap5.
+# Copyright (C) 2026 Jochen Wersdörfer
+# This file is distributed under the same license as the cast-bootstrap5 package.
+# Jochen Wersdörfer <jochen-castbootstrap5@wersdoerfer.de>, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: cast-bootstrap5 0.0.74\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-01-28 18:22+0100\n"
+"PO-Revision-Date: 2026-01-28 18:30+0100\n"
+"Last-Translator: Jochen Wersdörfer <jochen-castbootstrap5@wersdoerfer.de>\n"
+"Language-Team: German\n"
+"Language: de\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: templates/cast/bootstrap5/base.html:43
+msgid "Skip to content"
+msgstr "Zum Inhalt springen"
+
+#: templates/cast/bootstrap5/post_body.html:9
+msgid "(click here to comment)"
+msgstr "(hier klicken, um zu kommentieren)"
+
+#: templates/cast/bootstrap5/post_body.html:35
+msgid "View transcript"
+msgstr "Transkript anzeigen"
+
+#: templates/cast/bootstrap5/select_theme.html:5
+#: templates/cast/bootstrap5/styleguide/index.html:21
+msgid "Toggle color mode"
+msgstr "Farbmodus wechseln"
+
+#: templates/cast/bootstrap5/select_theme.html:22
+#: templates/cast/bootstrap5/styleguide/index.html:39
+#: templates/cast/bootstrap5/styleguide/index.html:76
+msgid "Light"
+msgstr "Hell"
+
+#: templates/cast/bootstrap5/select_theme.html:33
+#: templates/cast/bootstrap5/styleguide/index.html:50
+#: templates/cast/bootstrap5/styleguide/index.html:76
+msgid "Dark"
+msgstr "Dunkel"
+
+#: templates/cast/bootstrap5/select_theme.html:44
+#: templates/cast/bootstrap5/styleguide/index.html:61
+#: templates/cast/bootstrap5/styleguide/index.html:76
+msgid "Auto"
+msgstr "Automatisch"
+
+#: templates/cast/bootstrap5/select_theme.html:52
+msgid "Theme"
+msgstr "Thema"
+
+#: templates/cast/bootstrap5/styleguide/_transcript.html:7
+#: templates/cast/bootstrap5/transcript.html:6
+#: templates/cast/bootstrap5/transcript.html:17
+#, python-format
+msgid "Transcript: %(title)s"
+msgstr "Transkript: %(title)s"
+
+#: templates/cast/bootstrap5/styleguide/_transcript.html:9
+#: templates/cast/bootstrap5/transcript.html:8
+#: templates/cast/bootstrap5/transcript.html:19
+#: templates/cast/bootstrap5/styleguide/sections.html:94
+msgid "Transcript"
+msgstr "Transkript"
+
+#: templates/cast/bootstrap5/styleguide/_transcript.html:15
+#: templates/cast/bootstrap5/transcript.html:25
+msgid "Back to episode"
+msgstr "Zurück zur Episode"
+
+#: templates/cast/bootstrap5/styleguide/_transcript.html:18
+#: templates/cast/bootstrap5/transcript.html:28
+msgid "Full episode transcript. Timestamps refer to the audio playback."
+msgstr "Vollständiges Transkript der Episode. Zeitstempel beziehen sich auf die Audiowiedergabe."
+
+#: templates/cast/bootstrap5/styleguide/_transcript.html:37
+#: templates/cast/bootstrap5/transcript.html:47
+msgid "No transcript segments available."
+msgstr "Keine Transkript-Abschnitte verfügbar."
+
+#: templates/cast/bootstrap5/styleguide/index.html:6
+msgid "Styleguide"
+msgstr "Styleguide"
+
+#: templates/cast/bootstrap5/styleguide/sections.html:6
+msgid "Typography"
+msgstr "Typografie"
+
+#: templates/cast/bootstrap5/styleguide/sections.html:7
+msgid "Lead paragraph to show rhythm and spacing."
+msgstr "Einleitender Absatz zur Darstellung von Rhythmus und Abständen."
+
+#: templates/cast/bootstrap5/styleguide/sections.html:9
+msgid "Body text with"
+msgstr "Fließtext mit"
+
+#: templates/cast/bootstrap5/styleguide/sections.html:10
+msgid "inline link"
+msgstr "eingebettetem Link"
+
+#: templates/cast/bootstrap5/styleguide/sections.html:11
+msgid "emphasis"
+msgstr "Hervorhebung"
+
+#: templates/cast/bootstrap5/styleguide/sections.html:12
+msgid "italics"
+msgstr "Kursivschrift"
+
+#: templates/cast/bootstrap5/styleguide/sections.html:16
+msgid "Unordered list item"
+msgstr "Ungeordneter Listenpunkt"
+
+#: templates/cast/bootstrap5/styleguide/sections.html:17
+msgid "Another list item"
+msgstr "Ein weiterer Listenpunkt"
+
+#: templates/cast/bootstrap5/styleguide/sections.html:20
+msgid "Ordered list item"
+msgstr "Geordneter Listenpunkt"
+
+#: templates/cast/bootstrap5/styleguide/sections.html:21
+msgid "Second ordered item"
+msgstr "Zweiter geordneter Punkt"
+
+#: templates/cast/bootstrap5/styleguide/sections.html:24
+msgid "Blockquote sample for editorial layouts."
+msgstr "Beispielzitat für redaktionelle Layouts."
+
+#: templates/cast/bootstrap5/styleguide/sections.html:25
+msgid "Attribution"
+msgstr "Quellenangabe"
+
+#: templates/cast/bootstrap5/styleguide/sections.html:30
+msgid "Buttons & links"
+msgstr "Schaltflächen & Links"
+
+#: templates/cast/bootstrap5/styleguide/sections.html:32
+msgid "Primary"
+msgstr "Primär"
+
+#: templates/cast/bootstrap5/styleguide/sections.html:33
+msgid "Secondary"
+msgstr "Sekundär"
+
+#: templates/cast/bootstrap5/styleguide/sections.html:34
+msgid "Disabled"
+msgstr "Deaktiviert"
+
+#: templates/cast/bootstrap5/styleguide/sections.html:39
+msgid "Forms"
+msgstr "Formulare"
+
+#: templates/cast/bootstrap5/styleguide/sections.html:44
+msgid "Search"
+msgstr "Suche"
+
+#: templates/cast/bootstrap5/styleguide/sections.html:51
+msgid "Post list"
+msgstr "Beitragsliste"
+
+#: templates/cast/bootstrap5/styleguide/sections.html:58
+msgid "Content blocks"
+msgstr "Inhaltsblöcke"
+
+#: templates/cast/bootstrap5/styleguide/sections.html:63
+msgid "Gallery"
+msgstr "Galerie"
+
+#: templates/cast/bootstrap5/styleguide/sections.html:70
+msgid "Audio"
+msgstr "Audio"
+
+#: templates/cast/bootstrap5/styleguide/sections.html:78
+msgid "Video"
+msgstr "Video"
+
+#: templates/cast/bootstrap5/styleguide/sections.html:80
+msgid ""
+"Intro paragraph for video placement inside a longer post. Use this to judge "
+"spacing before the player."
+msgstr ""
+"Einleitender Absatz für die Videopositionierung in einem längeren Beitrag. "
+"Hiermit lässt sich der Abstand vor dem Player beurteilen."
+
+#: templates/cast/bootstrap5/styleguide/sections.html:84
+msgid ""
+"Closing paragraph after the video for checking spacing and readability in "
+"context."
+msgstr ""
+"Abschließender Absatz nach dem Video zur Überprüfung von Abständen und "
+"Lesbarkeit im Kontext."
+
+#: templates/cast/bootstrap5/styleguide/sections.html:89
+msgid "Episode"
+msgstr "Episode"
+
+#: templates/cast/bootstrap5/styleguide/sections.html:99
+msgid "Comments"
+msgstr "Kommentare"
+
+#: templates/cast/bootstrap5/styleguide/sections.html:105
+msgid ""
+"Comments are disabled. Enable CAST_COMMENTS_ENABLED to preview the comment "
+"UI."
+msgstr ""
+"Kommentare sind deaktiviert. Aktivieren Sie CAST_COMMENTS_ENABLED, um die "
+"Kommentaroberfläche anzuzeigen."
+
+#: templates/cast/bootstrap5/styleguide/sections.html:111
+msgid "Error pages"
+msgstr "Fehlerseiten"
