@@ -1,0 +1,240 @@
+// =============================================================================
+// Custom Utilities
+// =============================================================================
+// Custom utility classes that extend Bootstrap's utilities.
+
+// -----------------------------------------------------------------------------
+// Extended Spacing (since we don't recompile Bootstrap)
+// -----------------------------------------------------------------------------
+// Bootstrap 5 only includes spacer-0 through spacer-5.
+// We add spacer-6 for larger spacing needs.
+
+.mt-6 { margin-top: var(--cast-spacer-6) !important; }
+.mb-6 { margin-bottom: var(--cast-spacer-6) !important; }
+.my-6 {
+  margin-top: var(--cast-spacer-6) !important;
+  margin-bottom: var(--cast-spacer-6) !important;
+}
+.ms-6 { margin-inline-start: var(--cast-spacer-6) !important; }
+.me-6 { margin-inline-end: var(--cast-spacer-6) !important; }
+.mx-6 {
+  margin-inline-start: var(--cast-spacer-6) !important;
+  margin-inline-end: var(--cast-spacer-6) !important;
+}
+.m-6 { margin: var(--cast-spacer-6) !important; }
+
+.pt-6 { padding-top: var(--cast-spacer-6) !important; }
+.pb-6 { padding-bottom: var(--cast-spacer-6) !important; }
+.py-6 {
+  padding-top: var(--cast-spacer-6) !important;
+  padding-bottom: var(--cast-spacer-6) !important;
+}
+.ps-6 { padding-inline-start: var(--cast-spacer-6) !important; }
+.pe-6 { padding-inline-end: var(--cast-spacer-6) !important; }
+.px-6 {
+  padding-inline-start: var(--cast-spacer-6) !important;
+  padding-inline-end: var(--cast-spacer-6) !important;
+}
+.p-6 { padding: var(--cast-spacer-6) !important; }
+
+// Gap utilities for flexbox/grid
+.gap-6 { gap: var(--cast-spacer-6) !important; }
+.row-gap-6 { row-gap: var(--cast-spacer-6) !important; }
+.column-gap-6 { column-gap: var(--cast-spacer-6) !important; }
+
+// -----------------------------------------------------------------------------
+// Text Utilities
+// -----------------------------------------------------------------------------
+.text-accent {
+  color: var(--cast-accent) !important;
+}
+
+.text-accent-hover {
+  color: var(--cast-accent-hover) !important;
+}
+
+// -----------------------------------------------------------------------------
+// Background Utilities
+// -----------------------------------------------------------------------------
+.bg-accent {
+  background-color: var(--cast-accent) !important;
+}
+
+.bg-accent-light {
+  background-color: var(--cast-accent-light) !important;
+}
+
+.bg-surface {
+  background-color: var(--cast-surface) !important;
+}
+
+.bg-alt {
+  background-color: var(--cast-bg-alt) !important;
+}
+
+// -----------------------------------------------------------------------------
+// Border Utilities
+// -----------------------------------------------------------------------------
+.border-accent {
+  border-color: var(--cast-accent) !important;
+}
+
+.border-strong {
+  border-color: var(--cast-border-strong) !important;
+}
+
+// -----------------------------------------------------------------------------
+// Focus Utilities
+// -----------------------------------------------------------------------------
+.focus-ring-accent:focus-visible {
+  outline: 2px solid var(--cast-accent);
+  outline-offset: 2px;
+}
+
+// -----------------------------------------------------------------------------
+// Hover Utilities
+// -----------------------------------------------------------------------------
+.hover-lift {
+  transition: transform var(--cast-transition-fast), box-shadow var(--cast-transition-fast);
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  }
+
+  [data-bs-theme="dark"] &:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  }
+}
+
+.hover-accent {
+  transition: color var(--cast-transition-fast);
+
+  &:hover {
+    color: var(--cast-accent) !important;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Reduced Motion
+// -----------------------------------------------------------------------------
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .hover-lift:hover {
+    transform: none;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Content Width Utilities
+// -----------------------------------------------------------------------------
+.max-w-prose {
+  max-width: 72ch;
+}
+
+.max-w-sm {
+  max-width: 24rem;
+}
+
+.max-w-md {
+  max-width: 28rem;
+}
+
+.max-w-lg {
+  max-width: 32rem;
+}
+
+.max-w-xl {
+  max-width: 36rem;
+}
+
+// -----------------------------------------------------------------------------
+// Visibility Utilities
+// -----------------------------------------------------------------------------
+// Visually hidden but accessible to screen readers
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+// Show when focused (for skip links)
+.sr-only-focusable:focus,
+.sr-only-focusable:focus-within {
+  position: static;
+  width: auto;
+  height: auto;
+  padding: inherit;
+  margin: inherit;
+  overflow: visible;
+  clip: auto;
+  white-space: normal;
+}
+
+// -----------------------------------------------------------------------------
+// Line Clamp (Truncation)
+// -----------------------------------------------------------------------------
+.line-clamp-1 {
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.line-clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+// -----------------------------------------------------------------------------
+// Aspect Ratio Utilities
+// -----------------------------------------------------------------------------
+.aspect-video {
+  aspect-ratio: 16 / 9;
+}
+
+.aspect-square {
+  aspect-ratio: 1 / 1;
+}
+
+.aspect-4-3 {
+  aspect-ratio: 4 / 3;
+}
+
+// -----------------------------------------------------------------------------
+// Object Fit Utilities
+// -----------------------------------------------------------------------------
+.object-cover {
+  object-fit: cover;
+}
+
+.object-contain {
+  object-fit: contain;
+}
+
+.object-center {
+  object-position: center;
+}

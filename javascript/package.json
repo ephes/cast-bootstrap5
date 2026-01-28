@@ -7,12 +7,16 @@
     "build": "vite build",
     "test": "vitest -r js/src/tests/",
     "coverage": "vitest run --coverage",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "scss": "sass ../cast_bootstrap5/static/cast_bootstrap5/scss/main.scss:../cast_bootstrap5/static/cast_bootstrap5/css/bootstrap5/cast.css --style=compressed --no-source-map --no-charset",
+    "scss:watch": "sass --watch ../cast_bootstrap5/static/cast_bootstrap5/scss/main.scss:../cast_bootstrap5/static/cast_bootstrap5/css/bootstrap5/cast.css",
+    "scss:dev": "sass ../cast_bootstrap5/static/cast_bootstrap5/scss/main.scss:../cast_bootstrap5/static/cast_bootstrap5/css/bootstrap5/cast.css --source-map"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.9.1",
     "@vue/test-utils": "^2.4.6",
     "jsdom": "^27.4.0",
+    "sass": "^1.83.0",
     "vitest": "^4.0.18"
   }
 }

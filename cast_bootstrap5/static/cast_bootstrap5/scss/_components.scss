@@ -1,0 +1,477 @@
+// =============================================================================
+// Components
+// =============================================================================
+// Component-specific styles for Cast theme.
+
+// -----------------------------------------------------------------------------
+// Alert Variants
+// -----------------------------------------------------------------------------
+.alert-debug {
+  color: var(--cast-text);
+  background-color: var(--cast-surface);
+  border-color: var(--cast-border);
+}
+
+.alert-error {
+  color: #b94a48;
+  background-color: #f2dede;
+  border-color: #eed3d7;
+}
+
+[data-bs-theme="dark"] .alert-error {
+  color: #fca5a5;
+  background-color: #450a0a;
+  border-color: #7f1d1d;
+}
+
+// Django debug toolbar fix
+[hidden][style="display: block;"] {
+  display: block !important;
+}
+
+// -----------------------------------------------------------------------------
+// Images
+// -----------------------------------------------------------------------------
+.cast-image {
+  width: 100%;
+  height: auto;
+  max-height: 740px;
+  object-fit: contain;
+  border-radius: var(--cast-border-radius);
+}
+
+// -----------------------------------------------------------------------------
+// Gallery
+// -----------------------------------------------------------------------------
+.cast-gallery-container {
+  padding: 30px 0 0 0;
+}
+
+.cast-gallery-content {
+  background-color: transparent;
+}
+
+.cast-gallery-body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--cast-gallery-body-bg);
+}
+
+.cast-gallery-header {
+  background-color: var(--cast-gallery-header-bg);
+  border-radius: var(--cast-border-radius-lg) var(--cast-border-radius-lg) 0 0;
+}
+
+.cast-gallery-footer {
+  background-color: var(--cast-gallery-footer-bg);
+  border-radius: 0 0 var(--cast-border-radius-lg) var(--cast-border-radius-lg);
+}
+
+.cast-gallery-lg {
+  min-width: 71%;
+}
+
+.cast-gallery-thumbnail {
+  max-width: 10em;
+  max-height: 10em;
+  height: 5em;
+  margin-bottom: 5px;
+  border-radius: var(--cast-border-radius-sm);
+  cursor: pointer;
+  transition: transform var(--cast-transition-fast), box-shadow var(--cast-transition-fast);
+
+  &:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+}
+
+.cast-gallery-preview {
+  position: relative;
+  float: left;
+  margin-right: 10px;
+  margin-bottom: 10px;
+  margin-top: 10px;
+}
+
+.cast-gallery-progress-bar {
+  width: 100%;
+}
+
+// -----------------------------------------------------------------------------
+// Video
+// -----------------------------------------------------------------------------
+.cast-video {
+  max-height: 800px;
+  max-width: 100%;
+  border-radius: var(--cast-border-radius);
+}
+
+// -----------------------------------------------------------------------------
+// Feeds
+// -----------------------------------------------------------------------------
+.cast-feeds-container {
+  display: flex;
+  flex-flow: row wrap;
+  justify-content: space-around;
+  gap: 0.5rem;
+}
+
+.cast-feed-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: var(--cast-text-muted);
+  transition: color var(--cast-transition-fast);
+
+  &:hover {
+    color: var(--cast-accent);
+  }
+}
+
+.cast-feed-icon {
+  width: 1em;
+  height: 1em;
+}
+
+// -----------------------------------------------------------------------------
+// Post List
+// -----------------------------------------------------------------------------
+.cast-post-list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--cast-spacer-4);
+}
+
+#paging-area {
+  content-visibility: auto;
+  contain-intrinsic-size: 1px 1200px;
+}
+
+// Post cards
+.post-card {
+  background-color: var(--cast-surface);
+  border: 1px solid var(--cast-border);
+  border-radius: var(--cast-border-radius-lg);
+  padding: var(--cast-spacer-4);
+  margin-bottom: var(--cast-spacer-4);
+  transition: border-color var(--cast-transition-base), box-shadow var(--cast-transition-base);
+
+  &:hover {
+    border-color: var(--cast-border-strong);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  }
+
+  [data-bs-theme="dark"] & {
+    &:hover {
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+  }
+}
+
+.post-card-title {
+  font-size: 1.5rem;
+  font-weight: var(--cast-font-weight-semibold);
+  margin-bottom: 0.5rem;
+
+  a {
+    color: var(--cast-text);
+    text-decoration: none;
+
+    &:hover {
+      color: var(--cast-accent);
+    }
+  }
+}
+
+.post-card-meta {
+  font-size: var(--cast-font-size-sm);
+  color: var(--cast-text-muted);
+  margin-bottom: 0.75rem;
+}
+
+.post-card-excerpt {
+  color: var(--cast-text-muted);
+}
+
+// -----------------------------------------------------------------------------
+// Date Facets
+// -----------------------------------------------------------------------------
+.cast-date-facet-container {
+  display: flex;
+  flex-wrap: wrap;
+  height: auto;
+  gap: 0.5rem;
+}
+
+.cast-date-facet-item {
+  margin-right: 10px;
+  margin-left: 10px;
+}
+
+// -----------------------------------------------------------------------------
+// Comments
+// -----------------------------------------------------------------------------
+// Fix for fluent comments error messages
+.invalid-feedback {
+  display: block;
+}
+
+.comment {
+  padding: var(--cast-spacer-3);
+  margin-bottom: var(--cast-spacer-3);
+  border-left: 3px solid var(--cast-border);
+  background-color: var(--cast-bg-alt);
+  border-radius: 0 var(--cast-border-radius) var(--cast-border-radius) 0;
+}
+
+.comment-author {
+  font-weight: var(--cast-font-weight-semibold);
+  color: var(--cast-text);
+}
+
+.comment-date {
+  font-size: var(--cast-font-size-sm);
+  color: var(--cast-text-light);
+}
+
+.comment-reply {
+  margin-left: var(--cast-spacer-4);
+  max-width: calc(100% - var(--cast-spacer-4));
+}
+
+// Nested replies (max 3 levels deep)
+.comment-reply .comment-reply {
+  margin-left: var(--cast-spacer-4);
+}
+
+.comment-reply .comment-reply .comment-reply {
+  margin-left: 0;
+}
+
+// -----------------------------------------------------------------------------
+// Transcript
+// -----------------------------------------------------------------------------
+.transcript-entry {
+  margin-bottom: var(--cast-spacer-3);
+  display: flex;
+  gap: 1rem;
+}
+
+.transcript-timestamp {
+  font-family: var(--cast-font-mono);
+  font-size: var(--cast-font-size-sm);
+  color: var(--cast-accent);
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.transcript-text {
+  flex: 1;
+}
+
+.transcript-speaker {
+  font-weight: var(--cast-font-weight-semibold);
+}
+
+// -----------------------------------------------------------------------------
+// Audio Player Container
+// -----------------------------------------------------------------------------
+.podcast-player {
+  margin: var(--cast-spacer-4) 0;
+  padding: var(--cast-spacer-3);
+  background-color: var(--cast-bg-alt);
+  border-radius: var(--cast-border-radius-lg);
+  border: 1px solid var(--cast-border);
+}
+
+// Podlove player wrapper
+podlove-player {
+  display: block;
+  border-radius: var(--cast-border-radius);
+  overflow: hidden;
+}
+
+// -----------------------------------------------------------------------------
+// Navigation
+// -----------------------------------------------------------------------------
+.navbar {
+  background-color: var(--cast-surface);
+  border-bottom: 1px solid var(--cast-border);
+}
+
+// Sticky header with backdrop blur (optional enhancement)
+.navbar-sticky {
+  position: sticky;
+  top: 0;
+  z-index: 1030;
+  backdrop-filter: blur(8px);
+  background-color: rgba(255, 255, 255, 0.9);
+
+  [data-bs-theme="dark"] & {
+    background-color: rgba(28, 25, 23, 0.9);
+  }
+}
+
+// Theme selector styling
+.theme-selector {
+  .dropdown-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .theme-icon {
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Skip Link (Accessibility)
+// -----------------------------------------------------------------------------
+.skip-link {
+  position: absolute;
+  top: -100%;
+  left: 0;
+  padding: 0.5rem 1rem;
+  background-color: var(--cast-accent);
+  color: #fff;
+  z-index: 9999;
+  transition: top var(--cast-transition-fast);
+
+  &:focus {
+    top: 0;
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Error Pages
+// -----------------------------------------------------------------------------
+.error-page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  text-align: center;
+  padding: var(--cast-spacer-5);
+}
+
+.error-code {
+  font-size: 6rem;
+  font-weight: var(--cast-font-weight-bold);
+  color: var(--cast-text-muted);
+  line-height: 1;
+  margin-bottom: var(--cast-spacer-3);
+}
+
+.error-title {
+  font-size: 1.5rem;
+  color: var(--cast-text);
+  margin-bottom: var(--cast-spacer-3);
+}
+
+.error-message {
+  color: var(--cast-text-muted);
+  margin-bottom: var(--cast-spacer-4);
+  max-width: 32ch;
+}
+
+// -----------------------------------------------------------------------------
+// Filters / Search
+// -----------------------------------------------------------------------------
+.filter-section {
+  margin-bottom: var(--cast-spacer-4);
+}
+
+.filter-search {
+  position: relative;
+
+  .form-control {
+    padding-left: 2.5rem;
+  }
+
+  .search-icon {
+    position: absolute;
+    left: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--cast-text-muted);
+    pointer-events: none;
+  }
+}
+
+// Tag pills
+.tag-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.75rem;
+  margin: 0.25rem;
+  font-size: var(--cast-font-size-sm);
+  background-color: var(--cast-bg-alt);
+  border: 1px solid var(--cast-border);
+  border-radius: 2rem;
+  color: var(--cast-text);
+  text-decoration: none;
+  transition: all var(--cast-transition-fast);
+
+  &:hover {
+    background-color: var(--cast-accent-light);
+    border-color: var(--cast-accent);
+    color: var(--cast-accent);
+  }
+
+  &.active {
+    background-color: var(--cast-accent);
+    border-color: var(--cast-accent);
+    color: #fff;
+  }
+}
+
+// Filter badge
+.filter-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  padding: 0 0.375rem;
+  font-size: 0.75rem;
+  font-weight: var(--cast-font-weight-semibold);
+  background-color: var(--cast-accent);
+  color: #fff;
+  border-radius: 2rem;
+  margin-left: 0.5rem;
+}
+
+// -----------------------------------------------------------------------------
+// Cover Image
+// -----------------------------------------------------------------------------
+.post-cover {
+  width: 100%;
+  height: auto;
+  border-radius: var(--cast-border-radius-lg);
+  margin-bottom: var(--cast-spacer-4);
+  object-fit: cover;
+}
+
+.post-cover-card {
+  width: 100%;
+  height: 200px;
+  object-fit: cover;
+  border-radius: var(--cast-border-radius) var(--cast-border-radius) 0 0;
+}

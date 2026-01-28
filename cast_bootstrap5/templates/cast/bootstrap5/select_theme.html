@@ -1,23 +1,170 @@
+{% load i18n %}
+{# Dark Mode Toggle #}
 <li class="nav-item dropdown">
-  <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-    <span class="visually-hidden">Select theme</span>
-    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-bootstrap" viewBox="0 0 16 16">
-      <path d="M5.062 12h3.475c1.804 0 2.888-.908 2.888-2.396 0-1.102-.761-1.916-1.904-2.034v-.1c.832-.14 1.482-.93 1.482-1.816 0-1.3-.955-2.11-2.542-2.11H5.062V12zm1.313-4.875V4.658h1.78c.973 0 1.542.457 1.542 1.237 0 .802-.604 1.23-1.764 1.23H6.375zm0 3.762V8.162h1.822c1.236 0 1.887.463 1.887 1.348 0 .896-.627 1.377-1.811 1.377H6.375z"/>
-      <path d="M0 4a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v8a4 4 0 0 1-4 4H4a4 4 0 0 1-4-4V4zm4-3a3 3 0 0 0-3 3v8a3 3 0 0 0 3 3h8a3 3 0 0 0 3-3V4a3 3 0 0 0-3-3H4z"/>
+  <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false" id="colorModeToggle">
+    <span class="visually-hidden">{% trans "Toggle color mode" %}</span>
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-sun-fill theme-icon-active" viewBox="0 0 16 16" id="theme-icon-light" style="display: none;">
+      <path d="M8 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM8 0a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 0zm0 13a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 13zm8-5a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2a.5.5 0 0 1 .5.5zM3 8a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2A.5.5 0 0 1 3 8zm10.657-5.657a.5.5 0 0 1 0 .707l-1.414 1.415a.5.5 0 1 1-.707-.708l1.414-1.414a.5.5 0 0 1 .707 0zm-9.193 9.193a.5.5 0 0 1 0 .707L3.05 13.657a.5.5 0 0 1-.707-.707l1.414-1.414a.5.5 0 0 1 .707 0zm9.193 2.121a.5.5 0 0 1-.707 0l-1.414-1.414a.5.5 0 0 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .707zM4.464 4.465a.5.5 0 0 1-.707 0L2.343 3.05a.5.5 0 1 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .708z"/>
+    </svg>
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-moon-fill theme-icon-active" viewBox="0 0 16 16" id="theme-icon-dark" style="display: none;">
+      <path d="M6 .278a.768.768 0 0 1 .08.858 7.208 7.208 0 0 0-.878 3.46c0 4.021 3.278 7.277 7.318 7.277.527 0 1.04-.055 1.533-.16a.787.787 0 0 1 .81.316.733.733 0 0 1-.031.893A8.349 8.349 0 0 1 8.344 16C3.734 16 0 12.286 0 7.71 0 4.266 2.114 1.312 5.124.06A.752.752 0 0 1 6 .278z"/>
+    </svg>
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-circle-half theme-icon-active" viewBox="0 0 16 16" id="theme-icon-auto" style="display: none;">
+      <path d="M8 15A7 7 0 1 0 8 1v14zm0 1A8 8 0 1 1 8 0a8 8 0 0 1 0 16z"/>
     </svg>
   </a>
-  <ul class="dropdown-menu dropdown-menu-light">
-    {% for theme_slug, theme_name in template_base_dir_choices %}
-      <li>
-        <form action="{% url 'cast:select-theme' %}" method="post">
-          {% csrf_token %}
-          <input type="hidden" name="template_base_dir" value="{{ theme_slug }}">
-          <input type="hidden" name="next" value="{{ next_url }}">
-          <button type="submit" class="btn dropdown-item">
-            {{ theme_name }}
-          </button>
-        </form>
-      </li>
-    {% endfor %}
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li>
+      <button type="button" class="dropdown-item d-flex align-items-center" data-bs-theme-value="light">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-sun-fill me-2" viewBox="0 0 16 16">
+          <path d="M8 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM8 0a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 0zm0 13a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 13zm8-5a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2a.5.5 0 0 1 .5.5zM3 8a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2A.5.5 0 0 1 3 8zm10.657-5.657a.5.5 0 0 1 0 .707l-1.414 1.415a.5.5 0 1 1-.707-.708l1.414-1.414a.5.5 0 0 1 .707 0zm-9.193 9.193a.5.5 0 0 1 0 .707L3.05 13.657a.5.5 0 0 1-.707-.707l1.414-1.414a.5.5 0 0 1 .707 0zm9.193 2.121a.5.5 0 0 1-.707 0l-1.414-1.414a.5.5 0 0 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .707zM4.464 4.465a.5.5 0 0 1-.707 0L2.343 3.05a.5.5 0 1 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .708z"/>
+        </svg>
+        {% trans "Light" %}
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-check2 ms-auto d-none" viewBox="0 0 16 16">
+          <path d="M13.854 3.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L6.5 10.293l6.646-6.647a.5.5 0 0 1 .708 0z"/>
+        </svg>
+      </button>
+    </li>
+    <li>
+      <button type="button" class="dropdown-item d-flex align-items-center" data-bs-theme-value="dark">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-moon-fill me-2" viewBox="0 0 16 16">
+          <path d="M6 .278a.768.768 0 0 1 .08.858 7.208 7.208 0 0 0-.878 3.46c0 4.021 3.278 7.277 7.318 7.277.527 0 1.04-.055 1.533-.16a.787.787 0 0 1 .81.316.733.733 0 0 1-.031.893A8.349 8.349 0 0 1 8.344 16C3.734 16 0 12.286 0 7.71 0 4.266 2.114 1.312 5.124.06A.752.752 0 0 1 6 .278z"/>
+        </svg>
+        {% trans "Dark" %}
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-check2 ms-auto d-none" viewBox="0 0 16 16">
+          <path d="M13.854 3.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L6.5 10.293l6.646-6.647a.5.5 0 0 1 .708 0z"/>
+        </svg>
+      </button>
+    </li>
+    <li>
+      <button type="button" class="dropdown-item d-flex align-items-center" data-bs-theme-value="auto">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-circle-half me-2" viewBox="0 0 16 16">
+          <path d="M8 15A7 7 0 1 0 8 1v14zm0 1A8 8 0 1 1 8 0a8 8 0 0 1 0 16z"/>
+        </svg>
+        {% trans "Auto" %}
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-check2 ms-auto d-none" viewBox="0 0 16 16">
+          <path d="M13.854 3.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L6.5 10.293l6.646-6.647a.5.5 0 0 1 .708 0z"/>
+        </svg>
+      </button>
+    </li>
+    {% if template_base_dir_choices|length > 1 %}
+      <li><hr class="dropdown-divider"></li>
+      <li><h6 class="dropdown-header">{% trans "Theme" %}</h6></li>
+      {% for theme_slug, theme_name in template_base_dir_choices %}
+        <li>
+          <form action="{% url 'cast:select-theme' %}" method="post">
+            {% csrf_token %}
+            <input type="hidden" name="template_base_dir" value="{{ theme_slug }}">
+            <input type="hidden" name="next" value="{{ next_url }}">
+            <button type="submit" class="btn dropdown-item">
+              {{ theme_name }}
+            </button>
+          </form>
+        </li>
+      {% endfor %}
+    {% endif %}
   </ul>
 </li>
+
+<script>
+  (function() {
+    'use strict';
+
+    var STORAGE_KEY = 'cast-theme';
+
+    function getStoredTheme() {
+      try { return localStorage.getItem(STORAGE_KEY); } catch (e) { return null; }
+    }
+
+    function setStoredTheme(theme) {
+      try { localStorage.setItem(STORAGE_KEY, theme); } catch (e) { /* ignore */ }
+    }
+
+    function getPreferredTheme() {
+      var stored = getStoredTheme();
+      if (stored) {
+        return stored;
+      }
+      return 'auto';
+    }
+
+    function getActualTheme(theme) {
+      if (theme === 'auto') {
+        return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
+      return theme;
+    }
+
+    function setTheme(theme) {
+      var actualTheme = getActualTheme(theme);
+      document.documentElement.setAttribute('data-bs-theme', actualTheme);
+      updateIcons(theme);
+      updateActiveItem(theme);
+    }
+
+    function updateIcons(theme) {
+      var lightIcon = document.getElementById('theme-icon-light');
+      var darkIcon = document.getElementById('theme-icon-dark');
+      var autoIcon = document.getElementById('theme-icon-auto');
+
+      if (lightIcon) lightIcon.style.display = 'none';
+      if (darkIcon) darkIcon.style.display = 'none';
+      if (autoIcon) autoIcon.style.display = 'none';
+
+      if (theme === 'light' && lightIcon) {
+        lightIcon.style.display = 'inline';
+      } else if (theme === 'dark' && darkIcon) {
+        darkIcon.style.display = 'inline';
+      } else if (theme === 'auto' && autoIcon) {
+        autoIcon.style.display = 'inline';
+      }
+    }
+
+    function updateActiveItem(theme) {
+      var buttons = document.querySelectorAll('[data-bs-theme-value]');
+      buttons.forEach(function(btn) {
+        var btnTheme = btn.getAttribute('data-bs-theme-value');
+        var checkmark = btn.querySelector('.bi-check2');
+        if (checkmark) {
+          if (btnTheme === theme) {
+            checkmark.classList.remove('d-none');
+            btn.classList.add('active');
+          } else {
+            checkmark.classList.add('d-none');
+            btn.classList.remove('active');
+          }
+        }
+      });
+    }
+
+  // Initialize on DOMContentLoaded
+    document.addEventListener('DOMContentLoaded', function() {
+      var preferredTheme = getPreferredTheme();
+      setTheme(preferredTheme);
+
+    // Listen for theme toggle clicks
+      var buttons = document.querySelectorAll('[data-bs-theme-value]');
+      buttons.forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          var theme = btn.getAttribute('data-bs-theme-value');
+          setStoredTheme(theme);
+          setTheme(theme);
+        });
+      });
+
+    // Listen for system preference changes
+      window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function() {
+        var storedTheme = getStoredTheme();
+        if (!storedTheme || storedTheme === 'auto') {
+          setTheme('auto');
+        }
+      });
+    });
+
+  // Also run immediately in case DOMContentLoaded already fired
+    if (document.readyState !== 'loading') {
+      var preferredTheme = getPreferredTheme();
+      setTheme(preferredTheme);
+    }
+  })();
+</script>

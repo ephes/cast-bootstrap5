@@ -1,0 +1,264 @@
+// =============================================================================
+// Bootstrap Token Mappings
+// =============================================================================
+// Map our --cast-* custom properties to Bootstrap's --bs-* tokens.
+// This ensures Bootstrap components use our design tokens.
+
+// -----------------------------------------------------------------------------
+// Light Mode Token Mapping
+// -----------------------------------------------------------------------------
+:root,
+[data-bs-theme="light"] {
+  // Body + text
+  --bs-body-bg: var(--cast-bg);
+  --bs-body-color: var(--cast-text);
+  --bs-emphasis-color: var(--cast-text);
+
+  // RGB variants for rgba() utilities
+  --bs-body-bg-rgb: 250, 249, 247;      // #faf9f7
+  --bs-body-color-rgb: 45, 42, 38;      // #2d2a26
+  --bs-link-color-rgb: 217, 119, 6;     // #d97706
+
+  // Subtle text
+  --bs-secondary-color: var(--cast-text-muted);
+  --bs-tertiary-color: var(--cast-text-light);
+
+  // Links
+  --bs-link-color: var(--cast-accent);
+  --bs-link-hover-color: var(--cast-accent-hover);
+  --bs-link-decoration: none;
+  --bs-link-hover-decoration: underline;
+
+  // Borders + surfaces
+  --bs-border-color: var(--cast-border);
+  --bs-border-color-translucent: rgba(45, 42, 38, 0.12);
+  --bs-card-bg: var(--cast-surface);
+  --bs-secondary-bg: var(--cast-bg-alt);
+  --bs-tertiary-bg: var(--cast-bg-alt);
+
+  // Primary theme color (replaces Bootstrap blue)
+  --bs-primary: var(--cast-accent);
+  --bs-primary-rgb: 217, 119, 6;
+  --bs-primary-text-emphasis: #7c2d12;
+  --bs-primary-bg-subtle: var(--cast-accent-light);
+  --bs-primary-border-subtle: #f3c16b;
+
+  // Focus
+  --bs-focus-ring-color: rgba(217, 119, 6, 0.25);
+
+  // Code
+  --bs-code-color: var(--cast-accent);
+
+  // Heading color
+  --bs-heading-color: var(--cast-text);
+}
+
+// -----------------------------------------------------------------------------
+// Dark Mode Token Mapping
+// -----------------------------------------------------------------------------
+[data-bs-theme="dark"] {
+  color-scheme: dark;
+
+  --bs-body-bg: var(--cast-bg);
+  --bs-body-color: var(--cast-text);
+  --bs-emphasis-color: var(--cast-text);
+
+  // RGB variants for rgba() utilities
+  --bs-body-bg-rgb: 28, 25, 23;         // #1c1917
+  --bs-body-color-rgb: 250, 250, 249;   // #fafaf9
+  --bs-link-color-rgb: 251, 191, 36;    // #fbbf24
+
+  --bs-secondary-color: var(--cast-text-muted);
+  --bs-tertiary-color: var(--cast-text-light);
+
+  --bs-link-color: var(--cast-accent);
+  --bs-link-hover-color: var(--cast-accent-hover);
+
+  --bs-border-color: var(--cast-border);
+  --bs-border-color-translucent: rgba(250, 250, 249, 0.12);
+  --bs-card-bg: var(--cast-surface);
+  --bs-secondary-bg: var(--cast-bg-alt);
+  --bs-tertiary-bg: var(--cast-bg-alt);
+
+  --bs-primary: var(--cast-accent);
+  --bs-primary-rgb: 251, 191, 36;
+  --bs-primary-text-emphasis: #fde68a;
+  --bs-primary-bg-subtle: var(--cast-accent-light);
+  --bs-primary-border-subtle: #92400e;
+
+  --bs-focus-ring-color: rgba(251, 191, 36, 0.25);
+
+  // Code
+  --bs-code-color: var(--cast-accent);
+
+  // Heading color
+  --bs-heading-color: var(--cast-text);
+}
+
+// -----------------------------------------------------------------------------
+// Button Overrides
+// -----------------------------------------------------------------------------
+// Make .btn-primary use our accent color
+.btn-primary {
+  --bs-btn-bg: var(--cast-accent);
+  --bs-btn-border-color: var(--cast-accent);
+  --bs-btn-hover-bg: var(--cast-accent-hover);
+  --bs-btn-hover-border-color: var(--cast-accent-hover);
+  --bs-btn-active-bg: var(--cast-accent-hover);
+  --bs-btn-active-border-color: var(--cast-accent-hover);
+  --bs-btn-focus-shadow-rgb: 217, 119, 6;
+  --bs-btn-disabled-bg: var(--cast-accent);
+  --bs-btn-disabled-border-color: var(--cast-accent);
+}
+
+[data-bs-theme="dark"] .btn-primary {
+  --bs-btn-focus-shadow-rgb: 251, 191, 36;
+}
+
+// Secondary button styling
+.btn-secondary {
+  --bs-btn-bg: transparent;
+  --bs-btn-border-color: var(--cast-border-strong);
+  --bs-btn-color: var(--cast-text);
+  --bs-btn-hover-bg: var(--cast-bg-alt);
+  --bs-btn-hover-border-color: var(--cast-border-strong);
+  --bs-btn-hover-color: var(--cast-text);
+}
+
+// Outline primary button
+.btn-outline-primary {
+  --bs-btn-color: var(--cast-accent);
+  --bs-btn-border-color: var(--cast-accent);
+  --bs-btn-hover-bg: var(--cast-accent);
+  --bs-btn-hover-border-color: var(--cast-accent);
+  --bs-btn-hover-color: #fff;
+  --bs-btn-active-bg: var(--cast-accent);
+  --bs-btn-active-border-color: var(--cast-accent);
+  --bs-btn-active-color: #fff;
+  --bs-btn-focus-shadow-rgb: 217, 119, 6;
+}
+
+[data-bs-theme="dark"] .btn-outline-primary {
+  --bs-btn-hover-color: #1c1917;
+  --bs-btn-active-color: #1c1917;
+  --bs-btn-focus-shadow-rgb: 251, 191, 36;
+}
+
+// -----------------------------------------------------------------------------
+// Form Control Overrides
+// -----------------------------------------------------------------------------
+.form-control,
+.form-select {
+  --bs-border-color: var(--cast-border);
+}
+
+.form-control:focus,
+.form-select:focus {
+  border-color: var(--cast-accent);
+  box-shadow: 0 0 0 0.25rem var(--bs-focus-ring-color);
+}
+
+// -----------------------------------------------------------------------------
+// Card Overrides
+// -----------------------------------------------------------------------------
+.card {
+  --bs-card-bg: var(--cast-surface);
+  --bs-card-border-color: var(--cast-border);
+  --bs-card-cap-bg: var(--cast-bg-alt);
+}
+
+// -----------------------------------------------------------------------------
+// Pagination Overrides
+// -----------------------------------------------------------------------------
+.pagination {
+  --bs-pagination-color: var(--cast-text);
+  --bs-pagination-bg: var(--cast-surface);
+  --bs-pagination-border-color: var(--cast-border);
+  --bs-pagination-hover-color: var(--cast-text);
+  --bs-pagination-hover-bg: var(--cast-bg-alt);
+  --bs-pagination-hover-border-color: var(--cast-border);
+  --bs-pagination-focus-color: var(--cast-accent);
+  --bs-pagination-focus-bg: var(--cast-bg-alt);
+  --bs-pagination-focus-box-shadow: 0 0 0 0.25rem var(--bs-focus-ring-color);
+  --bs-pagination-active-color: #fff;
+  --bs-pagination-active-bg: var(--cast-accent);
+  --bs-pagination-active-border-color: var(--cast-accent);
+  --bs-pagination-disabled-color: var(--cast-text-light);
+  --bs-pagination-disabled-bg: var(--cast-bg);
+  --bs-pagination-disabled-border-color: var(--cast-border);
+}
+
+// -----------------------------------------------------------------------------
+// Alert Overrides
+// -----------------------------------------------------------------------------
+.alert-primary {
+  --bs-alert-color: #7c2d12;
+  --bs-alert-bg: var(--cast-accent-light);
+  --bs-alert-border-color: #f3c16b;
+}
+
+[data-bs-theme="dark"] .alert-primary {
+  --bs-alert-color: #fde68a;
+  --bs-alert-bg: var(--cast-accent-light);
+  --bs-alert-border-color: #92400e;
+}
+
+// -----------------------------------------------------------------------------
+// Modal Overrides
+// -----------------------------------------------------------------------------
+.modal {
+  --bs-modal-bg: var(--cast-surface);
+  --bs-modal-border-color: var(--cast-border);
+  --bs-modal-header-border-color: var(--cast-border);
+  --bs-modal-footer-border-color: var(--cast-border);
+}
+
+// -----------------------------------------------------------------------------
+// Accordion Overrides
+// -----------------------------------------------------------------------------
+.accordion {
+  --bs-accordion-bg: var(--cast-surface);
+  --bs-accordion-border-color: var(--cast-border);
+  --bs-accordion-btn-bg: var(--cast-surface);
+  --bs-accordion-btn-color: var(--cast-text);
+  --bs-accordion-btn-focus-box-shadow: 0 0 0 0.25rem var(--bs-focus-ring-color);
+  --bs-accordion-active-bg: var(--cast-bg-alt);
+  --bs-accordion-active-color: var(--cast-text);
+}
+
+// -----------------------------------------------------------------------------
+// Dropdown Overrides
+// -----------------------------------------------------------------------------
+.dropdown-menu {
+  --bs-dropdown-bg: var(--cast-surface);
+  --bs-dropdown-border-color: var(--cast-border);
+  --bs-dropdown-link-color: var(--cast-text);
+  --bs-dropdown-link-hover-bg: var(--cast-bg-alt);
+  --bs-dropdown-link-hover-color: var(--cast-text);
+  --bs-dropdown-link-active-bg: var(--cast-accent);
+  --bs-dropdown-link-active-color: #fff;
+}
+
+// -----------------------------------------------------------------------------
+// Navbar Overrides
+// -----------------------------------------------------------------------------
+.navbar {
+  --bs-navbar-color: var(--cast-text);
+  --bs-navbar-hover-color: var(--cast-accent);
+  --bs-navbar-active-color: var(--cast-accent);
+  --bs-navbar-brand-color: var(--cast-text);
+  --bs-navbar-brand-hover-color: var(--cast-text);
+}
+
+.navbar-light,
+[data-bs-theme="light"] .navbar {
+  --bs-navbar-color: var(--cast-text);
+  --bs-navbar-hover-color: var(--cast-accent);
+  --bs-navbar-active-color: var(--cast-accent);
+}
+
+[data-bs-theme="dark"] .navbar {
+  --bs-navbar-color: var(--cast-text);
+  --bs-navbar-hover-color: var(--cast-accent);
+  --bs-navbar-active-color: var(--cast-accent);
+}

@@ -1,0 +1,54 @@
+// =============================================================================
+// Cast Bootstrap 5 Theme - Main Entry Point
+// =============================================================================
+// This file compiles to cast.css and provides all custom styling for the
+// Cast Bootstrap 5 theme. It layers on top of Bootstrap's pre-compiled CSS.
+//
+// Build: npm run scss (from javascript directory)
+// Watch: npm run scss:watch (from javascript directory)
+//
+// Load order in base.html:
+// 1. Flash prevention script (before CSS)
+// 2. bootstrap.min.css (pre-compiled Bootstrap 5.3.8)
+// 3. cast.css (this compiled output)
+// =============================================================================
+
+// -----------------------------------------------------------------------------
+// 1. Variables - Custom CSS properties (--cast-*)
+// -----------------------------------------------------------------------------
+// Defines all design tokens: colors, typography, spacing, etc.
+// Both light and dark mode values are defined here.
+@use 'variables';
+
+// -----------------------------------------------------------------------------
+// 2. Bootstrap Token Mappings (--bs-* overrides)
+// -----------------------------------------------------------------------------
+// Maps our custom properties to Bootstrap's token system.
+// This ensures Bootstrap components use our design tokens.
+@use 'bootstrap-tokens';
+
+// -----------------------------------------------------------------------------
+// 3. Typography
+// -----------------------------------------------------------------------------
+// Font face declarations, type scale, headings, links, etc.
+@use 'typography';
+
+// -----------------------------------------------------------------------------
+// 4. Syntax Highlighting
+// -----------------------------------------------------------------------------
+// Pygments syntax highlighting for code blocks.
+// Includes both light and dark mode color schemes.
+@use 'syntax';
+
+// -----------------------------------------------------------------------------
+// 5. Components
+// -----------------------------------------------------------------------------
+// Component-specific styles: alerts, gallery, post cards, comments, etc.
+@use 'components';
+
+// -----------------------------------------------------------------------------
+// 6. Utilities
+// -----------------------------------------------------------------------------
+// Custom utility classes that extend Bootstrap's utilities.
+// Includes extended spacing (m-6, p-6), hover effects, etc.
+@use 'utilities';

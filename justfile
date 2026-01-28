@@ -32,3 +32,15 @@ js-test:
 # Run tests in watch mode
 js-test-watch:
     cd javascript && npx vitest watch
+
+# Compile SCSS to CSS (minified)
+scss:
+    cd javascript && npm run scss
+
+# Watch SCSS files and recompile on changes
+scss-watch:
+    cd javascript && npm run scss:watch
+
+# Compile SCSS with source maps (for development)
+scss-dev:
+    cd javascript && npm run scss:dev
