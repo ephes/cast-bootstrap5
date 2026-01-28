@@ -71,6 +71,8 @@
     'use strict';
 
     var STORAGE_KEY = 'cast-theme';
+    // Use global guard to prevent duplicate listener registration across HTMX swaps
+    var INIT_KEY = '__castThemeListenersInit';
 
     function getStoredTheme() {
       try { return localStorage.getItem(STORAGE_KEY); } catch (e) { return null; }
@@ -137,34 +139,54 @@
       });
     }
 
-  // Initialize on DOMContentLoaded
-    document.addEventListener('DOMContentLoaded', function() {
+    function initTheme() {
       var preferredTheme = getPreferredTheme();
       setTheme(preferredTheme);
+    }
 
-    // Listen for theme toggle clicks
-      var buttons = document.querySelectorAll('[data-bs-theme-value]');
-      buttons.forEach(function(btn) {
-        btn.addEventListener('click', function() {
+    function setupEventListeners() {
+      // Use global guard to prevent duplicate listeners across HTMX swaps
+      if (window[INIT_KEY]) return;
+      window[INIT_KEY] = true;
+
+      // Use event delegation on document body for theme toggle clicks
+      // This works for both statically included and HTMX-loaded content
+      document.body.addEventListener('click', function(event) {
+        var btn = event.target.closest('[data-bs-theme-value]');
+        if (btn) {
           var theme = btn.getAttribute('data-bs-theme-value');
           setStoredTheme(theme);
           setTheme(theme);
-        });
+        }
       });
 
-    // Listen for system preference changes
+      // Listen for system preference changes
       window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function() {
         var storedTheme = getStoredTheme();
         if (!storedTheme || storedTheme === 'auto') {
           setTheme('auto');
         }
       });
-    });
 
-  // Also run immediately in case DOMContentLoaded already fired
-    if (document.readyState !== 'loading') {
-      var preferredTheme = getPreferredTheme();
-      setTheme(preferredTheme);
+      // Re-initialize icons/active state when HTMX swaps in new content
+      document.body.addEventListener('htmx:afterSwap', function(event) {
+        // Check if the swapped content contains theme buttons
+        if (event.detail.target.querySelector && event.detail.target.querySelector('[data-bs-theme-value]')) {
+          initTheme();
+        }
+      });
+    }
+
+    // Initialize immediately
+    initTheme();
+    setupEventListeners();
+
+    // Also ensure setup on DOMContentLoaded if not already done
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', function() {
+        initTheme();
+        setupEventListeners();
+      });
     }
   })();
 </script>
