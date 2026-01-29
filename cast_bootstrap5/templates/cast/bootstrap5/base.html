@@ -86,8 +86,9 @@
           (function () {
             'use strict';
 
-            function buildOrderingDropdown() {
-              var container = document.getElementById('div_id_o');
+            function buildOrderingDropdown(root) {
+              var scope = root || document;
+              var container = scope.querySelector('#div_id_o');
               if (!container || container.dataset.castOrderingEnhanced === 'true') {
                 return;
               }
@@ -158,13 +159,17 @@
               container.dataset.castOrderingEnhanced = 'true';
             }
 
-            function mergeConsecutiveBlockquotes() {
-              var blockquotes = Array.prototype.slice.call(document.querySelectorAll('blockquote'));
+            function mergeConsecutiveBlockquotes(root) {
+              var scope = root || document;
+              var blockquotes = Array.prototype.slice.call(scope.querySelectorAll('blockquote'));
               if (!blockquotes.length) {
                 return;
               }
 
               function ensureLineWrapper(bq) {
+                if (!bq) {
+                  return;
+                }
                 if (bq.firstElementChild && bq.firstElementChild.classList.contains('cast-blockquote-line')) {
                   return;
                 }
@@ -215,15 +220,26 @@
               });
             }
 
-            function initEnhancements() {
-              buildOrderingDropdown();
-              mergeConsecutiveBlockquotes();
+            function initEnhancements(root) {
+              buildOrderingDropdown(root);
+              mergeConsecutiveBlockquotes(root);
             }
 
             if (document.readyState === 'loading') {
               document.addEventListener('DOMContentLoaded', initEnhancements);
             } else {
               initEnhancements();
+            }
+
+            if (!window._castEnhancementsBound) {
+              window._castEnhancementsBound = true;
+              document.body.addEventListener('htmx:afterSwap', function (event) {
+                var target = event && event.detail && event.detail.target;
+                if (!target) {
+                  return;
+                }
+                initEnhancements(target);
+              });
             }
           })();
         </script>
