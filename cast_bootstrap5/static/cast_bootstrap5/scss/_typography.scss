@@ -317,10 +317,13 @@ hr {
 // Content Width for Readability
 // -----------------------------------------------------------------------------
 // Optimal reading width: 65-75 characters
+.cast-reading,
 .content-body,
 .post-content,
 article > .content {
-  max-width: 72ch;
+  max-width: var(--cast-measure);
+  width: 100%;
+  margin-inline: auto;
 }
 
 // Full width when needed
