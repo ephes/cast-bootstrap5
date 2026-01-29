@@ -445,6 +445,30 @@ podlove-player {
   border-bottom: 1px solid var(--cast-border);
 }
 
+// Align navbar items consistently (brand, links, theme toggle)
+.navbar .navbar-brand,
+.navbar .nav-link {
+  display: inline-flex;
+  align-items: center;
+}
+
+// Keep nav links from inheriting global underline styles
+.navbar .nav-link {
+  text-decoration: none;
+}
+
+// Keep navbar links clean on hover (no underline)
+.navbar .nav-link:hover,
+.navbar .nav-link:focus {
+  text-decoration: none;
+}
+
+@media (min-width: 992px) {
+  .navbar .navbar-nav {
+    align-items: center;
+  }
+}
+
 // Sticky header with backdrop blur (optional enhancement)
 .navbar-sticky {
   position: sticky;
@@ -472,7 +496,7 @@ main#main-content {
 // Theme selector styling
 .theme-selector {
   .dropdown-toggle {
-    display: flex;
+    display: inline-flex;
     align-items: center;
     gap: 0.5rem;
   }
