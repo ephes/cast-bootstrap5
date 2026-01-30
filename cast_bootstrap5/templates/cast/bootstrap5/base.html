@@ -43,7 +43,7 @@
     <a href="#main-content" class="visually-hidden-focusable skip-link">{% trans "Skip to content" %}</a>
     {% block bodystart %}{% endblock bodystart %}
     {% block navigation %}
-      {% with nav_layout=request.GET.nav_layout|default:"inline" %}
+      {% with nav_layout=request.GET.nav_layout|default:"right" %}
         {% if request.GET.nav_preview or request.GET.nav_layout %}
           <div class="cast-nav-layout-preview" role="group" aria-label="Navbar layout preview">
             <span class="cast-nav-layout-label">Nav layout:</span>
