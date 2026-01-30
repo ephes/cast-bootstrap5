@@ -269,12 +269,15 @@
             }
 
             function initEnhancements(root) {
-              buildOrderingDropdown(root);
-              mergeConsecutiveBlockquotes(root);
+              var scope = root && root.querySelector ? root : document;
+              buildOrderingDropdown(scope);
+              mergeConsecutiveBlockquotes(scope);
             }
 
             if (document.readyState === 'loading') {
-              document.addEventListener('DOMContentLoaded', initEnhancements);
+              document.addEventListener('DOMContentLoaded', function () {
+                initEnhancements();
+              });
             } else {
               initEnhancements();
             }
