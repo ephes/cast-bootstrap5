@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: cast-bootstrap5 0.0.74\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-01-28 18:22+0100\n"
+"POT-Creation-Date: 2026-01-30 10:18+0100\n"
 "PO-Revision-Date: 2026-01-28 18:30+0100\n"
 "Last-Translator: Jochen Wersdörfer <jochen-castbootstrap5@wersdoerfer.de>\n"
 "Language-Team: German\n"
@@ -17,171 +17,230 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: templates/cast/bootstrap5/base.html:43
+#: cast_bootstrap5/templates/cast/bootstrap5/base.html:43
 msgid "Skip to content"
 msgstr "Zum Inhalt springen"
 
-#: templates/cast/bootstrap5/post_body.html:9
+#: cast_bootstrap5/templates/cast/bootstrap5/post_body.html:9
 msgid "(click here to comment)"
 msgstr "(hier klicken, um zu kommentieren)"
 
-#: templates/cast/bootstrap5/post_body.html:35
+#: cast_bootstrap5/templates/cast/bootstrap5/post_body.html:35
 msgid "View transcript"
 msgstr "Transkript anzeigen"
 
-#: templates/cast/bootstrap5/select_theme.html:5
-#: templates/cast/bootstrap5/styleguide/index.html:21
+#: cast_bootstrap5/templates/cast/bootstrap5/select_theme.html:5
+#: cast_bootstrap5/templates/cast/bootstrap5/styleguide/index.html:20
 msgid "Toggle color mode"
 msgstr "Farbmodus wechseln"
 
-#: templates/cast/bootstrap5/select_theme.html:22
-#: templates/cast/bootstrap5/styleguide/index.html:39
-#: templates/cast/bootstrap5/styleguide/index.html:76
+#: cast_bootstrap5/templates/cast/bootstrap5/select_theme.html:23
+#: cast_bootstrap5/templates/cast/bootstrap5/styleguide/index.html:38
+#: cast_bootstrap5/templates/cast/bootstrap5/styleguide/index.html:76
 msgid "Light"
 msgstr "Hell"
 
-#: templates/cast/bootstrap5/select_theme.html:33
-#: templates/cast/bootstrap5/styleguide/index.html:50
-#: templates/cast/bootstrap5/styleguide/index.html:76
+#: cast_bootstrap5/templates/cast/bootstrap5/select_theme.html:34
+#: cast_bootstrap5/templates/cast/bootstrap5/styleguide/index.html:49
+#: cast_bootstrap5/templates/cast/bootstrap5/styleguide/index.html:76
 msgid "Dark"
 msgstr "Dunkel"
 
-#: templates/cast/bootstrap5/select_theme.html:44
-#: templates/cast/bootstrap5/styleguide/index.html:61
-#: templates/cast/bootstrap5/styleguide/index.html:76
+#: cast_bootstrap5/templates/cast/bootstrap5/select_theme.html:45
+#: cast_bootstrap5/templates/cast/bootstrap5/styleguide/index.html:60
+#: cast_bootstrap5/templates/cast/bootstrap5/styleguide/index.html:76
 msgid "Auto"
 msgstr "Automatisch"
 
-#: templates/cast/bootstrap5/select_theme.html:52
+#: cast_bootstrap5/templates/cast/bootstrap5/select_theme.html:53
 msgid "Theme"
 msgstr "Thema"
 
-#: templates/cast/bootstrap5/styleguide/_transcript.html:7
-#: templates/cast/bootstrap5/transcript.html:6
-#: templates/cast/bootstrap5/transcript.html:17
+#: cast_bootstrap5/templates/cast/bootstrap5/styleguide/_transcript.html:7
+#: cast_bootstrap5/templates/cast/bootstrap5/transcript.html:6
+#: cast_bootstrap5/templates/cast/bootstrap5/transcript.html:17
 #, python-format
 msgid "Transcript: %(title)s"
 msgstr "Transkript: %(title)s"
 
-#: templates/cast/bootstrap5/styleguide/_transcript.html:9
-#: templates/cast/bootstrap5/transcript.html:8
-#: templates/cast/bootstrap5/transcript.html:19
-#: templates/cast/bootstrap5/styleguide/sections.html:94
+#: cast_bootstrap5/templates/cast/bootstrap5/styleguide/_transcript.html:9
+#: cast_bootstrap5/templates/cast/bootstrap5/styleguide/sections.html:261
+#: cast_bootstrap5/templates/cast/bootstrap5/transcript.html:8
+#: cast_bootstrap5/templates/cast/bootstrap5/transcript.html:19
 msgid "Transcript"
 msgstr "Transkript"
 
-#: templates/cast/bootstrap5/styleguide/_transcript.html:15
-#: templates/cast/bootstrap5/transcript.html:25
+#: cast_bootstrap5/templates/cast/bootstrap5/styleguide/_transcript.html:15
+#: cast_bootstrap5/templates/cast/bootstrap5/transcript.html:25
 msgid "Back to episode"
 msgstr "Zurück zur Episode"
 
-#: templates/cast/bootstrap5/styleguide/_transcript.html:18
-#: templates/cast/bootstrap5/transcript.html:28
+#: cast_bootstrap5/templates/cast/bootstrap5/styleguide/_transcript.html:18
+#: cast_bootstrap5/templates/cast/bootstrap5/transcript.html:28
 msgid "Full episode transcript. Timestamps refer to the audio playback."
-msgstr "Vollständiges Transkript der Episode. Zeitstempel beziehen sich auf die Audiowiedergabe."
+msgstr ""
+"Vollständiges Transkript der Episode. Zeitstempel beziehen sich auf die "
+"Audiowiedergabe."
 
-#: templates/cast/bootstrap5/styleguide/_transcript.html:37
-#: templates/cast/bootstrap5/transcript.html:47
+#: cast_bootstrap5/templates/cast/bootstrap5/styleguide/_transcript.html:37
+#: cast_bootstrap5/templates/cast/bootstrap5/transcript.html:47
 msgid "No transcript segments available."
 msgstr "Keine Transkript-Abschnitte verfügbar."
 
-#: templates/cast/bootstrap5/styleguide/index.html:6
+#: cast_bootstrap5/templates/cast/bootstrap5/styleguide/index.html:6
 msgid "Styleguide"
 msgstr "Styleguide"
 
-#: templates/cast/bootstrap5/styleguide/sections.html:6
+#: cast_bootstrap5/templates/cast/bootstrap5/styleguide/sections.html:6
 msgid "Typography"
 msgstr "Typografie"
 
-#: templates/cast/bootstrap5/styleguide/sections.html:7
+#: cast_bootstrap5/templates/cast/bootstrap5/styleguide/sections.html:7
 msgid "Lead paragraph to show rhythm and spacing."
 msgstr "Einleitender Absatz zur Darstellung von Rhythmus und Abständen."
 
-#: templates/cast/bootstrap5/styleguide/sections.html:9
+#: cast_bootstrap5/templates/cast/bootstrap5/styleguide/sections.html:9
 msgid "Body text with"
 msgstr "Fließtext mit"
 
-#: templates/cast/bootstrap5/styleguide/sections.html:10
+#: cast_bootstrap5/templates/cast/bootstrap5/styleguide/sections.html:10
 msgid "inline link"
 msgstr "eingebettetem Link"
 
-#: templates/cast/bootstrap5/styleguide/sections.html:11
+#: cast_bootstrap5/templates/cast/bootstrap5/styleguide/sections.html:11
 msgid "emphasis"
 msgstr "Hervorhebung"
 
-#: templates/cast/bootstrap5/styleguide/sections.html:12
+#: cast_bootstrap5/templates/cast/bootstrap5/styleguide/sections.html:12
 msgid "italics"
 msgstr "Kursivschrift"
 
-#: templates/cast/bootstrap5/styleguide/sections.html:16
+#: cast_bootstrap5/templates/cast/bootstrap5/styleguide/sections.html:16
 msgid "Unordered list item"
 msgstr "Ungeordneter Listenpunkt"
 
-#: templates/cast/bootstrap5/styleguide/sections.html:17
+#: cast_bootstrap5/templates/cast/bootstrap5/styleguide/sections.html:17
 msgid "Another list item"
 msgstr "Ein weiterer Listenpunkt"
 
-#: templates/cast/bootstrap5/styleguide/sections.html:20
+#: cast_bootstrap5/templates/cast/bootstrap5/styleguide/sections.html:20
 msgid "Ordered list item"
 msgstr "Geordneter Listenpunkt"
 
-#: templates/cast/bootstrap5/styleguide/sections.html:21
+#: cast_bootstrap5/templates/cast/bootstrap5/styleguide/sections.html:21
 msgid "Second ordered item"
 msgstr "Zweiter geordneter Punkt"
 
-#: templates/cast/bootstrap5/styleguide/sections.html:24
+#: cast_bootstrap5/templates/cast/bootstrap5/styleguide/sections.html:24
 msgid "Blockquote sample for editorial layouts."
 msgstr "Beispielzitat für redaktionelle Layouts."
 
-#: templates/cast/bootstrap5/styleguide/sections.html:25
+#: cast_bootstrap5/templates/cast/bootstrap5/styleguide/sections.html:25
 msgid "Attribution"
 msgstr "Quellenangabe"
 
-#: templates/cast/bootstrap5/styleguide/sections.html:30
-msgid "Buttons & links"
-msgstr "Schaltflächen & Links"
+#: cast_bootstrap5/templates/cast/bootstrap5/styleguide/sections.html:30
+msgid "Palette & tokens"
+msgstr "Palette & Token"
 
-#: templates/cast/bootstrap5/styleguide/sections.html:32
+#: cast_bootstrap5/templates/cast/bootstrap5/styleguide/sections.html:32
+msgid ""
+"Semantic tokens define the light and dark palette. Switch color mode to "
+"review the paired values."
+msgstr ""
+"Semantische Tokens definieren die helle und dunkle Palette. Wechsle den "
+"Farbmodus, um die zugehörigen Werte zu prüfen."
+
+#: cast_bootstrap5/templates/cast/bootstrap5/styleguide/sections.html:38
+msgid "Brand accents"
+msgstr "Markenakzente"
+
+#: cast_bootstrap5/templates/cast/bootstrap5/styleguide/sections.html:59
+msgid "Backgrounds"
+msgstr "Hintergründe"
+
+#: cast_bootstrap5/templates/cast/bootstrap5/styleguide/sections.html:80
+msgid "Text"
+msgstr "Text"
+
+#: cast_bootstrap5/templates/cast/bootstrap5/styleguide/sections.html:105
+msgid "Borders"
+msgstr "Rahmen"
+
+#: cast_bootstrap5/templates/cast/bootstrap5/styleguide/sections.html:122
+msgid "Status"
+msgstr "Status"
+
+#: cast_bootstrap5/templates/cast/bootstrap5/styleguide/sections.html:143
+msgid "Code"
+msgstr "Code"
+
+#: cast_bootstrap5/templates/cast/bootstrap5/styleguide/sections.html:158
+msgid "Override example"
+msgstr "Überschreibungsbeispiel"
+
+#: cast_bootstrap5/templates/cast/bootstrap5/styleguide/sections.html:160
+msgid "Override tokens in a site stylesheet loaded after cast.css."
+msgstr ""
+"Überschreibe Tokens in einem Site-Stylesheet, das nach cast.css geladen wird."
+
+#: cast_bootstrap5/templates/cast/bootstrap5/styleguide/sections.html:178
+msgid "Default palette"
+msgstr "Standardpalette"
+
+#: cast_bootstrap5/templates/cast/bootstrap5/styleguide/sections.html:179
+#: cast_bootstrap5/templates/cast/bootstrap5/styleguide/sections.html:188
+#: cast_bootstrap5/templates/cast/bootstrap5/styleguide/sections.html:199
 msgid "Primary"
 msgstr "Primär"
 
-#: templates/cast/bootstrap5/styleguide/sections.html:33
+#: cast_bootstrap5/templates/cast/bootstrap5/styleguide/sections.html:180
+#: cast_bootstrap5/templates/cast/bootstrap5/styleguide/sections.html:189
+#: cast_bootstrap5/templates/cast/bootstrap5/styleguide/sections.html:200
 msgid "Secondary"
 msgstr "Sekundär"
 
-#: templates/cast/bootstrap5/styleguide/sections.html:34
+#: cast_bootstrap5/templates/cast/bootstrap5/styleguide/sections.html:187
+msgid "Override preview"
+msgstr "Überschreibungs-Vorschau"
+
+#: cast_bootstrap5/templates/cast/bootstrap5/styleguide/sections.html:197
+msgid "Buttons & links"
+msgstr "Schaltflächen & Links"
+
+#: cast_bootstrap5/templates/cast/bootstrap5/styleguide/sections.html:201
 msgid "Disabled"
 msgstr "Deaktiviert"
 
-#: templates/cast/bootstrap5/styleguide/sections.html:39
+#: cast_bootstrap5/templates/cast/bootstrap5/styleguide/sections.html:206
 msgid "Forms"
 msgstr "Formulare"
 
-#: templates/cast/bootstrap5/styleguide/sections.html:44
+#: cast_bootstrap5/templates/cast/bootstrap5/styleguide/sections.html:211
 msgid "Search"
 msgstr "Suche"
 
-#: templates/cast/bootstrap5/styleguide/sections.html:51
+#: cast_bootstrap5/templates/cast/bootstrap5/styleguide/sections.html:218
 msgid "Post list"
 msgstr "Beitragsliste"
 
-#: templates/cast/bootstrap5/styleguide/sections.html:58
+#: cast_bootstrap5/templates/cast/bootstrap5/styleguide/sections.html:225
 msgid "Content blocks"
 msgstr "Inhaltsblöcke"
 
-#: templates/cast/bootstrap5/styleguide/sections.html:63
+#: cast_bootstrap5/templates/cast/bootstrap5/styleguide/sections.html:230
 msgid "Gallery"
 msgstr "Galerie"
 
-#: templates/cast/bootstrap5/styleguide/sections.html:70
+#: cast_bootstrap5/templates/cast/bootstrap5/styleguide/sections.html:237
 msgid "Audio"
 msgstr "Audio"
 
-#: templates/cast/bootstrap5/styleguide/sections.html:78
+#: cast_bootstrap5/templates/cast/bootstrap5/styleguide/sections.html:245
 msgid "Video"
 msgstr "Video"
 
-#: templates/cast/bootstrap5/styleguide/sections.html:80
+#: cast_bootstrap5/templates/cast/bootstrap5/styleguide/sections.html:247
 msgid ""
 "Intro paragraph for video placement inside a longer post. Use this to judge "
 "spacing before the player."
@@ -189,7 +248,7 @@ msgstr ""
 "Einleitender Absatz für die Videopositionierung in einem längeren Beitrag. "
 "Hiermit lässt sich der Abstand vor dem Player beurteilen."
 
-#: templates/cast/bootstrap5/styleguide/sections.html:84
+#: cast_bootstrap5/templates/cast/bootstrap5/styleguide/sections.html:251
 msgid ""
 "Closing paragraph after the video for checking spacing and readability in "
 "context."
@@ -197,15 +256,15 @@ msgstr ""
 "Abschließender Absatz nach dem Video zur Überprüfung von Abständen und "
 "Lesbarkeit im Kontext."
 
-#: templates/cast/bootstrap5/styleguide/sections.html:89
+#: cast_bootstrap5/templates/cast/bootstrap5/styleguide/sections.html:256
 msgid "Episode"
 msgstr "Episode"
 
-#: templates/cast/bootstrap5/styleguide/sections.html:99
+#: cast_bootstrap5/templates/cast/bootstrap5/styleguide/sections.html:266
 msgid "Comments"
 msgstr "Kommentare"
 
-#: templates/cast/bootstrap5/styleguide/sections.html:105
+#: cast_bootstrap5/templates/cast/bootstrap5/styleguide/sections.html:272
 msgid ""
 "Comments are disabled. Enable CAST_COMMENTS_ENABLED to preview the comment "
 "UI."
@@ -213,6 +272,6 @@ msgstr ""
 "Kommentare sind deaktiviert. Aktivieren Sie CAST_COMMENTS_ENABLED, um die "
 "Kommentaroberfläche anzuzeigen."
 
-#: templates/cast/bootstrap5/styleguide/sections.html:111
+#: cast_bootstrap5/templates/cast/bootstrap5/styleguide/sections.html:278
 msgid "Error pages"
 msgstr "Fehlerseiten"
