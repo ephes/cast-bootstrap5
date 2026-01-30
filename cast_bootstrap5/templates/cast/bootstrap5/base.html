@@ -43,26 +43,74 @@
     <a href="#main-content" class="visually-hidden-focusable skip-link">{% trans "Skip to content" %}</a>
     {% block bodystart %}{% endblock bodystart %}
     {% block navigation %}
-      <nav class="navbar navbar-expand-lg navbar-sticky">
-        <div class="container-fluid">
-          <a class="navbar-brand" href="{% url 'home' %}">Home</a>
-          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
-            <span class="navbar-toggler-icon"></span>
-          </button>
-          <div class="collapse navbar-collapse" id="navbarSupportedContent">
-            <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-              {% for link, text in root_nav_links %}
-                <li class="nav-item">
-                  <a class="nav-link" href="{{ link }}">{{ text }}</a>
-                </li>
-              {% endfor %}
-              {% if has_selectable_themes %}
-                {% include "./select_theme.html" %}
+      {% with nav_layout=request.GET.nav_layout|default:"inline" %}
+        {% if request.GET.nav_preview or request.GET.nav_layout %}
+          <div class="cast-nav-layout-preview" role="group" aria-label="Navbar layout preview">
+            <span class="cast-nav-layout-label">Nav layout:</span>
+            <a class="btn btn-sm {% if nav_layout == 'inline' %}btn-primary{% else %}btn-outline-secondary{% endif %}" href="?nav_layout=inline&nav_preview=1" {% if nav_layout == 'inline' %}aria-current="true"{% endif %}>Inline</a>
+            <a class="btn btn-sm {% if nav_layout == 'right' %}btn-primary{% else %}btn-outline-secondary{% endif %}" href="?nav_layout=right&nav_preview=1" {% if nav_layout == 'right' %}aria-current="true"{% endif %}>Right</a>
+            <a class="btn btn-sm {% if nav_layout == 'corner' %}btn-primary{% else %}btn-outline-secondary{% endif %}" href="?nav_layout=corner&nav_preview=1" {% if nav_layout == 'corner' %}aria-current="true"{% endif %}>Corner</a>
+          </div>
+        {% endif %}
+        <nav class="navbar navbar-expand-lg navbar-sticky">
+          <div class="container-fluid">
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+              <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarSupportedContent">
+              {% if nav_layout == 'right' %}
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                  <li class="nav-item">
+                    <a class="nav-link" href="{% url 'home' %}">Home</a>
+                  </li>
+                  {% for link, text in root_nav_links %}
+                    <li class="nav-item">
+                      <a class="nav-link" href="{{ link }}">{{ text }}</a>
+                    </li>
+                  {% endfor %}
+                </ul>
+                {% if has_selectable_themes %}
+                  <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
+                    {% include "./select_theme.html" %}
+                  </ul>
+                {% endif %}
+              {% elif nav_layout == 'corner' %}
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                  <li class="nav-item">
+                    <a class="nav-link" href="{% url 'home' %}">Home</a>
+                  </li>
+                  {% for link, text in root_nav_links %}
+                    <li class="nav-item">
+                      <a class="nav-link" href="{{ link }}">{{ text }}</a>
+                    </li>
+                  {% endfor %}
+                </ul>
+              {% else %}
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                  <li class="nav-item">
+                    <a class="nav-link" href="{% url 'home' %}">Home</a>
+                  </li>
+                  {% for link, text in root_nav_links %}
+                    <li class="nav-item">
+                      <a class="nav-link" href="{{ link }}">{{ text }}</a>
+                    </li>
+                  {% endfor %}
+                  {% if has_selectable_themes %}
+                    {% include "./select_theme.html" %}
+                  {% endif %}
+                </ul>
               {% endif %}
+            </div>
+          </div>
+        </nav>
+        {% if nav_layout == 'corner' and has_selectable_themes %}
+          <div class="cast-theme-corner">
+            <ul class="navbar-nav">
+              {% include "./select_theme.html" %}
             </ul>
           </div>
-        </div>
-      </nav>
+        {% endif %}
+      {% endwith %}
     {% endblock navigation %}
     <main id="main-content" class="container">
       {% block messages %}

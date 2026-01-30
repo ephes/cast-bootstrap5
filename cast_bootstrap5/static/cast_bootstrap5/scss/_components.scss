@@ -446,14 +446,10 @@ podlove-player {
 }
 
 // Align navbar items consistently (brand, links, theme toggle)
-.navbar .navbar-brand,
+// Nav links alignment + base styling
 .navbar .nav-link {
   display: inline-flex;
   align-items: center;
-}
-
-// Keep nav links from inheriting global underline styles
-.navbar .nav-link {
   text-decoration: none;
 }
 
@@ -486,6 +482,44 @@ podlove-player {
 .navbar-sticky + main,
 .navbar-sticky ~ main {
   padding-top: var(--cast-spacer-4);
+}
+
+// Layout preview controls (only visible when enabled via query params)
+.cast-nav-layout-preview {
+  position: fixed;
+  right: var(--cast-spacer-3);
+  bottom: var(--cast-spacer-3);
+  z-index: 1040;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cast-spacer-2);
+  padding: 0.5rem 0.75rem;
+  background-color: var(--cast-surface);
+  border: 1px solid var(--cast-border);
+  border-radius: var(--cast-border-radius);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.cast-nav-layout-label {
+  font-size: var(--cast-font-size-sm);
+  color: var(--cast-text-muted);
+}
+
+// Theme selector in the corner variant
+.cast-theme-corner {
+  position: fixed;
+  top: var(--cast-spacer-3);
+  right: var(--cast-spacer-3);
+  z-index: 1040;
+}
+
+.cast-theme-corner .navbar-nav {
+  margin: 0;
+}
+
+.cast-theme-corner .nav-link {
+  display: inline-flex;
+  align-items: center;
 }
 
 // Direct main content padding when using sticky navbar
