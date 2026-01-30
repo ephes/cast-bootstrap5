@@ -206,9 +206,9 @@
   <h2 class="h3">{% translate "Forms" %}</h2>
   <div class="card">
     <div class="card-body">
-      <form action="{{ blog.url }}" method="get">
+      <form action="{{ blog.url }}" method="get" class="cast-filter-form">
         {{ filterset.form | crispy }}
-        <button class="btn btn-primary" type="submit">{% translate "Search" %}</button>
+        <button class="btn btn-primary cast-filter-submit" type="submit">{% translate "Search" %}</button>
       </form>
     </div>
   </div>

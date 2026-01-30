@@ -21,6 +21,16 @@ msgstr ""
 msgid "Skip to content"
 msgstr "Zum Inhalt springen"
 
+#: cast_bootstrap5/templates/cast/bootstrap5/pagination.html:12
+#: cast_bootstrap5/templates/cast/bootstrap5/pagination.html:25
+msgid "Previous"
+msgstr "Zurück"
+
+#: cast_bootstrap5/templates/cast/bootstrap5/pagination.html:52
+#: cast_bootstrap5/templates/cast/bootstrap5/pagination.html:65
+msgid "Next"
+msgstr "Weiter"
+
 #: cast_bootstrap5/templates/cast/bootstrap5/post_body.html:9
 msgid "(click here to comment)"
 msgstr "(hier klicken, um zu kommentieren)"

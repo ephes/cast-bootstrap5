@@ -330,3 +330,12 @@ article > .content {
 .content-full {
   max-width: none;
 }
+
+@media (max-width: 575.98px) {
+  .cast-reading,
+  .content-body,
+  .post-content,
+  article > .content {
+    padding-inline: var(--cast-spacer-2);
+  }
+}
