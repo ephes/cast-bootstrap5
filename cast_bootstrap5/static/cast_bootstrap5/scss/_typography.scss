@@ -157,6 +157,23 @@ a {
   }
 }
 
+// Button-like links should not inherit underline from link hover styles
+a.btn,
+a.btn:hover,
+a.btn:focus,
+a.btn:active,
+a.page-link,
+a.page-link:hover,
+a.page-link:focus,
+a.page-link:active {
+  text-decoration: none;
+}
+
+a.btn:focus-visible,
+a.page-link:focus-visible {
+  outline: none;
+}
+
 // Links on white backgrounds need darker color for AA compliance
 .bg-white a,
 .card a,

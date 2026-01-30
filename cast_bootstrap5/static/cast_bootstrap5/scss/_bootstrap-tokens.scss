@@ -123,6 +123,11 @@
   --bs-btn-hover-bg: var(--cast-bg-alt);
   --bs-btn-hover-border-color: var(--cast-border-strong);
   --bs-btn-hover-color: var(--cast-text);
+  --bs-btn-focus-shadow-rgb: 217, 119, 6;
+}
+
+[data-bs-theme="dark"] .btn-secondary {
+  --bs-btn-focus-shadow-rgb: 251, 191, 36;
 }
 
 // Outline primary button
@@ -205,7 +210,7 @@
   --bs-pagination-border-color: var(--cast-border);
   --bs-pagination-hover-color: var(--cast-text);
   --bs-pagination-hover-bg: var(--cast-bg-alt);
-  --bs-pagination-hover-border-color: var(--cast-border);
+  --bs-pagination-hover-border-color: var(--cast-border-strong);
   --bs-pagination-focus-color: var(--cast-accent);
   --bs-pagination-focus-bg: var(--cast-bg-alt);
   --bs-pagination-focus-box-shadow: 0 0 0 0.25rem var(--bs-focus-ring-color);
@@ -297,8 +302,8 @@
   --bs-dropdown-bg: var(--cast-surface);
   --bs-dropdown-border-color: var(--cast-border);
   --bs-dropdown-link-color: var(--cast-text);
-  --bs-dropdown-link-hover-bg: var(--cast-bg-alt);
-  --bs-dropdown-link-hover-color: var(--cast-text);
+  --bs-dropdown-link-hover-bg: var(--cast-accent-light);
+  --bs-dropdown-link-hover-color: var(--cast-accent-hover);
   --bs-dropdown-link-active-bg: var(--cast-accent);
   --bs-dropdown-link-active-color: #fff;
 }
@@ -308,7 +313,7 @@
 // -----------------------------------------------------------------------------
 .navbar {
   --bs-navbar-color: var(--cast-text);
-  --bs-navbar-hover-color: var(--cast-accent);
+  --bs-navbar-hover-color: var(--cast-accent-hover);
   --bs-navbar-active-color: var(--cast-accent);
   --bs-navbar-brand-color: var(--cast-text);
   --bs-navbar-brand-hover-color: var(--cast-text);
@@ -317,12 +322,12 @@
 .navbar-light,
 [data-bs-theme="light"] .navbar {
   --bs-navbar-color: var(--cast-text);
-  --bs-navbar-hover-color: var(--cast-accent);
+  --bs-navbar-hover-color: var(--cast-accent-hover);
   --bs-navbar-active-color: var(--cast-accent);
 }
 
 [data-bs-theme="dark"] .navbar {
   --bs-navbar-color: var(--cast-text);
-  --bs-navbar-hover-color: var(--cast-accent);
+  --bs-navbar-hover-color: var(--cast-accent-hover);
   --bs-navbar-active-color: var(--cast-accent);
 }

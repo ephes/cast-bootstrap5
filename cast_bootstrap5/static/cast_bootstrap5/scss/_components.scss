@@ -121,6 +121,26 @@ section.block-heading {
   min-width: 71%;
 }
 
+.cast-image-gallery-thumbnail {
+  display: inline-flex;
+  border-radius: var(--cast-border-radius-sm);
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: none;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--cast-accent);
+    outline-offset: 2px;
+  }
+
+  &:focus-visible .cast-gallery-thumbnail {
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+}
+
 .cast-gallery-thumbnail {
   max-width: 10em;
   max-height: 10em;
@@ -191,9 +211,9 @@ video {
   transition: all var(--cast-transition-fast);
 
   &:hover {
-    border-color: var(--cast-accent);
+    border-color: var(--cast-accent-hover);
     background-color: var(--cast-accent-light);
-    color: var(--cast-accent);
+    color: var(--cast-accent-hover);
     text-decoration: none;
   }
 
@@ -228,9 +248,14 @@ video {
 
   &:hover {
     background-color: var(--cast-surface);
-    border-color: var(--cast-accent);
-    color: var(--cast-accent);
+    border-color: var(--cast-accent-hover);
+    color: var(--cast-accent-hover);
     text-decoration: none;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--cast-accent);
+    outline-offset: 2px;
   }
 
   // Arrow icon before the link text
@@ -318,7 +343,12 @@ video {
     text-decoration: none;
 
     &:hover {
-      color: var(--cast-accent);
+      color: var(--cast-accent-hover);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--cast-accent);
+      outline-offset: 2px;
     }
   }
 
@@ -339,7 +369,12 @@ video {
     text-decoration: none;
 
     &:hover {
-      color: var(--cast-accent);
+      color: var(--cast-accent-hover);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--cast-accent);
+      outline-offset: 2px;
     }
   }
 
@@ -394,14 +429,20 @@ video {
 
   a:hover {
     background-color: var(--cast-accent-light);
-    border-color: var(--cast-accent);
-    color: var(--cast-accent);
+    border-color: var(--cast-accent-hover);
+    color: var(--cast-accent-hover);
+    text-decoration: none;
   }
 
   a.selected {
     background-color: var(--cast-accent);
     border-color: var(--cast-accent);
     color: #fff;
+  }
+
+  a:focus-visible {
+    outline: 2px solid var(--cast-accent);
+    outline-offset: 2px;
   }
 }
 
@@ -463,6 +504,13 @@ video {
   flex-shrink: 0;
 
   &:hover {
+    color: var(--cast-accent-hover);
+    text-decoration: underline;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--cast-accent);
+    outline-offset: 2px;
     text-decoration: underline;
   }
 }
@@ -607,7 +655,7 @@ main#main-content {
   color: var(--cast-text);
 
   &:hover {
-    color: var(--cast-accent);
+    color: var(--cast-accent-hover);
   }
 }
 
@@ -732,14 +780,20 @@ main#main-content {
 
   &:hover {
     background-color: var(--cast-accent-light);
-    border-color: var(--cast-accent);
-    color: var(--cast-accent);
+    border-color: var(--cast-accent-hover);
+    color: var(--cast-accent-hover);
+    text-decoration: none;
   }
 
   &.active {
     background-color: var(--cast-accent);
     border-color: var(--cast-accent);
     color: #fff;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--cast-accent);
+    outline-offset: 2px;
   }
 }
 
