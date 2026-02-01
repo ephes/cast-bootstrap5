@@ -724,17 +724,36 @@ main#main-content {
 // -----------------------------------------------------------------------------
 // Filters / Search
 // -----------------------------------------------------------------------------
-.filter-section {
+.cast-filters {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cast-spacer-3);
   margin-bottom: var(--cast-spacer-4);
 }
 
-.cast-filters .card {
-  border-radius: var(--cast-border-radius-lg);
-  overflow: hidden;
+.cast-filter-form {
+  display: grid;
+  gap: var(--cast-spacer-3);
 }
 
-.cast-filter-toggle {
-  width: 100%;
+.cast-filter-panels {
+  display: grid;
+  gap: var(--cast-spacer-2);
+}
+
+.cast-filter-panel {
+  border: 1px solid var(--cast-border);
+  border-radius: var(--cast-border-radius-lg);
+  background-color: var(--cast-surface);
+}
+
+.cast-filter-panel[open] .cast-filter-summary {
+  background-color: var(--cast-bg-alt);
+}
+
+.cast-filter-summary {
+  list-style: none;
+  cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -743,8 +762,45 @@ main#main-content {
   font-weight: var(--cast-font-weight-semibold);
 }
 
-.cast-filter-submit {
-  margin-top: var(--cast-spacer-2);
+.cast-filter-summary::-webkit-details-marker {
+  display: none;
+}
+
+.cast-filter-summary::marker {
+  content: "";
+}
+
+.cast-filter-summary::after {
+  content: "";
+  width: 0.5rem;
+  height: 0.5rem;
+  border: solid currentColor;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+  transition: transform var(--cast-transition-fast);
+}
+
+.cast-filter-panel[open] .cast-filter-summary::after {
+  transform: rotate(-135deg);
+}
+
+.cast-filter-summary:focus-visible {
+  outline: 2px solid var(--cast-accent);
+  outline-offset: 2px;
+  border-radius: var(--cast-border-radius);
+}
+
+.cast-filter-panel-body {
+  padding: var(--cast-spacer-3);
+  border-top: 1px solid var(--cast-border);
+}
+
+.cast-filter-section {
+  margin-bottom: var(--cast-spacer-3);
+}
+
+.cast-filter-section:last-child {
+  margin-bottom: 0;
 }
 
 .filter-search {
@@ -757,11 +813,66 @@ main#main-content {
   .search-icon {
     position: absolute;
     left: 0.75rem;
-    top: 50%;
-    transform: translateY(-50%);
+    bottom: 0.75rem;
     color: var(--cast-text-muted);
     pointer-events: none;
   }
+}
+
+.cast-filter-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cast-spacer-2);
+  align-items: flex-end;
+}
+
+.cast-filter-ordering {
+  flex: 1 1 14rem;
+  min-width: 12rem;
+}
+
+.cast-filter-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--cast-spacer-2);
+  align-items: center;
+}
+
+.cast-filter-submit {
+  margin: 0;
+}
+
+.cast-filter-clear {
+  white-space: nowrap;
+}
+
+.cast-facet-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cast-spacer-2);
+}
+
+.cast-facet-group[data-expanded="true"] [data-cast-facet-more] {
+  display: none;
+}
+
+.cast-facet-group:not([data-expanded="true"]) [data-cast-facet-less] {
+  display: none;
+}
+
+.cast-facet-toggle {
+  align-self: flex-start;
+  padding: 0;
+  font-size: var(--cast-font-size-sm);
+}
+
+.cast-facet-toggle:focus-visible {
+  outline: 2px solid var(--cast-accent);
+  outline-offset: 2px;
+}
+
+.cast-facet-item-hidden {
+  display: none;
 }
 
 // Tag pills
@@ -840,11 +951,11 @@ main#main-content {
     padding-top: var(--cast-spacer-3);
   }
 
-  .cast-filters .card-body {
+  .cast-filter-panel-body {
     padding: var(--cast-spacer-3);
   }
 
-  .cast-filter-toggle {
+  .cast-filter-summary {
     padding: var(--cast-spacer-2);
   }
 
@@ -862,7 +973,20 @@ main#main-content {
     overflow-y: auto;
   }
 
-  .cast-filter-submit {
+  .cast-filter-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .cast-filter-ordering {
+    width: 100%;
+  }
+
+  .cast-filter-buttons {
+    width: 100%;
+  }
+
+  .cast-filter-buttons .btn {
     width: 100%;
   }
 

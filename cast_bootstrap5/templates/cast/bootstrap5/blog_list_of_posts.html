@@ -58,24 +58,8 @@
     </div>
 
     {% block filters %}
-      <div id="accordion" class="cast-filters">
-        <div class="card">
-          <div class="card-header" id="headingOne">
-            <h2 class="mb-0 h5">
-              <button class="btn btn-link link-dark text-decoration-none cast-filter-toggle collapsed" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-expanded="false" aria-controls="collapseOne">
-                Filters / Fulltext-Search
-              </button>
-            </h2>
-          </div>
-          <div id="collapseOne" class="collapse" role="region" aria-labelledby="headingOne" data-parent="#accordion">
-            <div class="card-body">
-              <form action="{{ page.url }}" method="get" class="cast-filter-form">
-                {{ filterset.form | crispy }}
-                <input class="btn btn-primary btn-lg cast-filter-submit" role="button" type="submit" />
-              </form>
-            </div>
-          </div>
-        </div>
+      <div class="cast-filters">
+        {% include "./_filter_form.html" with page=page filterset=filterset %}
       </div>
     {% endblock filters %}
     <hr class="my-4">

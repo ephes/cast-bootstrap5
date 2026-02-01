@@ -268,10 +268,118 @@
               });
             }
 
+            function initFilterPanels(root) {
+              var scope = root && root.querySelector ? root : document;
+              var panels = Array.prototype.slice.call(scope.querySelectorAll('[data-cast-filter-panel]'));
+              if (!panels.length) {
+                return;
+              }
+              var isMobile = window.matchMedia
+                ? window.matchMedia('(max-width: 767.98px)').matches
+                : false;
+              panels.forEach(function (panel) {
+                if (panel.dataset.castPanelReady === 'true') {
+                  return;
+                }
+                var shouldOpen = panel.getAttribute('data-cast-open') === 'true';
+                if (isMobile) {
+                  panel.removeAttribute('open');
+                } else if (shouldOpen) {
+                  panel.setAttribute('open', '');
+                }
+                panel.dataset.castPanelReady = 'true';
+              });
+            }
+
+            function initFacetToggles(root) {
+              var scope = root && root.querySelector ? root : document;
+              var groups = Array.prototype.slice.call(scope.querySelectorAll('[data-cast-facet-group]'));
+              if (!groups.length) {
+                return;
+              }
+              groups.forEach(function (group) {
+                if (group.dataset.castFacetReady === 'true') {
+                  return;
+                }
+                var limit = parseInt(group.getAttribute('data-limit') || '', 10);
+                var items = Array.prototype.slice.call(group.querySelectorAll('.cast-date-facet-item'));
+                var toggle = group.querySelector('[data-cast-facet-toggle]');
+                var toggleMore = toggle ? toggle.querySelector('[data-cast-facet-more]') : null;
+                var baseMoreLabel = '';
+                var countLabel = '';
+                if (toggle) {
+                  baseMoreLabel = toggle.dataset.castMoreLabel || (toggleMore ? toggleMore.textContent : 'Show all');
+                  countLabel = toggle.dataset.castCountLabel || 'more';
+                }
+                if (!limit || items.length <= limit) {
+                  if (toggle) {
+                    toggle.hidden = true;
+                  }
+                  group.dataset.castFacetReady = 'true';
+                  return;
+                }
+
+                function updateMoreLabel(hiddenCount) {
+                  if (!toggleMore) {
+                    return;
+                  }
+                  if (hiddenCount > 0) {
+                    toggleMore.textContent = baseMoreLabel + ' (' + hiddenCount + ' ' + countLabel + ')';
+                  } else {
+                    toggleMore.textContent = baseMoreLabel;
+                  }
+                }
+
+                function applyCollapsed() {
+                  items.forEach(function (item, index) {
+                    var isSelected = Boolean(item.querySelector('a.selected'));
+                    var shouldShow = index < limit || isSelected;
+                    item.classList.toggle('cast-facet-item-hidden', !shouldShow);
+                  });
+                  var hiddenCount = items.filter(function (item) {
+                    return item.classList.contains('cast-facet-item-hidden');
+                  }).length;
+                  group.removeAttribute('data-expanded');
+                  if (toggle) {
+                    toggle.setAttribute('aria-expanded', 'false');
+                  }
+                  updateMoreLabel(hiddenCount);
+                }
+
+                function applyExpanded() {
+                  items.forEach(function (item) {
+                    item.classList.remove('cast-facet-item-hidden');
+                  });
+                  group.dataset.expanded = 'true';
+                  if (toggle) {
+                    toggle.setAttribute('aria-expanded', 'true');
+                  }
+                  updateMoreLabel(0);
+                }
+
+                applyCollapsed();
+                if (toggle) {
+                  toggle.hidden = false;
+                  toggle.addEventListener('click', function () {
+                    var expanded = group.dataset.expanded === 'true';
+                    if (expanded) {
+                      applyCollapsed();
+                    } else {
+                      applyExpanded();
+                    }
+                  });
+                }
+
+                group.dataset.castFacetReady = 'true';
+              });
+            }
+
             function initEnhancements(root) {
               var scope = root && root.querySelector ? root : document;
               buildOrderingDropdown(scope);
               mergeConsecutiveBlockquotes(scope);
+              initFilterPanels(scope);
+              initFacetToggles(scope);
             }
 
             if (document.readyState === 'loading') {

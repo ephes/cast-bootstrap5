@@ -230,6 +230,22 @@ msgstr "Formulare"
 msgid "Search"
 msgstr "Suche"
 
+#: cast_bootstrap5/templates/cast/bootstrap5/_filter_form.html:54
+msgid "Show all"
+msgstr "Alle anzeigen"
+
+#: cast_bootstrap5/templates/cast/bootstrap5/_filter_form.html:55
+msgid "Show fewer"
+msgstr "Weniger anzeigen"
+
+#: cast_bootstrap5/templates/cast/bootstrap5/_filter_form.html:71
+msgid "more"
+msgstr "mehr"
+
+#: cast_bootstrap5/templates/cast/bootstrap5/_filter_form.html:83
+msgid "Clear filters"
+msgstr "Filter zurücksetzen"
+
 #: cast_bootstrap5/templates/cast/bootstrap5/styleguide/sections.html:218
 msgid "Post list"
 msgstr "Beitragsliste"
