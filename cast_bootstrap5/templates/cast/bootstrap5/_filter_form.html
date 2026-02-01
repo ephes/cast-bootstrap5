@@ -25,7 +25,7 @@
 
     <div class="cast-filter-panels">
       {% if "date" in filter_fields or "date_facets" in filter_fields %}
-        <details class="cast-filter-panel" data-cast-filter-panel data-cast-open="true">
+        <details class="cast-filter-panel" data-cast-filter-panel data-cast-open="auto">
           <summary class="cast-filter-summary" id="cast-filter-summary-date-{{ facet_prefix }}">
             {% if "date" in filter_fields %}
               {{ filterset.form.date.label }}
@@ -57,7 +57,7 @@
       {% endif %}
 
       {% if "tag_facets" in filter_fields %}
-        <details class="cast-filter-panel" data-cast-filter-panel data-cast-open="true">
+        <details class="cast-filter-panel" data-cast-filter-panel data-cast-open="auto">
           <summary class="cast-filter-summary" id="cast-filter-summary-tags-{{ facet_prefix }}">
             {{ filterset.form.tag_facets.label }}
           </summary>
@@ -90,7 +90,7 @@
       {% endif %}
 
       {% if "category_facets" in filter_fields %}
-        <details class="cast-filter-panel" data-cast-filter-panel>
+        <details class="cast-filter-panel" data-cast-filter-panel data-cast-open="auto">
           <summary class="cast-filter-summary" id="cast-filter-summary-categories-{{ facet_prefix }}">
             {{ filterset.form.category_facets.label }}
           </summary>

@@ -274,6 +274,25 @@
               if (!panels.length) {
                 return;
               }
+              function panelHasActiveFilters(panel) {
+                if (panel.querySelector('a.selected, a.active, [aria-current="true"]')) {
+                  return true;
+                }
+                var fields = Array.prototype.slice.call(panel.querySelectorAll('input, select, textarea'));
+                return fields.some(function (field) {
+                  if (field.disabled) {
+                    return false;
+                  }
+                  var type = (field.getAttribute('type') || '').toLowerCase();
+                  if (type === 'checkbox' || type === 'radio') {
+                    return field.checked;
+                  }
+                  if (type === 'hidden') {
+                    return false;
+                  }
+                  return field.value && field.value.trim() !== '';
+                });
+              }
               var isMobile = window.matchMedia
                 ? window.matchMedia('(max-width: 767.98px)').matches
                 : false;
@@ -281,11 +300,15 @@
                 if (panel.dataset.castPanelReady === 'true') {
                   return;
                 }
-                var shouldOpen = panel.getAttribute('data-cast-open') === 'true';
+                var openMode = panel.getAttribute('data-cast-open') || '';
+                var shouldOpen = openMode === 'true';
+                var autoOpen = openMode === 'auto';
                 if (isMobile) {
                   panel.removeAttribute('open');
-                } else if (shouldOpen) {
+                } else if (shouldOpen || (autoOpen && panelHasActiveFilters(panel))) {
                   panel.setAttribute('open', '');
+                } else {
+                  panel.removeAttribute('open');
                 }
                 panel.dataset.castPanelReady = 'true';
               });
