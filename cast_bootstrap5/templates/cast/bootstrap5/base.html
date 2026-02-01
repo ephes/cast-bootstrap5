@@ -275,7 +275,19 @@
                 return;
               }
               function panelHasActiveFilters(panel) {
-                if (panel.querySelector('a.selected, a.active, [aria-current="true"]')) {
+                var selectedLinks = Array.prototype.slice.call(
+                  panel.querySelectorAll('a.selected, a.active, [aria-current="true"]')
+                );
+                for (var i = 0; i < selectedLinks.length; i += 1) {
+                  var link = selectedLinks[i];
+                  var parent = link.parentElement;
+                  var hiddenInput = parent ? parent.querySelector('input[type="hidden"]') : null;
+                  if (hiddenInput) {
+                    if (hiddenInput.value && hiddenInput.value.trim() !== '') {
+                      return true;
+                    }
+                    continue;
+                  }
                   return true;
                 }
                 var fields = Array.prototype.slice.call(panel.querySelectorAll('input, select, textarea'));
