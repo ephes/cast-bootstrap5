@@ -2,7 +2,7 @@
 {% load i18n %}
 
 {% with filter_fields=filterset.form.fields facet_prefix=page.pk|default:"cast" %}
-  <details class="cast-filters" {% if filterset.form.has_changed %}open{% endif %}>
+  <details class="cast-filters">
     <summary class="cast-filter-summary">
       {% translate "Filters / Fulltext-Search" %}
     </summary>

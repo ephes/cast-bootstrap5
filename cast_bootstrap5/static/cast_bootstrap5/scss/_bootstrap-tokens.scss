@@ -95,6 +95,17 @@
   --bs-heading-color: var(--cast-text);
 }
 
+@supports (color: color-mix(in srgb, red 50%, blue)) {
+  :root,
+  [data-bs-theme="light"] {
+    --bs-focus-ring-color: color-mix(in srgb, var(--cast-accent) 25%, transparent);
+  }
+
+  [data-bs-theme="dark"] {
+    --bs-focus-ring-color: color-mix(in srgb, var(--cast-accent) 25%, transparent);
+  }
+}
+
 // -----------------------------------------------------------------------------
 // Button Overrides
 // -----------------------------------------------------------------------------
