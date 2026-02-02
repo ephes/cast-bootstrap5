@@ -2,143 +2,148 @@
 {% load i18n %}
 
 {% with filter_fields=filterset.form.fields facet_prefix=page.pk|default:"cast" %}
-  <form action="{{ page.url }}" method="get" class="cast-filter-form" data-cast-filter-form>
-    {{ filterset.form.non_field_errors }}
+  <details class="cast-filters" {% if filterset.form.has_changed %}open{% endif %}>
+    <summary class="cast-filter-summary">
+      {% translate "Filters / Fulltext-Search" %}
+    </summary>
+    <form action="{{ page.url }}" method="get" class="cast-filter-form" data-cast-filter-form>
+      {{ filterset.form.non_field_errors }}
 
-    {% if "search" in filter_fields %}
-      <div class="filter-search cast-filter-search">
-        <span class="search-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false">
-            <path
-              d="M21 21l-4.35-4.35m1.85-4.65a7 7 0 1 1-14 0 7 7 0 0 1 14 0Z"
-              fill="none"
-              stroke="currentColor"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-            />
-          </svg>
-        </span>
-        {{ filterset.form.search|as_crispy_field }}
-      </div>
-    {% endif %}
-
-    <div class="cast-filter-panels">
-      {% if "date" in filter_fields or "date_facets" in filter_fields %}
-        <details class="cast-filter-panel" data-cast-filter-panel data-cast-open="auto">
-          <summary class="cast-filter-summary" id="cast-filter-summary-date-{{ facet_prefix }}">
-            {% if "date" in filter_fields %}
-              {{ filterset.form.date.label }}
-            {% else %}
-              {{ filterset.form.date_facets.label }}
-            {% endif %}
-          </summary>
-          <div class="cast-filter-panel-body">
-            {% if "date" in filter_fields %}
-              <div class="cast-filter-section">
-                {{ filterset.form.date|as_crispy_field }}
-              </div>
-            {% endif %}
-            {% if "date_facets" in filter_fields %}
-              <div class="cast-filter-section">
-                <div
-                  class="cast-facet-group"
-                  data-cast-facet-group
-                  id="date-facets-{{ facet_prefix }}"
-                  role="group"
-                  aria-labelledby="cast-filter-summary-date-{{ facet_prefix }}"
-                >
-                  {{ filterset.form.date_facets }}
-                </div>
-              </div>
-            {% endif %}
-          </div>
-        </details>
-      {% endif %}
-
-      {% if "tag_facets" in filter_fields %}
-        <details class="cast-filter-panel" data-cast-filter-panel data-cast-open="auto">
-          <summary class="cast-filter-summary" id="cast-filter-summary-tags-{{ facet_prefix }}">
-            {{ filterset.form.tag_facets.label }}
-          </summary>
-          <div class="cast-filter-panel-body">
-            <div
-              class="cast-facet-group"
-              data-cast-facet-group
-              data-limit="12"
-              id="tag-facets-{{ facet_prefix }}"
-              role="group"
-              aria-labelledby="cast-filter-summary-tags-{{ facet_prefix }}"
-            >
-              {{ filterset.form.tag_facets }}
-              <button
-                type="button"
-                class="btn btn-link cast-facet-toggle"
-                data-cast-facet-toggle
-                aria-expanded="false"
-                aria-controls="tag-facets-{{ facet_prefix }}"
-                data-cast-more-label="{% translate "Show all" %}"
-                data-cast-less-label="{% translate "Show fewer" %}"
-                data-cast-count-label="{% translate "more" %}"
-              >
-                <span data-cast-facet-more>{% translate "Show all" %}</span>
-                <span data-cast-facet-less>{% translate "Show fewer" %}</span>
-              </button>
-            </div>
-          </div>
-        </details>
-      {% endif %}
-
-      {% if "category_facets" in filter_fields %}
-        <details class="cast-filter-panel" data-cast-filter-panel data-cast-open="auto">
-          <summary class="cast-filter-summary" id="cast-filter-summary-categories-{{ facet_prefix }}">
-            {{ filterset.form.category_facets.label }}
-          </summary>
-          <div class="cast-filter-panel-body">
-            <div
-              class="cast-facet-group"
-              data-cast-facet-group
-              data-limit="10"
-              id="category-facets-{{ facet_prefix }}"
-              role="group"
-              aria-labelledby="cast-filter-summary-categories-{{ facet_prefix }}"
-            >
-              {{ filterset.form.category_facets }}
-              <button
-                type="button"
-                class="btn btn-link cast-facet-toggle"
-                data-cast-facet-toggle
-                aria-expanded="false"
-                aria-controls="category-facets-{{ facet_prefix }}"
-                data-cast-more-label="{% translate "Show all" %}"
-                data-cast-less-label="{% translate "Show fewer" %}"
-                data-cast-count-label="{% translate "more" %}"
-              >
-                <span data-cast-facet-more>{% translate "Show all" %}</span>
-                <span data-cast-facet-less>{% translate "Show fewer" %}</span>
-              </button>
-            </div>
-          </div>
-        </details>
-      {% endif %}
-    </div>
-
-    <div class="cast-filter-actions">
-      {% if "o" in filter_fields %}
-        <div class="cast-filter-ordering">
-          {{ filterset.form.o|as_crispy_field }}
+      {% if "search" in filter_fields %}
+        <div class="filter-search cast-filter-search">
+          <span class="search-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false">
+              <path
+                d="M21 21l-4.35-4.35m1.85-4.65a7 7 0 1 1-14 0 7 7 0 0 1 14 0Z"
+                fill="none"
+                stroke="currentColor"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+              />
+            </svg>
+          </span>
+          {{ filterset.form.search|as_crispy_field }}
         </div>
       {% endif %}
-      <div class="cast-filter-buttons">
-        <button class="btn btn-primary cast-filter-submit" type="submit">
-          {% translate "Search" %}
-        </button>
-        {% if filterset.form.has_changed %}
-          <a class="btn btn-outline-secondary cast-filter-clear" href="{{ page.url }}">
-            {% translate "Clear filters" %}
-          </a>
+
+      <div class="cast-filter-panels">
+        {% if "date" in filter_fields or "date_facets" in filter_fields %}
+          <details class="cast-filter-panel" data-cast-filter-panel data-cast-open="auto">
+            <summary class="cast-filter-summary" id="cast-filter-summary-date-{{ facet_prefix }}">
+              {% if "date" in filter_fields %}
+                {{ filterset.form.date.label }}
+              {% else %}
+                {{ filterset.form.date_facets.label }}
+              {% endif %}
+            </summary>
+            <div class="cast-filter-panel-body">
+              {% if "date" in filter_fields %}
+                <div class="cast-filter-section">
+                  {{ filterset.form.date|as_crispy_field }}
+                </div>
+              {% endif %}
+              {% if "date_facets" in filter_fields %}
+                <div class="cast-filter-section">
+                  <div
+                    class="cast-facet-group"
+                    data-cast-facet-group
+                    id="date-facets-{{ facet_prefix }}"
+                    role="group"
+                    aria-labelledby="cast-filter-summary-date-{{ facet_prefix }}"
+                  >
+                    {{ filterset.form.date_facets }}
+                  </div>
+                </div>
+              {% endif %}
+            </div>
+          </details>
+        {% endif %}
+
+        {% if "tag_facets" in filter_fields %}
+          <details class="cast-filter-panel" data-cast-filter-panel data-cast-open="auto">
+            <summary class="cast-filter-summary" id="cast-filter-summary-tags-{{ facet_prefix }}">
+              {{ filterset.form.tag_facets.label }}
+            </summary>
+            <div class="cast-filter-panel-body">
+              <div
+                class="cast-facet-group"
+                data-cast-facet-group
+                data-limit="12"
+                id="tag-facets-{{ facet_prefix }}"
+                role="group"
+                aria-labelledby="cast-filter-summary-tags-{{ facet_prefix }}"
+              >
+                {{ filterset.form.tag_facets }}
+                <button
+                  type="button"
+                  class="btn btn-link cast-facet-toggle"
+                  data-cast-facet-toggle
+                  aria-expanded="false"
+                  aria-controls="tag-facets-{{ facet_prefix }}"
+                  data-cast-more-label="{% translate "Show all" %}"
+                  data-cast-less-label="{% translate "Show fewer" %}"
+                  data-cast-count-label="{% translate "more" %}"
+                >
+                  <span data-cast-facet-more>{% translate "Show all" %}</span>
+                  <span data-cast-facet-less>{% translate "Show fewer" %}</span>
+                </button>
+              </div>
+            </div>
+          </details>
+        {% endif %}
+
+        {% if "category_facets" in filter_fields %}
+          <details class="cast-filter-panel" data-cast-filter-panel data-cast-open="auto">
+            <summary class="cast-filter-summary" id="cast-filter-summary-categories-{{ facet_prefix }}">
+              {{ filterset.form.category_facets.label }}
+            </summary>
+            <div class="cast-filter-panel-body">
+              <div
+                class="cast-facet-group"
+                data-cast-facet-group
+                data-limit="10"
+                id="category-facets-{{ facet_prefix }}"
+                role="group"
+                aria-labelledby="cast-filter-summary-categories-{{ facet_prefix }}"
+              >
+                {{ filterset.form.category_facets }}
+                <button
+                  type="button"
+                  class="btn btn-link cast-facet-toggle"
+                  data-cast-facet-toggle
+                  aria-expanded="false"
+                  aria-controls="category-facets-{{ facet_prefix }}"
+                  data-cast-more-label="{% translate "Show all" %}"
+                  data-cast-less-label="{% translate "Show fewer" %}"
+                  data-cast-count-label="{% translate "more" %}"
+                >
+                  <span data-cast-facet-more>{% translate "Show all" %}</span>
+                  <span data-cast-facet-less>{% translate "Show fewer" %}</span>
+                </button>
+              </div>
+            </div>
+          </details>
         {% endif %}
       </div>
-    </div>
-  </form>
+
+      <div class="cast-filter-actions">
+        {% if "o" in filter_fields %}
+          <div class="cast-filter-ordering">
+            {{ filterset.form.o|as_crispy_field }}
+          </div>
+        {% endif %}
+        <div class="cast-filter-buttons">
+          <button class="btn btn-primary cast-filter-submit" type="submit">
+            {% translate "Search" %}
+          </button>
+          {% if filterset.form.has_changed %}
+            <a class="btn btn-outline-secondary cast-filter-clear" href="{{ page.url }}">
+              {% translate "Clear filters" %}
+            </a>
+          {% endif %}
+        </div>
+      </div>
+    </form>
+  </details>
 {% endwith %}

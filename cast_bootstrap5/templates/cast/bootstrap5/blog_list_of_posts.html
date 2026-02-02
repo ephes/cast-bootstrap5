@@ -58,9 +58,7 @@
     </div>
 
     {% block filters %}
-      <div class="cast-filters">
-        {% include "./_filter_form.html" with page=page filterset=filterset %}
-      </div>
+      {% include "./_filter_form.html" with page=page filterset=filterset %}
     {% endblock filters %}
     <hr class="my-4">
 

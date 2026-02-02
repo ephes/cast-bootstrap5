@@ -725,15 +725,56 @@ main#main-content {
 // Filters / Search
 // -----------------------------------------------------------------------------
 .cast-filters {
-  display: flex;
-  flex-direction: column;
-  gap: var(--cast-spacer-3);
+  border: 1px solid var(--cast-border);
+  border-radius: var(--cast-border-radius-lg);
+  background-color: var(--cast-surface);
   margin-bottom: var(--cast-spacer-4);
+}
+
+.cast-filters > .cast-filter-summary {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--cast-spacer-2);
+  padding: var(--cast-spacer-2) var(--cast-spacer-3);
+  font-weight: var(--cast-font-weight-semibold);
+}
+
+.cast-filters > .cast-filter-summary::-webkit-details-marker {
+  display: none;
+}
+
+.cast-filters > .cast-filter-summary::marker {
+  content: "";
+}
+
+.cast-filters > .cast-filter-summary::after {
+  content: "";
+  width: 0.5rem;
+  height: 0.5rem;
+  border: solid currentColor;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+  transition: transform var(--cast-transition-fast);
+}
+
+.cast-filters[open] > .cast-filter-summary {
+  background-color: var(--cast-bg-alt);
+  border-bottom: 1px solid var(--cast-border);
+  border-top-left-radius: var(--cast-border-radius-lg);
+  border-top-right-radius: var(--cast-border-radius-lg);
+}
+
+.cast-filters[open] > .cast-filter-summary::after {
+  transform: rotate(-135deg);
 }
 
 .cast-filter-form {
   display: grid;
   gap: var(--cast-spacer-3);
+  padding: var(--cast-spacer-3);
 }
 
 .cast-filter-panels {
@@ -805,6 +846,9 @@ main#main-content {
 
 .filter-search {
   position: relative;
+  --cast-search-input-height: calc(1.5em + 0.75rem + 2px);
+  --cast-search-label-height: 1.5em;
+  --cast-search-label-gap: 0.5rem;
 
   .form-control {
     padding-left: 2.5rem;
@@ -813,7 +857,9 @@ main#main-content {
   .search-icon {
     position: absolute;
     left: 0.75rem;
-    top: 50%;
+    top: calc(
+      var(--cast-search-label-height) + var(--cast-search-label-gap) + (var(--cast-search-input-height) / 2)
+    );
     transform: translateY(-50%);
     color: var(--cast-text-muted);
     pointer-events: none;
