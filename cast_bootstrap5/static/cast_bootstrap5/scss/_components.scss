@@ -729,6 +729,8 @@ main#main-content {
   border-radius: var(--cast-border-radius-lg);
   background-color: var(--cast-surface);
   margin-bottom: var(--cast-spacer-4);
+  overflow: hidden;
+  transition: border-color var(--cast-transition-fast);
 }
 
 .cast-filters > .cast-filter-summary {
@@ -740,6 +742,15 @@ main#main-content {
   gap: var(--cast-spacer-2);
   padding: var(--cast-spacer-2) var(--cast-spacer-3);
   font-weight: var(--cast-font-weight-semibold);
+  transition: background-color var(--cast-transition-fast), color var(--cast-transition-fast);
+}
+
+.cast-filters > .cast-filter-summary:hover {
+  background-color: var(--cast-bg-alt);
+}
+
+.cast-filters:hover {
+  border-color: var(--cast-border-strong);
 }
 
 .cast-filters > .cast-filter-summary::-webkit-details-marker {
@@ -767,6 +778,10 @@ main#main-content {
   border-top-right-radius: var(--cast-border-radius-lg);
 }
 
+.cast-filters[open] {
+  border-color: var(--cast-border-strong);
+}
+
 .cast-filters[open] > .cast-filter-summary::after {
   transform: rotate(-135deg);
 }
@@ -786,10 +801,20 @@ main#main-content {
   border: 1px solid var(--cast-border);
   border-radius: var(--cast-border-radius-lg);
   background-color: var(--cast-surface);
+  overflow: hidden;
+  transition: border-color var(--cast-transition-fast);
+}
+
+.cast-filter-panel:hover {
+  border-color: var(--cast-border-strong);
 }
 
 .cast-filter-panel[open] .cast-filter-summary {
   background-color: var(--cast-bg-alt);
+}
+
+.cast-filter-panel[open] {
+  border-color: var(--cast-border-strong);
 }
 
 .cast-filter-summary {
@@ -801,6 +826,11 @@ main#main-content {
   gap: var(--cast-spacer-2);
   padding: var(--cast-spacer-2) var(--cast-spacer-3);
   font-weight: var(--cast-font-weight-semibold);
+  transition: background-color var(--cast-transition-fast), color var(--cast-transition-fast);
+}
+
+.cast-filter-summary:hover {
+  background-color: var(--cast-bg-alt);
 }
 
 .cast-filter-summary::-webkit-details-marker {
@@ -849,6 +879,8 @@ main#main-content {
   --cast-search-input-height: calc(1.5em + 0.75rem + 2px);
   --cast-search-label-height: 1.5em;
   --cast-search-label-gap: 0.5rem;
+  padding-bottom: var(--cast-spacer-2);
+  border-bottom: 1px solid var(--cast-border);
 
   .form-control {
     padding-left: 2.5rem;
@@ -871,6 +903,8 @@ main#main-content {
   flex-wrap: wrap;
   gap: var(--cast-spacer-2);
   align-items: flex-end;
+  padding-top: var(--cast-spacer-2);
+  border-top: 1px solid var(--cast-border);
 }
 
 .cast-filter-ordering {
