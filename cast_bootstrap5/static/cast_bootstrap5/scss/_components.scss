@@ -279,6 +279,54 @@ video {
   }
 }
 
+.cast-share-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cast-spacer-2);
+}
+
+.cast-share-label {
+  font-size: var(--cast-font-size-sm);
+  font-weight: var(--cast-font-weight-semibold);
+  color: var(--cast-text-muted);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.cast-share-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.75rem;
+  font-size: var(--cast-font-size-sm);
+  background-color: var(--cast-bg-alt);
+  border: 1px solid var(--cast-border);
+  border-radius: 2rem;
+  color: var(--cast-text);
+  text-decoration: none;
+  transition: all var(--cast-transition-fast);
+
+  &:hover {
+    border-color: var(--cast-accent-hover);
+    background-color: var(--cast-accent-light);
+    color: var(--cast-accent-hover);
+    text-decoration: none;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--cast-accent);
+    outline-offset: 2px;
+  }
+
+  svg {
+    width: 1em;
+    height: 1em;
+    fill: currentColor;
+    flex-shrink: 0;
+  }
+}
+
 // -----------------------------------------------------------------------------
 // Post List
 // -----------------------------------------------------------------------------
@@ -1161,6 +1209,14 @@ main#main-content {
     .return-to-blog {
       margin-left: 0;
     }
+  }
+
+  .cast-share-links {
+    width: 100%;
+  }
+
+  .cast-share-label {
+    width: 100%;
   }
 
   .comments-section,
