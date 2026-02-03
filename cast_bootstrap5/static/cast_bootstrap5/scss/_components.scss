@@ -277,6 +277,17 @@ video {
   margin-bottom: var(--cast-spacer-4);
 }
 
+.cast-post-list-header--hero {
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+
+  > div:first-child {
+    width: 100%;
+    max-width: var(--cast-measure);
+  }
+}
+
 .cast-post-list-actions {
   display: flex;
   flex-direction: column;
@@ -288,6 +299,14 @@ video {
   margin-bottom: 0;
 }
 
+.cast-post-list-header--hero .cast-post-list-actions {
+  align-items: center;
+}
+
+.cast-post-list-header--hero .cast-feeds-container {
+  justify-content: center;
+}
+
 @media (max-width: 767.98px) {
   .cast-post-list-header {
     flex-direction: column;
@@ -296,6 +315,10 @@ video {
 
   .cast-post-list-actions {
     width: 100%;
+  }
+
+  .cast-post-list-header--hero .cast-post-list-actions {
+    align-items: center;
   }
 
   .cast-feed-link {
