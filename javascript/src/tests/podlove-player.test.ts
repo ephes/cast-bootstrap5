@@ -45,6 +45,7 @@ global.podlovePlayer = vi.fn();
 describe('PodlovePlayerElement', () => {
   beforeEach(() => {
     document.body.innerHTML = '';
+    document.documentElement.removeAttribute('data-bs-theme');
     global.podlovePlayer.mockReset();
   });
 
@@ -99,6 +100,26 @@ describe('PodlovePlayerElement', () => {
       playerHost,
       '/api/audios/podlove/63/post/75/',
       '/api/audios/player_config/'
+    );
+  });
+
+  it('should append the color scheme to the config url when theme is set', () => {
+    document.documentElement.setAttribute('data-bs-theme', 'dark');
+    const element = document.createElement('podlove-player');
+    element.setAttribute('id', 'audio_63');
+    element.setAttribute('data-url', '/api/audios/podlove/63/post/75/');
+    document.body.appendChild(element);
+
+    const observerInstance = element.observer;
+    const entries = [{ isIntersecting: true, target: element }];
+    observerInstance.callback(entries, observerInstance);
+
+    const playerHost = element.querySelector('.podlove-player-host') as HTMLDivElement | null;
+    expect(playerHost).not.toBeNull();
+    expect(global.podlovePlayer).toHaveBeenCalledWith(
+      playerHost,
+      '/api/audios/podlove/63/post/75/',
+      '/api/audios/player_config/?color_scheme=dark'
     );
   });
 

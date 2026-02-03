@@ -11,6 +11,7 @@ const EMBED_SCRIPT_ATTR = "data-podlove-embed";
 const EMBED_SCRIPT_LOADED_ATTR = "data-podlove-embed-loaded";
 const EMBED_SCRIPT_FAILED_ATTR = "data-podlove-embed-failed";
 const PLAYER_STYLE_ID = "podlove-player-styles";
+const COLOR_SCHEME_PARAM = "color_scheme";
 
 function waitForPageLoad(): Promise<void> {
   if (document.readyState === "complete") {
@@ -111,6 +112,31 @@ function loadEmbedScript(embedUrl: string): Promise<void> {
 
   return embedScriptPromise;
 }
+
+function getColorScheme(): string | null {
+  const theme = document.documentElement.getAttribute("data-bs-theme");
+  if (theme === "light" || theme === "dark") {
+    return theme;
+  }
+  return null;
+}
+
+function appendColorScheme(configUrl: string): string {
+  const colorScheme = getColorScheme();
+  if (!colorScheme) {
+    return configUrl;
+  }
+
+  const [base, hash = ""] = configUrl.split("#");
+  const [path, query = ""] = base.split("?");
+  const params = new URLSearchParams(query);
+  if (!params.has(COLOR_SCHEME_PARAM)) {
+    params.set(COLOR_SCHEME_PARAM, colorScheme);
+  }
+  const queryString = params.toString();
+  const hashSuffix = hash ? `#${hash}` : "";
+  return queryString ? `${path}?${queryString}${hashSuffix}` : `${path}${hashSuffix}`;
+}
 class PodlovePlayerElement extends HTMLElement {
   observer: IntersectionObserver | null;
   isInitialized: boolean;
@@ -208,7 +234,8 @@ class PodlovePlayerElement extends HTMLElement {
       return;
     }
     this.isInitialized = true;
-    const configUrl = this.getAttribute('data-config') || '/api/audios/player_config/';
+    let configUrl = this.getAttribute('data-config') || '/api/audios/player_config/';
+    configUrl = appendColorScheme(configUrl);
     const podloveTemplate = this.getAttribute('data-template');
     let embedUrl = this.getAttribute('data-embed') || 'https://cdn.podlove.org/web-player/5.x/embed.js';
 
