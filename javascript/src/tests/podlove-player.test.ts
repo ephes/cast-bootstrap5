@@ -49,6 +49,22 @@ describe('PodlovePlayerElement', () => {
     global.podlovePlayer.mockReset();
   });
 
+  const setupAndTrigger = (configUrl?: string) => {
+    const element = document.createElement('podlove-player');
+    element.setAttribute('id', 'audio_63');
+    element.setAttribute('data-url', '/api/audios/podlove/63/post/75/');
+    if (configUrl) {
+      element.setAttribute('data-config', configUrl);
+    }
+    document.body.appendChild(element);
+
+    const observerInstance = element.observer;
+    const entries = [{ isIntersecting: true, target: element }];
+    observerInstance.callback(entries, observerInstance);
+
+    return element.querySelector('.podlove-player-host') as HTMLDivElement | null;
+  };
+
   it('should define the custom element', () => {
     expect(customElements.get('podlove-player')).toBeDefined();
   });
@@ -105,21 +121,72 @@ describe('PodlovePlayerElement', () => {
 
   it('should append the color scheme to the config url when theme is set', () => {
     document.documentElement.setAttribute('data-bs-theme', 'dark');
-    const element = document.createElement('podlove-player');
-    element.setAttribute('id', 'audio_63');
-    element.setAttribute('data-url', '/api/audios/podlove/63/post/75/');
-    document.body.appendChild(element);
-
-    const observerInstance = element.observer;
-    const entries = [{ isIntersecting: true, target: element }];
-    observerInstance.callback(entries, observerInstance);
-
-    const playerHost = element.querySelector('.podlove-player-host') as HTMLDivElement | null;
+    const playerHost = setupAndTrigger();
     expect(playerHost).not.toBeNull();
     expect(global.podlovePlayer).toHaveBeenCalledWith(
       playerHost,
       '/api/audios/podlove/63/post/75/',
       '/api/audios/player_config/?color_scheme=dark'
+    );
+  });
+
+  it('should append the color scheme with existing query params', () => {
+    document.documentElement.setAttribute('data-bs-theme', 'dark');
+    const playerHost = setupAndTrigger('/api/audios/player_config/?foo=bar');
+
+    expect(playerHost).not.toBeNull();
+    expect(global.podlovePlayer).toHaveBeenCalledWith(
+      playerHost,
+      '/api/audios/podlove/63/post/75/',
+      '/api/audios/player_config/?foo=bar&color_scheme=dark'
+    );
+  });
+
+  it('should append the color scheme before hash fragments', () => {
+    document.documentElement.setAttribute('data-bs-theme', 'dark');
+    const playerHost = setupAndTrigger('/api/audios/player_config/#section');
+
+    expect(playerHost).not.toBeNull();
+    expect(global.podlovePlayer).toHaveBeenCalledWith(
+      playerHost,
+      '/api/audios/podlove/63/post/75/',
+      '/api/audios/player_config/?color_scheme=dark#section'
+    );
+  });
+
+  it('should append the color scheme with query params and hash', () => {
+    document.documentElement.setAttribute('data-bs-theme', 'dark');
+    const playerHost = setupAndTrigger('/api/audios/player_config/?foo=bar#section');
+
+    expect(playerHost).not.toBeNull();
+    expect(global.podlovePlayer).toHaveBeenCalledWith(
+      playerHost,
+      '/api/audios/podlove/63/post/75/',
+      '/api/audios/player_config/?foo=bar&color_scheme=dark#section'
+    );
+  });
+
+  it('should not duplicate an existing color_scheme param', () => {
+    document.documentElement.setAttribute('data-bs-theme', 'dark');
+    const playerHost = setupAndTrigger('/api/audios/player_config/?color_scheme=light');
+
+    expect(playerHost).not.toBeNull();
+    expect(global.podlovePlayer).toHaveBeenCalledWith(
+      playerHost,
+      '/api/audios/podlove/63/post/75/',
+      '/api/audios/player_config/?color_scheme=light'
+    );
+  });
+
+  it('should use the light color scheme when theme is light', () => {
+    document.documentElement.setAttribute('data-bs-theme', 'light');
+    const playerHost = setupAndTrigger();
+
+    expect(playerHost).not.toBeNull();
+    expect(global.podlovePlayer).toHaveBeenCalledWith(
+      playerHost,
+      '/api/audios/podlove/63/post/75/',
+      '/api/audios/player_config/?color_scheme=light'
     );
   });
 

@@ -127,7 +127,9 @@ function appendColorScheme(configUrl: string): string {
     return configUrl;
   }
 
-  const [base, hash = ""] = configUrl.split("#");
+  const hashIndex = configUrl.indexOf("#");
+  const base = hashIndex === -1 ? configUrl : configUrl.slice(0, hashIndex);
+  const hash = hashIndex === -1 ? "" : configUrl.slice(hashIndex + 1);
   const [path, query = ""] = base.split("?");
   const params = new URLSearchParams(query);
   if (!params.has(COLOR_SCHEME_PARAM)) {
