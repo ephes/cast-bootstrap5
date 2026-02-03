@@ -17,14 +17,14 @@
   // RGB variants for rgba() utilities
   --bs-body-bg-rgb: 250, 249, 247;      // #faf9f7
   --bs-body-color-rgb: 45, 42, 38;      // #2d2a26
-  --bs-link-color-rgb: 217, 119, 6;     // #d97706
+  --bs-link-color-rgb: 180, 83, 9;      // #b45309
 
   // Subtle text
   --bs-secondary-color: var(--cast-text-muted);
   --bs-tertiary-color: var(--cast-text-light);
 
   // Links
-  --bs-link-color: var(--cast-accent);
+  --bs-link-color: var(--cast-link-on-white);
   --bs-link-hover-color: var(--cast-accent-hover);
   --bs-link-decoration: none;
   --bs-link-hover-decoration: underline;
@@ -228,7 +228,7 @@
   --bs-pagination-active-color: #fff;
   --bs-pagination-active-bg: var(--cast-accent);
   --bs-pagination-active-border-color: var(--cast-accent);
-  --bs-pagination-disabled-color: var(--cast-text-light);
+  --bs-pagination-disabled-color: var(--cast-text-muted);
   --bs-pagination-disabled-bg: var(--cast-bg);
   --bs-pagination-disabled-border-color: var(--cast-border);
 }

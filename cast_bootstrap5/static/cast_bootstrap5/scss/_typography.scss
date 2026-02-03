@@ -141,12 +141,12 @@ p {
 // Links
 // -----------------------------------------------------------------------------
 a {
-  color: var(--cast-accent);
+  color: var(--bs-link-color);
   text-decoration: none;
   transition: color var(--cast-transition-fast);
 
   &:hover {
-    color: var(--cast-accent-hover);
+    color: var(--bs-link-hover-color);
     text-decoration: underline;
   }
 
@@ -174,15 +174,21 @@ a.page-link:focus-visible {
   outline: none;
 }
 
-// Links on white backgrounds need darker color for AA compliance
-.bg-white a,
-.card a,
-.modal a {
-  color: var(--cast-link-on-white);
-
-  &:hover {
-    color: var(--cast-accent-hover);
-  }
+// Ensure body copy links are distinguishable without relying on color alone.
+article p a:not(.btn):not(.page-link),
+article li a:not(.btn):not(.page-link),
+article .block-paragraph a:not(.btn):not(.page-link),
+article .block-detail a:not(.btn):not(.page-link),
+article .block-overview a:not(.btn):not(.page-link),
+.post-content p a:not(.btn):not(.page-link),
+.post-content li a:not(.btn):not(.page-link),
+.content-body p a:not(.btn):not(.page-link),
+.content-body li a:not(.btn):not(.page-link),
+.transcript p a:not(.btn):not(.page-link),
+.transcript li a:not(.btn):not(.page-link) {
+  text-decoration: underline;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 0.15em;
 }
 
 // -----------------------------------------------------------------------------
