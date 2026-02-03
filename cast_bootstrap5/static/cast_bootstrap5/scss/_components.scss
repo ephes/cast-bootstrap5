@@ -265,6 +265,20 @@ video {
   }
 }
 
+.cast-post-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cast-spacer-3);
+  margin-top: var(--cast-spacer-4);
+  padding-top: var(--cast-spacer-3);
+  border-top: 1px solid var(--cast-border);
+
+  .return-to-blog {
+    margin-left: auto;
+  }
+}
+
 // -----------------------------------------------------------------------------
 // Post List
 // -----------------------------------------------------------------------------
@@ -1138,6 +1152,15 @@ main#main-content {
   .post-card {
     padding: var(--cast-spacer-3);
     margin-bottom: var(--cast-spacer-3);
+  }
+
+  .cast-post-footer {
+    flex-direction: column;
+    align-items: stretch;
+
+    .return-to-blog {
+      margin-left: 0;
+    }
   }
 
   .comments-section,
