@@ -69,11 +69,10 @@
                     </li>
                   {% endfor %}
                 </ul>
-                {% if has_selectable_themes %}
-                  <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
-                    {% include "./select_theme.html" %}
-                  </ul>
-                {% endif %}
+                <ul class="navbar-nav ms-auto mb-2 mb-lg-0 cast-nav-actions">
+                  {% include "./select_theme.html" %}
+                  {% include "./follow_links.html" %}
+                </ul>
               {% elif nav_layout == 'corner' %}
                 <ul class="navbar-nav me-auto mb-2 mb-lg-0">
                   <li class="nav-item">
@@ -85,6 +84,9 @@
                     </li>
                   {% endfor %}
                 </ul>
+                <ul class="navbar-nav ms-auto mb-2 mb-lg-0 cast-nav-actions">
+                  {% include "./follow_links.html" %}
+                </ul>
               {% else %}
                 <ul class="navbar-nav me-auto mb-2 mb-lg-0">
                   <li class="nav-item">
@@ -95,15 +97,16 @@
                       <a class="nav-link" href="{{ link }}">{{ text }}</a>
                     </li>
                   {% endfor %}
-                  {% if has_selectable_themes %}
-                    {% include "./select_theme.html" %}
-                  {% endif %}
+                </ul>
+                <ul class="navbar-nav ms-auto mb-2 mb-lg-0 cast-nav-actions">
+                  {% include "./select_theme.html" %}
+                  {% include "./follow_links.html" %}
                 </ul>
               {% endif %}
             </div>
           </div>
         </nav>
-        {% if nav_layout == 'corner' and has_selectable_themes %}
+        {% if nav_layout == 'corner' %}
           <div class="cast-theme-corner">
             <ul class="navbar-nav">
               {% include "./select_theme.html" %}

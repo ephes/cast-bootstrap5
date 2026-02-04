@@ -349,6 +349,10 @@ article > .content {
   margin-inline: auto;
 }
 
+.cast-reading > * + * {
+  margin-top: var(--space-flow);
+}
+
 // Full width when needed
 .content-full {
   max-width: none;

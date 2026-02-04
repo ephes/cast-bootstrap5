@@ -40,19 +40,19 @@ article .block-overview,
 article .block-detail {
   // Base spacing for direct children (paragraphs, etc.)
   > * + * {
-    margin-top: var(--cast-spacer-3);
+    margin-top: var(--space-flow);
   }
 
-  // Section-to-section spacing (1.5rem) - higher specificity to override above
+  // Section-to-section spacing aligns to flow token
   > section + section {
-    margin-top: var(--cast-spacer-4);
+    margin-top: var(--space-flow);
   }
 
-  // Larger spacing after media sections
+  // Media sections follow the same flow spacing by default
   > section.block-gallery + section,
   > section.block-video + section,
   > section.block-image + section {
-    margin-top: var(--cast-spacer-4);
+    margin-top: var(--space-flow);
   }
 }
 
@@ -61,7 +61,7 @@ section.block-paragraph,
 section.block-code,
 section.block-heading {
   > * + * {
-    margin-top: var(--cast-spacer-3);
+    margin-top: var(--space-flow);
   }
 }
 
@@ -336,7 +336,7 @@ video {
   align-items: flex-start;
   flex-wrap: wrap;
   gap: var(--cast-spacer-3);
-  margin-bottom: var(--cast-spacer-4);
+  margin-bottom: var(--space-outer);
 }
 
 .cast-post-list-header--hero {
@@ -401,7 +401,7 @@ video {
   border: 1px solid var(--cast-border);
   border-radius: var(--cast-border-radius-lg);
   padding: var(--cast-spacer-4);
-  margin-bottom: var(--cast-spacer-4);
+  margin-bottom: var(--space-outer);
   transition: border-color var(--cast-transition-base), box-shadow var(--cast-transition-base);
 
   &:hover {
@@ -420,7 +420,7 @@ video {
 .post-title {
   font-size: 1.75rem;
   font-weight: var(--cast-font-weight-bold);
-  margin-bottom: 0.5rem;
+  margin-bottom: var(--space-inner);
   color: var(--cast-text);
 
   a {
@@ -447,7 +447,7 @@ video {
 .post-card-title {
   font-size: 1.375rem;
   font-weight: var(--cast-font-weight-semibold);
-  margin-bottom: 0.5rem;
+  margin-bottom: var(--space-inner);
 
   a {
     color: var(--cast-text);
@@ -473,17 +473,21 @@ video {
 .blog-title {
   font-size: 1.75rem;
   font-weight: var(--cast-font-weight-bold);
-  margin-bottom: var(--cast-spacer-3);
+  margin-bottom: var(--space-inner-lg);
 }
 
 .post-card-meta {
   font-size: var(--cast-font-size-sm);
   color: var(--cast-text-muted);
-  margin-bottom: 0.75rem;
+  margin-bottom: var(--space-inner-lg);
 }
 
 .post-card-excerpt {
   color: var(--cast-text-muted);
+}
+
+.post-detail > * + * {
+  margin-top: var(--space-flow);
 }
 
 // -----------------------------------------------------------------------------
@@ -654,6 +658,10 @@ podlove-player {
   }
 }
 
+.cast-nav-actions {
+  gap: var(--cast-spacer-2);
+}
+
 // Sticky header with backdrop blur (optional enhancement)
 .navbar-sticky {
   position: sticky;
@@ -715,44 +723,29 @@ main#main-content {
 
 // Theme selector styling
 .theme-selector {
-  .dropdown-toggle {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
-
-  .dropdown-item {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
-
-  .theme-icon {
-    width: 1.25rem;
-    height: 1.25rem;
+  .cast-theme-select {
+    min-width: 9rem;
+    font-size: var(--cast-font-size-sm);
   }
 }
 
-// Theme toggle button in navbar - ensure proper dark mode styling
-#colorModeToggle {
-  background-color: transparent;
-  border: none;
-  color: var(--cast-text);
-
-  &:hover {
-    color: var(--cast-accent-hover);
-  }
+.cast-follow-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.35rem;
+  border-radius: var(--cast-border-radius);
 }
 
-// Ensure dropdown toggle doesn't have unwanted background in dark mode
-[data-bs-theme="dark"] .nav-link.dropdown-toggle {
-  background-color: transparent;
+.cast-follow-link:hover,
+.cast-follow-link:focus {
+  color: var(--cast-accent-hover);
 }
 
-// Theme icon visibility - let JS control which icon shows
-.theme-icon-active {
-  width: 1em;
-  height: 1em;
+.cast-follow-icon {
+  width: 1.1rem;
+  height: 1.1rem;
+  fill: currentColor;
 }
 
 // -----------------------------------------------------------------------------
@@ -813,7 +806,7 @@ main#main-content {
   border: 1px solid var(--cast-border);
   border-radius: var(--cast-border-radius-lg);
   background-color: var(--cast-surface);
-  margin-bottom: var(--cast-spacer-4);
+  margin-bottom: var(--space-outer);
   overflow: hidden;
   transition: border-color var(--cast-transition-fast);
 }
@@ -1199,7 +1192,7 @@ main#main-content {
 
   .post-card {
     padding: var(--cast-spacer-3);
-    margin-bottom: var(--cast-spacer-3);
+    margin-bottom: var(--space-outer);
   }
 
   .cast-post-footer {

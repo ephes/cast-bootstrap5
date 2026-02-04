@@ -60,13 +60,11 @@
     {% block filters %}
       {% include "./_filter_form.html" with page=page filterset=filterset %}
     {% endblock filters %}
-    <hr class="my-4">
 
     <div id="paging-area">
       <div class="post-list">
         {% for post in posts %}
           {% include "./post_body.html" with render_detail=False page=post %}
-          <hr class="my-4">
         {% endfor %}
       </div>
 

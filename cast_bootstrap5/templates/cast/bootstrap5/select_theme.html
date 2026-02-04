@@ -1,70 +1,25 @@
 {% load i18n %}
-{# Dark Mode Toggle #}
-<li class="nav-item dropdown theme-selector">
-  <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false" id="colorModeToggle">
-    <span class="visually-hidden">{% trans "Toggle color mode" %}</span>
-    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-sun-fill theme-icon-active" viewBox="0 0 16 16" id="theme-icon-light" style="display: none;">
-      <path d="M8 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM8 0a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 0zm0 13a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 13zm8-5a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2a.5.5 0 0 1 .5.5zM3 8a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2A.5.5 0 0 1 3 8zm10.657-5.657a.5.5 0 0 1 0 .707l-1.414 1.415a.5.5 0 1 1-.707-.708l1.414-1.414a.5.5 0 0 1 .707 0zm-9.193 9.193a.5.5 0 0 1 0 .707L3.05 13.657a.5.5 0 0 1-.707-.707l1.414-1.414a.5.5 0 0 1 .707 0zm9.193 2.121a.5.5 0 0 1-.707 0l-1.414-1.414a.5.5 0 0 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .707zM4.464 4.465a.5.5 0 0 1-.707 0L2.343 3.05a.5.5 0 1 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .708z"/>
-    </svg>
-    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-moon-fill theme-icon-active" viewBox="0 0 16 16" id="theme-icon-dark" style="display: none;">
-      <path d="M6 .278a.768.768 0 0 1 .08.858 7.208 7.208 0 0 0-.878 3.46c0 4.021 3.278 7.277 7.318 7.277.527 0 1.04-.055 1.533-.16a.787.787 0 0 1 .81.316.733.733 0 0 1-.031.893A8.349 8.349 0 0 1 8.344 16C3.734 16 0 12.286 0 7.71 0 4.266 2.114 1.312 5.124.06A.752.752 0 0 1 6 .278z"/>
-    </svg>
-    {# Auto icon shown by default until JS determines actual preference #}
-    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-circle-half theme-icon-active" viewBox="0 0 16 16" id="theme-icon-auto">
-      <path d="M8 15A7 7 0 1 0 8 1v14zm0 1A8 8 0 1 1 8 0a8 8 0 0 1 0 16z"/>
-    </svg>
-  </a>
-  <ul class="dropdown-menu dropdown-menu-end">
-    <li>
-      <button type="button" class="dropdown-item d-flex align-items-center" data-bs-theme-value="light">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-sun-fill me-2" viewBox="0 0 16 16">
-          <path d="M8 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM8 0a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 0zm0 13a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 13zm8-5a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2a.5.5 0 0 1 .5.5zM3 8a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2A.5.5 0 0 1 3 8zm10.657-5.657a.5.5 0 0 1 0 .707l-1.414 1.415a.5.5 0 1 1-.707-.708l1.414-1.414a.5.5 0 0 1 .707 0zm-9.193 9.193a.5.5 0 0 1 0 .707L3.05 13.657a.5.5 0 0 1-.707-.707l1.414-1.414a.5.5 0 0 1 .707 0zm9.193 2.121a.5.5 0 0 1-.707 0l-1.414-1.414a.5.5 0 0 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .707zM4.464 4.465a.5.5 0 0 1-.707 0L2.343 3.05a.5.5 0 1 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .708z"/>
-        </svg>
-        {% trans "Light" %}
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-check2 ms-auto d-none" viewBox="0 0 16 16">
-          <path d="M13.854 3.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L6.5 10.293l6.646-6.647a.5.5 0 0 1 .708 0z"/>
-        </svg>
-      </button>
-    </li>
-    <li>
-      <button type="button" class="dropdown-item d-flex align-items-center" data-bs-theme-value="dark">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-moon-fill me-2" viewBox="0 0 16 16">
-          <path d="M6 .278a.768.768 0 0 1 .08.858 7.208 7.208 0 0 0-.878 3.46c0 4.021 3.278 7.277 7.318 7.277.527 0 1.04-.055 1.533-.16a.787.787 0 0 1 .81.316.733.733 0 0 1-.031.893A8.349 8.349 0 0 1 8.344 16C3.734 16 0 12.286 0 7.71 0 4.266 2.114 1.312 5.124.06A.752.752 0 0 1 6 .278z"/>
-        </svg>
-        {% trans "Dark" %}
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-check2 ms-auto d-none" viewBox="0 0 16 16">
-          <path d="M13.854 3.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L6.5 10.293l6.646-6.647a.5.5 0 0 1 .708 0z"/>
-        </svg>
-      </button>
-    </li>
-    <li>
-      <button type="button" class="dropdown-item d-flex align-items-center" data-bs-theme-value="auto">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-circle-half me-2" viewBox="0 0 16 16">
-          <path d="M8 15A7 7 0 1 0 8 1v14zm0 1A8 8 0 1 1 8 0a8 8 0 0 1 0 16z"/>
-        </svg>
-        {% trans "Auto" %}
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-check2 ms-auto d-none" viewBox="0 0 16 16">
-          <path d="M13.854 3.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L6.5 10.293l6.646-6.647a.5.5 0 0 1 .708 0z"/>
-        </svg>
-      </button>
-    </li>
-    {% if template_base_dir_choices|length > 1 %}
-      <li><hr class="dropdown-divider"></li>
-      <li><h6 class="dropdown-header">{% trans "Theme" %}</h6></li>
-      {% for theme_slug, theme_name in template_base_dir_choices %}
-        <li>
-          <form action="{% url 'cast:select-theme' %}" method="post">
-            {% csrf_token %}
-            <input type="hidden" name="template_base_dir" value="{{ theme_slug }}">
-            <input type="hidden" name="next" value="{{ next_url }}">
-            <button type="submit" class="btn dropdown-item">
-              {{ theme_name }}
-            </button>
-          </form>
-        </li>
-      {% endfor %}
-    {% endif %}
-  </ul>
+<li class="nav-item theme-selector">
+  <form action="{% url "cast:select-theme" %}" method="post" class="d-flex align-items-center gap-2">
+    {% csrf_token %}
+    <input type="hidden" name="template_base_dir" value="{{ template_base_dir }}">
+    <input type="hidden" name="next" value="{{ next_url }}">
+    <label class="visually-hidden" for="cast-theme-select">{% trans "Theme" %}</label>
+    <select id="cast-theme-select" class="form-select form-select-sm cast-theme-select" data-cast-theme-select>
+      <optgroup label="{% trans "Color mode" %}">
+        <option value="mode:auto">{% trans "System" %}</option>
+        <option value="mode:light">{% trans "Light" %}</option>
+        <option value="mode:dark">{% trans "Dark" %}</option>
+      </optgroup>
+      {% if template_base_dir_choices|length > 1 %}
+        <optgroup label="{% trans "Theme" %}">
+          {% for theme_slug, theme_name in template_base_dir_choices %}
+            <option value="theme:{{ theme_slug }}">{{ theme_name }}</option>
+          {% endfor %}
+        </optgroup>
+      {% endif %}
+    </select>
+  </form>
 </li>
 
 <script>
@@ -72,8 +27,7 @@
     'use strict';
 
     var STORAGE_KEY = 'cast-theme';
-    // Use global guard to prevent duplicate listener registration across HTMX swaps
-    var INIT_KEY = '__castThemeListenersInit';
+    var INIT_KEY = '__castThemeSelectInit';
 
     function getStoredTheme() {
       try { return localStorage.getItem(STORAGE_KEY); } catch (e) { return null; }
@@ -81,14 +35,6 @@
 
     function setStoredTheme(theme) {
       try { localStorage.setItem(STORAGE_KEY, theme); } catch (e) { /* ignore */ }
-    }
-
-    function getPreferredTheme() {
-      var stored = getStoredTheme();
-      if (stored) {
-        return stored;
-      }
-      return 'auto';
     }
 
     function getActualTheme(theme) {
@@ -101,93 +47,81 @@
     function setTheme(theme) {
       var actualTheme = getActualTheme(theme);
       document.documentElement.setAttribute('data-bs-theme', actualTheme);
-      updateIcons(theme);
-      updateActiveItem(theme);
     }
 
-    function updateIcons(theme) {
-      var lightIcon = document.getElementById('theme-icon-light');
-      var darkIcon = document.getElementById('theme-icon-dark');
-      var autoIcon = document.getElementById('theme-icon-auto');
-
-      if (lightIcon) lightIcon.style.display = 'none';
-      if (darkIcon) darkIcon.style.display = 'none';
-      if (autoIcon) autoIcon.style.display = 'none';
-
-      if (theme === 'light' && lightIcon) {
-        lightIcon.style.display = 'inline';
-      } else if (theme === 'dark' && darkIcon) {
-        darkIcon.style.display = 'inline';
-      } else if (theme === 'auto' && autoIcon) {
-        autoIcon.style.display = 'inline';
+    function syncSelect(select) {
+      if (!select) {
+        return;
+      }
+      var storedTheme = getStoredTheme();
+      var value = storedTheme ? 'mode:' + storedTheme : 'mode:auto';
+      if (select.querySelector('option[value="' + value + '"]')) {
+        select.value = value;
       }
     }
 
-    function updateActiveItem(theme) {
-      var buttons = document.querySelectorAll('[data-bs-theme-value]');
-      buttons.forEach(function(btn) {
-        var btnTheme = btn.getAttribute('data-bs-theme-value');
-        var checkmark = btn.querySelector('.bi-check2');
-        if (checkmark) {
-          if (btnTheme === theme) {
-            checkmark.classList.remove('d-none');
-            btn.classList.add('active');
-          } else {
-            checkmark.classList.add('d-none');
-            btn.classList.remove('active');
-          }
+    function handleSelect(select) {
+      var value = select.value;
+      if (!value) {
+        return;
+      }
+      if (value.indexOf('mode:') === 0) {
+        var mode = value.replace('mode:', '');
+        setStoredTheme(mode);
+        setTheme(mode);
+        return;
+      }
+      if (value.indexOf('theme:') === 0) {
+        var theme = value.replace('theme:', '');
+        var form = select.closest('form');
+        if (!form) {
+          return;
         }
-      });
+        var hidden = form.querySelector('input[name="template_base_dir"]');
+        if (hidden) {
+          hidden.value = theme;
+        }
+        form.submit();
+      }
     }
 
-    function initTheme() {
-      var preferredTheme = getPreferredTheme();
-      setTheme(preferredTheme);
+    function initSelectors(root) {
+      var scope = root || document;
+      var selects = scope.querySelectorAll('[data-cast-theme-select]');
+      selects.forEach(function(select) {
+        syncSelect(select);
+      });
     }
 
     function setupEventListeners() {
-      // Use global guard to prevent duplicate listeners across HTMX swaps
-      if (window[INIT_KEY]) return;
+      if (window[INIT_KEY]) {
+        return;
+      }
       window[INIT_KEY] = true;
 
-      // Use event delegation on document body for theme toggle clicks
-      // This works for both statically included and HTMX-loaded content
-      document.body.addEventListener('click', function(event) {
-        var btn = event.target.closest('[data-bs-theme-value]');
-        if (btn) {
-          var theme = btn.getAttribute('data-bs-theme-value');
-          setStoredTheme(theme);
-          setTheme(theme);
+      document.body.addEventListener('change', function(event) {
+        var select = event.target.closest('[data-cast-theme-select]');
+        if (select) {
+          handleSelect(select);
         }
       });
 
-      // Listen for system preference changes
       window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function() {
         var storedTheme = getStoredTheme();
         if (!storedTheme || storedTheme === 'auto') {
           setTheme('auto');
+          initSelectors(document);
         }
       });
 
-      // Re-initialize icons/active state when HTMX swaps in new content
       document.body.addEventListener('htmx:afterSwap', function(event) {
-        // Check if the swapped content contains theme buttons
-        if (event.detail.target.querySelector && event.detail.target.querySelector('[data-bs-theme-value]')) {
-          initTheme();
+        if (event.detail.target.querySelector && event.detail.target.querySelector('[data-cast-theme-select]')) {
+          initSelectors(event.detail.target);
         }
       });
     }
 
-    // Initialize immediately
-    initTheme();
+    initSelectors(document);
     setupEventListeners();
-
-    // Also ensure setup on DOMContentLoaded if not already done
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', function() {
-        initTheme();
-        setupEventListeners();
-      });
-    }
   })();
 </script>
