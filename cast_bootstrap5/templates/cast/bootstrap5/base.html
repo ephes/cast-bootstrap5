@@ -131,6 +131,7 @@
     {% block modal %}{% endblock modal %}
     <div class="additional_javascript">
       {% block javascript %}
+        {% include "./select_theme_script.html" %}
         <script defer src="{% static 'cast_bootstrap5/js/bootstrap5/bootstrap.bundle.min.js' %}"></script>
         <script defer src="{% static 'cast_bootstrap5/js/htmx.min.js' %}"></script>
         <script>

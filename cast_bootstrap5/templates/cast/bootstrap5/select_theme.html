@@ -1,127 +1,143 @@
 {% load i18n %}
-<li class="nav-item theme-selector">
-  <form action="{% url "cast:select-theme" %}" method="post" class="d-flex align-items-center gap-2">
+<li class="nav-item theme-selector dropdown" data-cast-theme-switcher>
+  <form action="{% url "cast:select-theme" %}" method="post" class="cast-theme-form">
     {% csrf_token %}
     <input type="hidden" name="template_base_dir" value="{{ template_base_dir }}">
     <input type="hidden" name="next" value="{{ next_url }}">
-    <label class="visually-hidden" for="cast-theme-select">{% trans "Theme" %}</label>
-    <select id="cast-theme-select" class="form-select form-select-sm cast-theme-select" data-cast-theme-select>
-      <optgroup label="{% trans "Color mode" %}">
-        <option value="mode:auto">{% trans "System" %}</option>
-        <option value="mode:light">{% trans "Light" %}</option>
-        <option value="mode:dark">{% trans "Dark" %}</option>
-      </optgroup>
+    <button
+      type="button"
+      class="btn btn-outline-secondary btn-sm cast-theme-toggle dropdown-toggle d-flex align-items-center gap-2"
+      data-bs-toggle="dropdown"
+      aria-expanded="false"
+      aria-label="{% trans "Theme" %}"
+    >
+      <span class="cast-theme-icon-slot" aria-hidden="true">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="16"
+          height="16"
+          fill="currentColor"
+          viewBox="0 0 16 16"
+          class="cast-theme-icon"
+          data-cast-theme-icon="light"
+          style="display: none;"
+        >
+          <path d="M8 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM8 0a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 0zm0 13a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 13zm8-5a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2a.5.5 0 0 1 .5.5zM3 8a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2A.5.5 0 0 1 3 8zm10.657-5.657a.5.5 0 0 1 0 .707l-1.414 1.415a.5.5 0 1 1-.707-.708l1.414-1.414a.5.5 0 0 1 .707 0zm-9.193 9.193a.5.5 0 0 1 0 .707L3.05 13.657a.5.5 0 0 1-.707-.707l1.414-1.414a.5.5 0 0 1 .707 0zm9.193 2.121a.5.5 0 0 1-.707 0l-1.414-1.414a.5.5 0 0 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .707zM4.464 4.465a.5.5 0 0 1-.707 0L2.343 3.05a.5.5 0 1 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .708z"></path>
+        </svg>
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="16"
+          height="16"
+          fill="currentColor"
+          viewBox="0 0 16 16"
+          class="cast-theme-icon"
+          data-cast-theme-icon="dark"
+          style="display: none;"
+        >
+          <path d="M6 .278a.768.768 0 0 1 .08.858 7.208 7.208 0 0 0-.878 3.46c0 4.021 3.278 7.277 7.318 7.277.527 0 1.04-.055 1.533-.16a.787.787 0 0 1 .81.316.733.733 0 0 1-.031.893A8.349 8.349 0 0 1 8.344 16C3.734 16 0 12.286 0 7.71 0 4.266 2.114 1.312 5.124.06A.752.752 0 0 1 6 .278z"></path>
+        </svg>
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="16"
+          height="16"
+          fill="currentColor"
+          viewBox="0 0 16 16"
+          class="cast-theme-icon"
+          data-cast-theme-icon="auto"
+          style="display: none;"
+        >
+          <path d="M8 15A7 7 0 1 0 8 1v14zm0 1A8 8 0 1 1 8 0a8 8 0 0 1 0 16z"></path>
+        </svg>
+      </span>
+      <span class="cast-theme-label d-none d-sm-inline" data-cast-theme-label>{% trans "System" %}</span>
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="12"
+        height="12"
+        fill="currentColor"
+        viewBox="0 0 16 16"
+        class="cast-theme-caret"
+        aria-hidden="true"
+      >
+        <path fill-rule="evenodd" d="M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z"></path>
+      </svg>
+    </button>
+    <ul class="dropdown-menu dropdown-menu-end cast-theme-menu" role="menu">
+      <li class="dropdown-header" role="presentation">{% trans "Color mode" %}</li>
+      <li>
+        <button
+          type="button"
+          class="dropdown-item d-flex align-items-center gap-2 cast-theme-option"
+          data-cast-theme-value="mode:auto"
+          data-cast-theme-mode="auto"
+          aria-pressed="false"
+          role="menuitem"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" class="cast-theme-option-icon">
+            <path d="M8 15A7 7 0 1 0 8 1v14zm0 1A8 8 0 1 1 8 0a8 8 0 0 1 0 16z"></path>
+          </svg>
+          <span>{% trans "System" %}</span>
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" class="cast-theme-check ms-auto">
+            <path d="M13.854 3.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L6.5 10.293l6.646-6.647a.5.5 0 0 1 .708 0z"></path>
+          </svg>
+        </button>
+      </li>
+      <li>
+        <button
+          type="button"
+          class="dropdown-item d-flex align-items-center gap-2 cast-theme-option"
+          data-cast-theme-value="mode:light"
+          data-cast-theme-mode="light"
+          aria-pressed="false"
+          role="menuitem"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" class="cast-theme-option-icon">
+            <path d="M8 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM8 0a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 0zm0 13a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 13zm8-5a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2a.5.5 0 0 1 .5.5zM3 8a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2A.5.5 0 0 1 3 8zm10.657-5.657a.5.5 0 0 1 0 .707l-1.414 1.415a.5.5 0 1 1-.707-.708l1.414-1.414a.5.5 0 0 1 .707 0zm-9.193 9.193a.5.5 0 0 1 0 .707L3.05 13.657a.5.5 0 0 1-.707-.707l1.414-1.414a.5.5 0 0 1 .707 0zm9.193 2.121a.5.5 0 0 1-.707 0l-1.414-1.414a.5.5 0 0 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .707zM4.464 4.465a.5.5 0 0 1-.707 0L2.343 3.05a.5.5 0 1 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .708z"></path>
+          </svg>
+          <span>{% trans "Light" %}</span>
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" class="cast-theme-check ms-auto">
+            <path d="M13.854 3.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L6.5 10.293l6.646-6.647a.5.5 0 0 1 .708 0z"></path>
+          </svg>
+        </button>
+      </li>
+      <li>
+        <button
+          type="button"
+          class="dropdown-item d-flex align-items-center gap-2 cast-theme-option"
+          data-cast-theme-value="mode:dark"
+          data-cast-theme-mode="dark"
+          aria-pressed="false"
+          role="menuitem"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" class="cast-theme-option-icon">
+            <path d="M6 .278a.768.768 0 0 1 .08.858 7.208 7.208 0 0 0-.878 3.46c0 4.021 3.278 7.277 7.318 7.277.527 0 1.04-.055 1.533-.16a.787.787 0 0 1 .81.316.733.733 0 0 1-.031.893A8.349 8.349 0 0 1 8.344 16C3.734 16 0 12.286 0 7.71 0 4.266 2.114 1.312 5.124.06A.752.752 0 0 1 6 .278z"></path>
+          </svg>
+          <span>{% trans "Dark" %}</span>
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" class="cast-theme-check ms-auto">
+            <path d="M13.854 3.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L6.5 10.293l6.646-6.647a.5.5 0 0 1 .708 0z"></path>
+          </svg>
+        </button>
+      </li>
       {% if template_base_dir_choices|length > 1 %}
-        <optgroup label="{% trans "Theme" %}">
-          {% for theme_slug, theme_name in template_base_dir_choices %}
-            <option value="theme:{{ theme_slug }}">{{ theme_name }}</option>
-          {% endfor %}
-        </optgroup>
+        <li><hr class="dropdown-divider" role="separator"></li>
+        <li class="dropdown-header" role="presentation">{% trans "Theme" %}</li>
+        {% for theme_slug, theme_name in template_base_dir_choices %}
+          <li>
+            <button
+              type="button"
+              class="dropdown-item d-flex align-items-center gap-2 cast-theme-option{% if theme_slug == template_base_dir %} active{% endif %}"
+              data-cast-theme-value="theme:{{ theme_slug }}"
+              role="menuitem"
+              {% if theme_slug == template_base_dir %}aria-current="true"{% endif %}
+            >
+              <span>{{ theme_name }}</span>
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" class="cast-theme-check ms-auto">
+                <path d="M13.854 3.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L6.5 10.293l6.646-6.647a.5.5 0 0 1 .708 0z"></path>
+              </svg>
+            </button>
+          </li>
+        {% endfor %}
       {% endif %}
-    </select>
+    </ul>
   </form>
 </li>
-
-<script>
-  (function() {
-    'use strict';
-
-    var STORAGE_KEY = 'cast-theme';
-    var INIT_KEY = '__castThemeSelectInit';
-
-    function getStoredTheme() {
-      try { return localStorage.getItem(STORAGE_KEY); } catch (e) { return null; }
-    }
-
-    function setStoredTheme(theme) {
-      try { localStorage.setItem(STORAGE_KEY, theme); } catch (e) { /* ignore */ }
-    }
-
-    function getActualTheme(theme) {
-      if (theme === 'auto') {
-        return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-      }
-      return theme;
-    }
-
-    function setTheme(theme) {
-      var actualTheme = getActualTheme(theme);
-      document.documentElement.setAttribute('data-bs-theme', actualTheme);
-    }
-
-    function syncSelect(select) {
-      if (!select) {
-        return;
-      }
-      var storedTheme = getStoredTheme();
-      var value = storedTheme ? 'mode:' + storedTheme : 'mode:auto';
-      if (select.querySelector('option[value="' + value + '"]')) {
-        select.value = value;
-      }
-    }
-
-    function handleSelect(select) {
-      var value = select.value;
-      if (!value) {
-        return;
-      }
-      if (value.indexOf('mode:') === 0) {
-        var mode = value.replace('mode:', '');
-        setStoredTheme(mode);
-        setTheme(mode);
-        return;
-      }
-      if (value.indexOf('theme:') === 0) {
-        var theme = value.replace('theme:', '');
-        var form = select.closest('form');
-        if (!form) {
-          return;
-        }
-        var hidden = form.querySelector('input[name="template_base_dir"]');
-        if (hidden) {
-          hidden.value = theme;
-        }
-        form.submit();
-      }
-    }
-
-    function initSelectors(root) {
-      var scope = root || document;
-      var selects = scope.querySelectorAll('[data-cast-theme-select]');
-      selects.forEach(function(select) {
-        syncSelect(select);
-      });
-    }
-
-    function setupEventListeners() {
-      if (window[INIT_KEY]) {
-        return;
-      }
-      window[INIT_KEY] = true;
-
-      document.body.addEventListener('change', function(event) {
-        var select = event.target.closest('[data-cast-theme-select]');
-        if (select) {
-          handleSelect(select);
-        }
-      });
-
-      window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function() {
-        var storedTheme = getStoredTheme();
-        if (!storedTheme || storedTheme === 'auto') {
-          setTheme('auto');
-          initSelectors(document);
-        }
-      });
-
-      document.body.addEventListener('htmx:afterSwap', function(event) {
-        if (event.detail.target.querySelector && event.detail.target.querySelector('[data-cast-theme-select]')) {
-          initSelectors(event.detail.target);
-        }
-      });
-    }
-
-    initSelectors(document);
-    setupEventListeners();
-  })();
-</script>
