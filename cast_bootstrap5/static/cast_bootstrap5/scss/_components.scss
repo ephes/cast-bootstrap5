@@ -484,11 +484,6 @@ video {
 
 .post-card-excerpt {
   color: var(--cast-text-muted);
-
-  // Hide content-level <hr> in card excerpts — they add visual noise in list view
-  hr {
-    display: none;
-  }
 }
 
 .cast-reading > * + *,
