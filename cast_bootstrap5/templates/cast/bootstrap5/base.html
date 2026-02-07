@@ -301,9 +301,11 @@
                   if (isHidden) {
                     panel.removeAttribute('hidden');
                     toggle.setAttribute('aria-expanded', 'true');
+                    toggle.classList.add('active');
                   } else {
                     panel.setAttribute('hidden', '');
                     toggle.setAttribute('aria-expanded', 'false');
+                    toggle.classList.remove('active');
                   }
                 });
                 toggle.dataset.castToggleReady = 'true';
