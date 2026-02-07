@@ -129,6 +129,10 @@
   --space-inner-lg: 0.75rem;
   --space-flow: 1.25rem;
   --space-outer: clamp(2rem, 4vw, 4rem);
+  --space-article-top: 3rem;
+
+  // Letter-spacing
+  --cast-letter-spacing-tight: -0.025em;
 
   // Touch targets
   --cast-touch-target-min: 2.75rem; // 44px

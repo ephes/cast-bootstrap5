@@ -419,8 +419,9 @@ video {
 
 // Post/Episode detail page title
 .post-title {
-  font-size: 1.75rem;
+  font-size: 2.25rem;
   font-weight: var(--cast-font-weight-bold);
+  letter-spacing: var(--cast-letter-spacing-tight);
   margin-bottom: var(--space-inner);
   color: var(--cast-text);
 
@@ -446,8 +447,9 @@ video {
 
 // Post card title in list views
 .post-card-title {
-  font-size: 1.375rem;
+  font-size: 1.5rem;
   font-weight: var(--cast-font-weight-semibold);
+  letter-spacing: var(--cast-letter-spacing-tight);
   margin-bottom: var(--space-inner);
 
   a {
@@ -481,6 +483,14 @@ video {
   font-size: var(--cast-font-size-sm);
   color: var(--cast-text-muted);
   margin-bottom: var(--space-inner-lg);
+
+  a {
+    color: var(--cast-text-muted);
+
+    &:hover {
+      color: var(--cast-accent-hover);
+    }
+  }
 }
 
 .post-card-excerpt {
@@ -493,8 +503,8 @@ video {
 
   a {
     font-size: var(--cast-font-size-sm);
-    font-weight: var(--cast-font-weight-medium);
-    color: var(--cast-accent);
+    font-weight: var(--cast-font-weight-normal);
+    color: var(--cast-text-muted);
     text-decoration: none;
 
     &:hover {
@@ -506,6 +516,10 @@ video {
       outline-offset: 2px;
     }
   }
+}
+
+.post-detail {
+  padding-top: var(--space-article-top);
 }
 
 .cast-reading > * + *,
@@ -829,6 +843,11 @@ main#main-content {
   justify-content: center;
   padding: 0.35rem;
   border-radius: var(--cast-border-radius);
+  color: var(--cast-text);
+}
+
+.cast-follow-link:visited {
+  color: var(--cast-text);
 }
 
 .cast-follow-link:hover,
