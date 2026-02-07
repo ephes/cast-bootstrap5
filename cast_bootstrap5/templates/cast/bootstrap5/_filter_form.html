@@ -2,32 +2,33 @@
 {% load i18n %}
 
 {% with filter_fields=filterset.form.fields facet_prefix=page.pk|default:"cast" %}
-  <details class="cast-filters" {% if filterset.form.has_changed %}open{% endif %}>
-    <summary class="cast-filter-summary">
-      {% translate "Filters / Fulltext-Search" %}
-    </summary>
+  <div class="cast-search-bar">
     <form action="{{ page.url }}" method="get" class="cast-filter-form" data-cast-filter-form>
       {{ filterset.form.non_field_errors }}
+      <div class="cast-search-row">
+        {% if "search" in filter_fields %}
+          <div class="cast-filter-search">
+            <span class="search-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false">
+                <path
+                  d="M21 21l-4.35-4.35m1.85-4.65a7 7 0 1 1-14 0 7 7 0 0 1 14 0Z"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                />
+              </svg>
+            </span>
+            {{ filterset.form.search|as_crispy_field }}
+          </div>
+        {% endif %}
+        <button type="button" class="cast-filter-toggle{% if filterset.form.has_changed %} active{% endif %}" aria-expanded="{% if filterset.form.has_changed %}true{% else %}false{% endif %}" aria-controls="cast-filter-panels">
+          {% translate "Filters" %}
+        </button>
+      </div>
 
-      {% if "search" in filter_fields %}
-        <div class="filter-search cast-filter-search">
-          <span class="search-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false">
-              <path
-                d="M21 21l-4.35-4.35m1.85-4.65a7 7 0 1 1-14 0 7 7 0 0 1 14 0Z"
-                fill="none"
-                stroke="currentColor"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-              />
-            </svg>
-          </span>
-          {{ filterset.form.search|as_crispy_field }}
-        </div>
-      {% endif %}
-
-      <div class="cast-filter-panels">
+      <div id="cast-filter-panels" class="cast-filter-panels" {% if not filterset.form.has_changed %}hidden{% endif %}>
         {% if "date" in filter_fields or "date_facets" in filter_fields %}
           <details class="cast-filter-panel" data-cast-filter-panel data-cast-open="auto">
             <summary class="cast-filter-summary" id="cast-filter-summary-date-{{ facet_prefix }}">
@@ -125,25 +126,25 @@
             </div>
           </details>
         {% endif %}
-      </div>
 
-      <div class="cast-filter-actions">
-        {% if "o" in filter_fields %}
-          <div class="cast-filter-ordering">
-            {{ filterset.form.o|as_crispy_field }}
-          </div>
-        {% endif %}
-        <div class="cast-filter-buttons">
-          <button class="btn btn-primary cast-filter-submit" type="submit">
-            {% translate "Search" %}
-          </button>
-          {% if filterset.form.has_changed %}
-            <a class="btn btn-outline-secondary cast-filter-clear" href="{{ page.url }}">
-              {% translate "Clear filters" %}
-            </a>
+        <div class="cast-filter-actions">
+          {% if "o" in filter_fields %}
+            <div class="cast-filter-ordering">
+              {{ filterset.form.o|as_crispy_field }}
+            </div>
           {% endif %}
+          <div class="cast-filter-buttons">
+            <button class="btn btn-primary cast-filter-submit" type="submit">
+              {% translate "Search" %}
+            </button>
+            {% if filterset.form.has_changed %}
+              <a class="btn btn-outline-secondary cast-filter-clear" href="{{ page.url }}">
+                {% translate "Clear filters" %}
+              </a>
+            {% endif %}
+          </div>
         </div>
       </div>
     </form>
-  </details>
+  </div>
 {% endwith %}

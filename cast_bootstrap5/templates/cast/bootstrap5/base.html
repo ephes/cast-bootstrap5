@@ -284,6 +284,32 @@
               });
             }
 
+            function initFilterToggle(root) {
+              var scope = root && root.querySelector ? root : document;
+              var toggles = Array.prototype.slice.call(scope.querySelectorAll('.cast-filter-toggle'));
+              toggles.forEach(function (toggle) {
+                if (toggle.dataset.castToggleReady === 'true') {
+                  return;
+                }
+                toggle.addEventListener('click', function () {
+                  var panelId = toggle.getAttribute('aria-controls');
+                  var panel = document.getElementById(panelId);
+                  if (!panel) {
+                    return;
+                  }
+                  var isHidden = panel.hasAttribute('hidden');
+                  if (isHidden) {
+                    panel.removeAttribute('hidden');
+                    toggle.setAttribute('aria-expanded', 'true');
+                  } else {
+                    panel.setAttribute('hidden', '');
+                    toggle.setAttribute('aria-expanded', 'false');
+                  }
+                });
+                toggle.dataset.castToggleReady = 'true';
+              });
+            }
+
             function initFilterPanels(root) {
               var scope = root && root.querySelector ? root : document;
               var panels = Array.prototype.slice.call(scope.querySelectorAll('[data-cast-filter-panel]'));
@@ -429,6 +455,7 @@
               var scope = root && root.querySelector ? root : document;
               buildOrderingDropdown(scope);
               mergeConsecutiveBlockquotes(scope);
+              initFilterToggle(scope);
               initFilterPanels(scope);
               initFacetToggles(scope);
             }
