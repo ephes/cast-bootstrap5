@@ -28,7 +28,11 @@
           {% endfor %}
         </section>
         {% if not render_detail %}
-          {% block detail_link %}{% endblock %}
+          {% block detail_link %}
+            <div class="post-card-readmore">
+              <a href="{{ page.page_url }}" aria-label="{% translate "Read more about" %} {{ page.title }}">{% translate "Read more" %} →</a>
+            </div>
+          {% endblock %}
         {% endif %}
       {% endif %}
     {% endfor %}

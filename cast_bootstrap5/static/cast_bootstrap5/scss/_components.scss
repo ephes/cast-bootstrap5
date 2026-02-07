@@ -36,6 +36,7 @@
 // Target actual template structure: article > section.block-overview/detail > section.block-*
 .post-content,
 .content-body,
+.post-body,
 article .block-overview,
 article .block-detail {
   // Base spacing for direct children (paragraphs, etc.)
@@ -484,6 +485,27 @@ video {
 
 .post-card-excerpt {
   color: var(--cast-text-muted);
+}
+
+// "Read more" link at the bottom of post cards (termination signal)
+.post-card-readmore {
+  margin-top: var(--space-inner-lg);
+
+  a {
+    font-size: var(--cast-font-size-sm);
+    font-weight: var(--cast-font-weight-medium);
+    color: var(--cast-accent);
+    text-decoration: none;
+
+    &:hover {
+      color: var(--cast-accent-hover);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--cast-accent);
+      outline-offset: 2px;
+    }
+  }
 }
 
 .cast-reading > * + *,
