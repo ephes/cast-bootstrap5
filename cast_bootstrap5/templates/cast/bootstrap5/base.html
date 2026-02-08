@@ -154,10 +154,70 @@
           (function () {
             'use strict';
 
+            // Enhance ordering <select> into pill toggle buttons inside .cast-search-modal
+            function buildOrderingPills(root) {
+              var scope = root || document;
+              var containers = Array.prototype.slice.call(
+                scope.querySelectorAll('.cast-search-modal #div_id_o')
+              );
+              // Also check if scope itself is inside a modal
+              if (scope.id === 'div_id_o' && scope.closest && scope.closest('.cast-search-modal')) {
+                containers.push(scope);
+              }
+              containers.forEach(function (orderContainer) {
+                if (orderContainer.dataset.castOrderingPills) return;
+                orderContainer.dataset.castOrderingPills = 'true';
+                var select = orderContainer.querySelector('select[name="o"]');
+                if (!select) return;
+                var pillsDiv = document.createElement('div');
+                pillsDiv.className = 'cast-ordering-pills';
+                var options = Array.prototype.slice.call(select.options);
+                options.forEach(function (option) {
+                  if (!option.value) return;
+                  var pill = document.createElement('button');
+                  pill.type = 'button';
+                  pill.className = 'tag-pill';
+                  pill.textContent = option.textContent;
+                  pill.setAttribute('data-order-value', option.value);
+                  var isActive = (option.selected && option.value) ||
+                  (!select.value && option.value === '-visible_date');
+                  if (isActive) {
+                    pill.classList.add('active');
+                    pill.setAttribute('aria-pressed', 'true');
+                    select.value = option.value;
+                  } else {
+                    pill.setAttribute('aria-pressed', 'false');
+                  }
+                  pill.addEventListener('click', function () {
+                    select.value = option.value;
+                    pillsDiv.querySelectorAll('.tag-pill').forEach(function (p) {
+                      p.classList.remove('active');
+                      p.setAttribute('aria-pressed', 'false');
+                    });
+                    pill.classList.add('active');
+                    pill.setAttribute('aria-pressed', 'true');
+                  });
+                  pillsDiv.appendChild(pill);
+                });
+                if (pillsDiv.children.length > 0) {
+                  select.setAttribute('tabindex', '-1');
+                  select.setAttribute('aria-hidden', 'true');
+                  select.style.display = 'none';
+                  orderContainer.appendChild(pillsDiv);
+                }
+              });
+            }
+
+            // Enhance ordering <select> into Bootstrap dropdown (for non-modal usage).
+            // Kept for downstream template overrides that render ordering outside the modal.
             function buildOrderingDropdown(root) {
               var scope = root || document;
               var container = scope.querySelector('#div_id_o');
               if (!container || container.dataset.castOrderingEnhanced === 'true') {
+                return;
+              }
+              // Skip ordering inside the search modal — it uses pill buttons instead
+              if (container.closest('.cast-search-modal')) {
                 return;
               }
               var select = container.querySelector('select[name="o"]');
@@ -222,8 +282,9 @@
                 });
               });
 
-              select.classList.add('visually-hidden');
+              select.setAttribute('tabindex', '-1');
               select.setAttribute('aria-hidden', 'true');
+              select.style.display = 'none';
               container.dataset.castOrderingEnhanced = 'true';
             }
 
@@ -472,10 +533,16 @@
                   });
                 });
               }
+
+              // Ordering pills inside modal
+              if (modal) {
+                buildOrderingPills(modal);
+              }
             }
 
             function initEnhancements(root) {
               var scope = root && root.querySelector ? root : document;
+              buildOrderingPills(scope);
               buildOrderingDropdown(scope);
               mergeConsecutiveBlockquotes(scope);
               initFacetToggles(scope);

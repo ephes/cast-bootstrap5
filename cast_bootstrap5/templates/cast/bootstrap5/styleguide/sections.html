@@ -282,12 +282,12 @@
               </details>
             {% endif %}
             {% if "o" in filterset.form.fields %}
-              <details class="cast-modal-filter-panel">
-                <summary>{% translate "Ordering" %}</summary>
+              <div class="cast-modal-filter-panel cast-modal-ordering">
+                <div class="cast-modal-ordering-title">{% translate "Ordering" %}</div>
                 <div class="cast-modal-filter-content">
                   {{ filterset.form.o|as_crispy_field }}
                 </div>
-              </details>
+              </div>
             {% endif %}
           </div>
           <div class="cast-search-modal-footer">

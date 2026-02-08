@@ -1029,6 +1029,14 @@ main#main-content {
 }
 .cast-modal-filter-panel {
   border-bottom: 1px solid var(--cast-border);
+  // Prevent browser focus outline on <details> — summary handles its own focus
+  &:focus {
+    outline: none;
+  }
+  // Last panel before footer doesn't need a bottom border
+  &:last-child {
+    border-bottom: none;
+  }
 }
 .cast-modal-filter-panel > summary {
   padding: 0.75rem 0;
@@ -1054,6 +1062,31 @@ main#main-content {
 }
 .cast-modal-filter-content {
   padding-bottom: 0.75rem;
+}
+
+// Non-collapsible ordering section (always visible)
+.cast-modal-ordering-title {
+  padding: 0.75rem 0;
+  font-weight: 500;
+}
+// Hide crispy field label — the section title already provides it.
+// Selector uses #div_id_o from crispy's wrapper for field "o" in PostFilterset.
+.cast-modal-ordering #div_id_o > label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+// Ordering pill buttons (JS-generated from <select>)
+.cast-ordering-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
 }
 
 // --- Modal footer (actions) ---
@@ -1167,8 +1200,16 @@ main#main-content {
 
 .cast-facet-toggle {
   align-self: flex-start;
-  padding: 0;
+  padding: 0.25rem 0.5rem;
   font-size: var(--cast-font-size-sm);
+  border: none;
+  background: none;
+  color: var(--cast-text-muted);
+  cursor: pointer;
+
+  &:hover {
+    color: var(--cast-accent-hover);
+  }
 }
 
 .cast-facet-toggle:focus-visible {
