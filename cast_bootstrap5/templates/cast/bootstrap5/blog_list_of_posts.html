@@ -3,6 +3,7 @@
 {% load crispy_forms_tags %}
 {% load static %}
 {% load django_vite %}
+{% load i18n %}
 
 {% block body_class %}template-bloglistpage{% endblock %}
 
@@ -58,8 +59,20 @@
     </div>
 
     {% block filters %}
-      {% include "./_filter_form.html" with page=page filterset=filterset %}
+      {% include "./_active_filters.html" with page=page filterset=filterset active_facets=active_facets %}
     {% endblock filters %}
+
+    <noscript>
+      <div class="cast-noscript-search">
+        <form action="{{ page.url }}" method="get">
+          <label for="noscript-search">{% translate "Search posts" %}</label>
+          <input type="text" id="noscript-search" name="search"
+                 value="{{ request.GET.search|default:'' }}"
+                 placeholder="{% translate 'Search posts...' %}">
+          <button type="submit">{% translate "Search" %}</button>
+        </form>
+      </div>
+    </noscript>
 
     <div id="paging-area">
       <div class="post-list">
@@ -73,6 +86,8 @@
       </footer>
     </div>
   </div>
+
+  {% include "./_search_modal.html" with page=page filterset=filterset %}
 {% endblock content %}
 
 {% block javascript %}

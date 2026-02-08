@@ -1,0 +1,87 @@
+{% load crispy_forms_tags %}
+{% load i18n %}
+
+{% if filterset %}
+<!-- Modal backdrop -->
+  <div class="cast-search-overlay" data-cast-search-overlay hidden>
+    <div class="cast-search-modal" role="dialog" aria-modal="true" aria-label="{% translate 'Search and filter posts' %}">
+
+    <!-- Search form — submits to blog list URL -->
+      <form action="{{ page.url }}" method="get" class="cast-search-modal-form">
+
+      <!-- Search input row -->
+        <div class="cast-search-modal-header">
+          <svg class="cast-follow-icon" aria-hidden="true" width="20" height="20" viewBox="0 0 16 16" fill="currentColor">
+            <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85zm-5.242.656a5 5 0 1 1 0-10 5 5 0 0 1 0 10z"/>
+          </svg>
+          {{ filterset.form.search|as_crispy_field }}
+          <button type="button" class="cast-search-modal-close" aria-label="{% translate 'Close' %}" data-cast-search-close>
+            <kbd>Esc</kbd>
+          </button>
+        </div>
+
+      <!-- Filter panels (collapsed by default, auto-expanded if active) -->
+        <div class="cast-search-modal-body">
+
+          {% if "date_facets" in filterset.form.fields %}
+            <details class="cast-modal-filter-panel" data-cast-filter-panel="date_facets"
+                     {% if filterset.form.date_facets.value %}open{% endif %}>
+              <summary>{% translate "Date" %}</summary>
+              <div class="cast-modal-filter-content">
+                <div class="cast-facet-group" data-cast-facet-group data-limit="12">
+                  {{ filterset.form.date_facets }}
+                </div>
+              </div>
+            </details>
+          {% endif %}
+
+          {% if "tag_facets" in filterset.form.fields %}
+            <details class="cast-modal-filter-panel" data-cast-filter-panel="tag_facets"
+                     {% if filterset.form.tag_facets.value %}open{% endif %}>
+              <summary>{% translate "Tags" %}</summary>
+              <div class="cast-modal-filter-content">
+                <div class="cast-facet-group" data-cast-facet-group data-limit="12">
+                  {{ filterset.form.tag_facets }}
+                </div>
+                <button type="button" class="cast-facet-toggle" data-cast-facet-toggle hidden>
+                  <span data-show-text>{% translate "Show all" %}</span>
+                  <span data-hide-text hidden>{% translate "Show fewer" %}</span>
+                </button>
+              </div>
+            </details>
+          {% endif %}
+
+          {% if "category_facets" in filterset.form.fields %}
+            <details class="cast-modal-filter-panel" data-cast-filter-panel="category_facets"
+                     {% if filterset.form.category_facets.value %}open{% endif %}>
+              <summary>{% translate "Categories" %}</summary>
+              <div class="cast-modal-filter-content">
+                <div class="cast-facet-group" data-cast-facet-group data-limit="12">
+                  {{ filterset.form.category_facets }}
+                </div>
+              </div>
+            </details>
+          {% endif %}
+
+          {% if "o" in filterset.form.fields %}
+            <details class="cast-modal-filter-panel" data-cast-filter-panel="o"
+                     {% if filterset.form.o.value %}open{% endif %}>
+              <summary>{% translate "Ordering" %}</summary>
+              <div class="cast-modal-filter-content">
+                {{ filterset.form.o|as_crispy_field }}
+              </div>
+            </details>
+          {% endif %}
+
+        </div>
+
+      <!-- Actions -->
+        <div class="cast-search-modal-footer">
+          <a href="{{ page.url }}" class="cast-btn-clear">{% translate "Clear all" %}</a>
+          <button type="submit" class="cast-btn-search">{% translate "Search" %}</button>
+        </div>
+
+      </form>
+    </div>
+  </div>
+{% endif %}

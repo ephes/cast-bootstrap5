@@ -211,6 +211,114 @@
   </div>
 </section>
 
+<section id="search-filters" class="mb-5">
+  <h2 class="h3">{% translate "Search & Filters" %}</h2>
+
+  <h3 class="h5 mt-4">{% translate "Search trigger (navbar icon)" %}</h3>
+  <div class="d-flex gap-3 align-items-center mb-3">
+    <div>
+      <p class="text-muted small mb-1">{% translate "Default" %}</p>
+      <button type="button" class="cast-search-trigger" aria-label="{% translate 'Search posts' %}">
+        <svg aria-hidden="true" class="cast-follow-icon" width="20" height="20" viewBox="0 0 16 16" fill="currentColor">
+          <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85zm-5.242.656a5 5 0 1 1 0-10 5 5 0 0 1 0 10z"/>
+        </svg>
+        <kbd class="cast-search-kbd">&#8984;K</kbd>
+      </button>
+    </div>
+    <div>
+      <p class="text-muted small mb-1">{% translate "With active filters" %}</p>
+      <button type="button" class="cast-search-trigger has-active-filters" aria-label="{% translate 'Search posts' %}">
+        <svg aria-hidden="true" class="cast-follow-icon" width="20" height="20" viewBox="0 0 16 16" fill="currentColor">
+          <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85zm-5.242.656a5 5 0 1 1 0-10 5 5 0 0 1 0 10z"/>
+        </svg>
+        <kbd class="cast-search-kbd">&#8984;K</kbd>
+      </button>
+    </div>
+  </div>
+
+  <h3 class="h5 mt-4">{% translate "Search modal (static preview)" %}</h3>
+  <div class="card mb-3" style="max-width: 600px;">
+    {% if filterset %}
+      <div class="cast-search-modal" style="position: static; box-shadow: none; max-height: none;">
+        <form action="#" method="get" class="cast-search-modal-form">
+          <div class="cast-search-modal-header">
+            <svg class="cast-follow-icon" aria-hidden="true" width="20" height="20" viewBox="0 0 16 16" fill="currentColor">
+              <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85zm-5.242.656a5 5 0 1 1 0-10 5 5 0 0 1 0 10z"/>
+            </svg>
+            {{ filterset.form.search|as_crispy_field }}
+            <button type="button" class="cast-search-modal-close" aria-label="{% translate 'Close' %}">
+              <kbd>Esc</kbd>
+            </button>
+          </div>
+          <div class="cast-search-modal-body">
+            {% if "date_facets" in filterset.form.fields %}
+              <details class="cast-modal-filter-panel" open>
+                <summary>{% translate "Date" %}</summary>
+                <div class="cast-modal-filter-content">
+                  <div class="cast-facet-group" data-cast-facet-group data-limit="12">
+                    {{ filterset.form.date_facets }}
+                  </div>
+                </div>
+              </details>
+            {% endif %}
+            {% if "tag_facets" in filterset.form.fields %}
+              <details class="cast-modal-filter-panel" open>
+                <summary>{% translate "Tags" %}</summary>
+                <div class="cast-modal-filter-content">
+                  <div class="cast-facet-group" data-cast-facet-group data-limit="12">
+                    {{ filterset.form.tag_facets }}
+                  </div>
+                </div>
+              </details>
+            {% endif %}
+            {% if "category_facets" in filterset.form.fields %}
+              <details class="cast-modal-filter-panel" open>
+                <summary>{% translate "Categories" %}</summary>
+                <div class="cast-modal-filter-content">
+                  <div class="cast-facet-group" data-cast-facet-group data-limit="12">
+                    {{ filterset.form.category_facets }}
+                  </div>
+                </div>
+              </details>
+            {% endif %}
+            {% if "o" in filterset.form.fields %}
+              <details class="cast-modal-filter-panel">
+                <summary>{% translate "Ordering" %}</summary>
+                <div class="cast-modal-filter-content">
+                  {{ filterset.form.o|as_crispy_field }}
+                </div>
+              </details>
+            {% endif %}
+          </div>
+          <div class="cast-search-modal-footer">
+            <a href="#" class="cast-btn-clear">{% translate "Clear all" %}</a>
+            <button type="button" class="cast-btn-search">{% translate "Search" %}</button>
+          </div>
+        </form>
+      </div>
+    {% endif %}
+  </div>
+
+  <h3 class="h5 mt-4">{% translate "Active filter bar (sample)" %}</h3>
+  <nav class="cast-active-filters" aria-label="{% translate 'Active filters' %}">
+    <ul class="cast-filter-tags">
+      <li class="cast-filter-tag">
+        <span>{% translate "Search" %}: "django"</span>
+        <a href="#" class="cast-filter-tag-remove" aria-label="{% translate 'Remove search filter' %}">&#10005;</a>
+      </li>
+      <li class="cast-filter-tag">
+        <span>{% translate "Tag" %}: python (3)</span>
+        <a href="#" class="cast-filter-tag-remove" aria-label="{% translate 'Remove' %} Tag">&#10005;</a>
+      </li>
+      <li class="cast-filter-tag">
+        <span>{% translate "Category" %}: Today I Learned (2)</span>
+        <a href="#" class="cast-filter-tag-remove" aria-label="{% translate 'Remove' %} Category">&#10005;</a>
+      </li>
+    </ul>
+    <a href="#" class="cast-filter-clear-all">{% translate "Clear all" %}</a>
+  </nav>
+</section>
+
 <section id="post-list" class="mb-5">
   <h2 class="h3">{% translate "Post list" %}</h2>
   <div id="paging-area">

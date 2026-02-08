@@ -1,0 +1,30 @@
+{% load i18n %}
+{% load cast_extras %}
+
+{% if has_active_filters %}
+  <nav class="cast-active-filters" aria-label="{% translate 'Active filters' %}">
+    <ul class="cast-filter-tags">
+      {% if filterset.form.search.value %}
+        <li class="cast-filter-tag">
+          <span>{% translate "Search" %}: "{{ filterset.form.search.value }}"</span>
+          <a href="{% remove_filter_url 'search' %}" class="cast-filter-tag-remove" aria-label="{% translate 'Remove search filter' %}">&#10005;</a>
+        </li>
+      {% endif %}
+
+      {% for facet in active_facets %}
+        <li class="cast-filter-tag">
+          <span>{{ facet.label }}: {{ facet.display_value }}</span>
+          <a href="{% remove_filter_url facet.param_name %}" class="cast-filter-tag-remove" aria-label="{% translate 'Remove' %} {{ facet.label }}">&#10005;</a>
+        </li>
+      {% endfor %}
+
+      {% if filterset.form.o.value %}
+        <li class="cast-filter-tag">
+          <span>{% translate "Order" %}: {{ filterset.form.o.value }}</span>
+          <a href="{% remove_filter_url 'o' %}" class="cast-filter-tag-remove" aria-label="{% translate 'Remove ordering' %}">&#10005;</a>
+        </li>
+      {% endif %}
+    </ul>
+    <a href="{{ page.url }}" class="cast-filter-clear-all">{% translate "Clear all" %}</a>
+  </nav>
+{% endif %}

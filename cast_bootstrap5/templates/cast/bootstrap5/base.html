@@ -1,5 +1,6 @@
 {% load static i18n %}
 {% load wagtailcore_tags %}
+{% load cast_extras %}
 <!DOCTYPE html>
 <html lang="en">
   <head>
@@ -82,6 +83,7 @@
                   {% endfor %}
                 </ul>
                 <ul class="navbar-nav ms-auto mb-2 mb-lg-0 cast-nav-actions">
+                  {% include "./_search_trigger.html" %}
                   {% include "./select_theme.html" %}
                   {% include "./follow_links.html" %}
                 </ul>
@@ -97,6 +99,7 @@
                   {% endfor %}
                 </ul>
                 <ul class="navbar-nav ms-auto mb-2 mb-lg-0 cast-nav-actions">
+                  {% include "./_search_trigger.html" %}
                   {% include "./follow_links.html" %}
                 </ul>
               {% else %}
@@ -111,6 +114,7 @@
                   {% endfor %}
                 </ul>
                 <ul class="navbar-nav ms-auto mb-2 mb-lg-0 cast-nav-actions">
+                  {% include "./_search_trigger.html" %}
                   {% include "./select_theme.html" %}
                   {% include "./follow_links.html" %}
                 </ul>
@@ -284,92 +288,6 @@
               });
             }
 
-            function initFilterToggle(root) {
-              var scope = root && root.querySelector ? root : document;
-              var toggles = Array.prototype.slice.call(scope.querySelectorAll('.cast-filter-toggle'));
-              toggles.forEach(function (toggle) {
-                if (toggle.dataset.castToggleReady === 'true') {
-                  return;
-                }
-                toggle.addEventListener('click', function () {
-                  var panelId = toggle.getAttribute('aria-controls');
-                  var panel = document.getElementById(panelId);
-                  if (!panel) {
-                    return;
-                  }
-                  var isHidden = panel.hasAttribute('hidden');
-                  if (isHidden) {
-                    panel.removeAttribute('hidden');
-                    toggle.setAttribute('aria-expanded', 'true');
-                    toggle.classList.add('active');
-                  } else {
-                    panel.setAttribute('hidden', '');
-                    toggle.setAttribute('aria-expanded', 'false');
-                    toggle.classList.remove('active');
-                  }
-                });
-                toggle.dataset.castToggleReady = 'true';
-              });
-            }
-
-            function initFilterPanels(root) {
-              var scope = root && root.querySelector ? root : document;
-              var panels = Array.prototype.slice.call(scope.querySelectorAll('[data-cast-filter-panel]'));
-              if (!panels.length) {
-                return;
-              }
-              function panelHasActiveFilters(panel) {
-                var selectedLinks = Array.prototype.slice.call(
-                  panel.querySelectorAll('a.selected, a.active, [aria-current="true"]')
-                );
-                for (var i = 0; i < selectedLinks.length; i += 1) {
-                  var link = selectedLinks[i];
-                  var parent = link.parentElement;
-                  var hiddenInput = parent ? parent.querySelector('input[type="hidden"]') : null;
-                  if (hiddenInput) {
-                    if (hiddenInput.value && hiddenInput.value.trim() !== '') {
-                      return true;
-                    }
-                    continue;
-                  }
-                  return true;
-                }
-                var fields = Array.prototype.slice.call(panel.querySelectorAll('input, select, textarea'));
-                return fields.some(function (field) {
-                  if (field.disabled) {
-                    return false;
-                  }
-                  var type = (field.getAttribute('type') || '').toLowerCase();
-                  if (type === 'checkbox' || type === 'radio') {
-                    return field.checked;
-                  }
-                  if (type === 'hidden') {
-                    return false;
-                  }
-                  return field.value && field.value.trim() !== '';
-                });
-              }
-              var isMobile = window.matchMedia
-                ? window.matchMedia('(max-width: 767.98px)').matches
-                : false;
-              panels.forEach(function (panel) {
-                if (panel.dataset.castPanelReady === 'true') {
-                  return;
-                }
-                var openMode = panel.getAttribute('data-cast-open') || '';
-                var shouldOpen = openMode === 'true';
-                var autoOpen = openMode === 'auto';
-                if (isMobile) {
-                  panel.removeAttribute('open');
-                } else if (shouldOpen || (autoOpen && panelHasActiveFilters(panel))) {
-                  panel.setAttribute('open', '');
-                } else {
-                  panel.removeAttribute('open');
-                }
-                panel.dataset.castPanelReady = 'true';
-              });
-            }
-
             function initFacetToggles(root) {
               var scope = root && root.querySelector ? root : document;
               var groups = Array.prototype.slice.call(scope.querySelectorAll('[data-cast-facet-group]'));
@@ -378,6 +296,10 @@
               }
               groups.forEach(function (group) {
                 if (group.dataset.castFacetReady === 'true') {
+                  return;
+                }
+                // Skip groups inside the search modal — they have their own toggle logic
+                if (group.closest('.cast-search-modal')) {
                   return;
                 }
                 var limit = parseInt(group.getAttribute('data-limit') || '', 10);
@@ -453,13 +375,111 @@
               });
             }
 
+            function initSearchModal() {
+              var trigger = document.querySelector('[data-cast-search-trigger]');
+              var overlay = document.querySelector('[data-cast-search-overlay]');
+              if (!trigger || !overlay) return;
+
+              // The modal lives outside the HTMX swap target, so its DOM
+              // elements persist across swaps. Bind all listeners once.
+              if (overlay.dataset.castSearchReady === 'true') return;
+              overlay.dataset.castSearchReady = 'true';
+
+              var modal = overlay.querySelector('.cast-search-modal');
+              var closeBtn = overlay.querySelector('[data-cast-search-close]');
+              var searchInput = overlay.querySelector('input[name="search"]');
+
+              function openModal() {
+                overlay.hidden = false;
+                document.body.style.overflow = 'hidden';
+                if (searchInput) searchInput.focus();
+              }
+
+              function closeModal() {
+                overlay.hidden = true;
+                document.body.style.overflow = '';
+                trigger.focus();
+              }
+
+              // Trigger click
+              trigger.addEventListener('click', openModal);
+
+              // Cmd+K / Ctrl+K
+              document.addEventListener('keydown', function (e) {
+                if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+                  var tag = document.activeElement ? document.activeElement.tagName : '';
+                  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' ||
+                    (document.activeElement && document.activeElement.isContentEditable)) {
+                      return;
+                    }
+                  e.preventDefault();
+                  if (overlay.hidden) { openModal(); } else { closeModal(); }
+                }
+                if (e.key === 'Escape' && !overlay.hidden) {
+                  e.preventDefault();
+                  closeModal();
+                }
+              });
+
+              // Backdrop click
+              overlay.addEventListener('click', function (e) {
+                if (e.target === overlay) closeModal();
+              });
+
+              // Close button
+              if (closeBtn) closeBtn.addEventListener('click', closeModal);
+
+              // Focus trap
+              if (modal) {
+                modal.addEventListener('keydown', function (e) {
+                  if (e.key !== 'Tab') return;
+                  var focusable = Array.prototype.slice.call(modal.querySelectorAll(
+                    'input:not([disabled]):not([type="hidden"]), button:not([disabled]), ' +
+                    'select:not([disabled]), a[href], details > summary, ' +
+                    '[tabindex]:not([tabindex="-1"])'
+                  )).filter(function (el) { return el.offsetParent !== null; });
+                  if (focusable.length === 0) return;
+                  var first = focusable[0];
+                  var last = focusable[focusable.length - 1];
+                  if (e.shiftKey && document.activeElement === first) {
+                    e.preventDefault();
+                    last.focus();
+                  } else if (!e.shiftKey && document.activeElement === last) {
+                    e.preventDefault();
+                    first.focus();
+                  }
+                });
+              }
+
+              // Facet group "Show all / Show fewer" toggles inside modal
+              if (modal) {
+                modal.querySelectorAll('[data-cast-facet-group]').forEach(function (group) {
+                  var limit = parseInt(group.dataset.limit || '12', 10);
+                  var items = Array.prototype.slice.call(group.querySelectorAll('.cast-date-facet-item, .tag-pill'));
+                  if (items.length <= limit) return;
+                  var toggle = group.parentElement ? group.parentElement.querySelector('[data-cast-facet-toggle]') : null;
+                  if (!toggle) return;
+                  toggle.hidden = false;
+                  items.forEach(function (item, i) { if (i >= limit) item.hidden = true; });
+                  toggle.addEventListener('click', function () {
+                    var expanded = toggle.getAttribute('aria-expanded') === 'true';
+                    items.forEach(function (item, i) { if (i >= limit) item.hidden = expanded; });
+                    toggle.setAttribute('aria-expanded', String(!expanded));
+                    var showText = toggle.querySelector('[data-show-text]');
+                    var hideText = toggle.querySelector('[data-hide-text]');
+                    if (showText) showText.hidden = !expanded;
+                    if (hideText) hideText.hidden = expanded;
+                  });
+                });
+              }
+            }
+
             function initEnhancements(root) {
               var scope = root && root.querySelector ? root : document;
               buildOrderingDropdown(scope);
               mergeConsecutiveBlockquotes(scope);
-              initFilterToggle(scope);
-              initFilterPanels(scope);
               initFacetToggles(scope);
+              initSearchModal();
             }
 
             if (document.readyState === 'loading') {
