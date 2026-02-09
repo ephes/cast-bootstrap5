@@ -1,5 +1,4 @@
 {% load i18n %}
-{% load crispy_forms_tags %}
 {% load comments %}
 
 <section id="typography" class="mb-5">
@@ -206,7 +205,28 @@
   <h2 class="h3">{% translate "Forms" %}</h2>
   <div class="card">
     <div class="card-body">
-      {% include "cast/bootstrap5/_filter_form.html" with page=blog filterset=filterset %}
+      <form action="#" method="get" class="row g-3" data-cast-preview-only="true">
+        <div class="col-md-6">
+          <label class="form-label" for="styleguide-form-search">{% translate "Search posts" %}</label>
+          <input
+            type="search"
+            class="form-control"
+            id="styleguide-form-search"
+            name="styleguide-search"
+            placeholder="{% translate 'Search posts...' %}"
+          >
+        </div>
+        <div class="col-md-4">
+          <label class="form-label" for="styleguide-form-ordering">{% translate "Ordering" %}</label>
+          <select class="form-select" id="styleguide-form-ordering" name="styleguide-ordering">
+            <option>{% translate "Newest first" %}</option>
+            <option>{% translate "Oldest first" %}</option>
+          </select>
+        </div>
+        <div class="col-md-2 d-flex align-items-end">
+          <button type="button" class="btn btn-primary w-100">{% translate "Apply" %}</button>
+        </div>
+      </form>
     </div>
   </div>
 </section>
@@ -238,65 +258,94 @@
 
   <h3 class="h5 mt-4">{% translate "Search modal (static preview)" %}</h3>
   <div class="card mb-3" style="max-width: 600px;">
-    {% if filterset %}
-      <div class="cast-search-modal" style="position: static; box-shadow: none; max-height: none;">
-        <form action="#" method="get" class="cast-search-modal-form">
-          <div class="cast-search-modal-header">
-            <svg class="cast-follow-icon" aria-hidden="true" width="20" height="20" viewBox="0 0 16 16" fill="currentColor">
-              <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85zm-5.242.656a5 5 0 1 1 0-10 5 5 0 0 1 0 10z"/>
-            </svg>
-            {{ filterset.form.search|as_crispy_field }}
-            <button type="button" class="cast-search-modal-close" aria-label="{% translate 'Close' %}">
-              <kbd>Esc</kbd>
-            </button>
-          </div>
-          <div class="cast-search-modal-body">
-            {% if "date_facets" in filterset.form.fields %}
-              <details class="cast-modal-filter-panel" open>
-                <summary>{% translate "Date" %}</summary>
-                <div class="cast-modal-filter-content">
-                  <div class="cast-facet-group" data-cast-facet-group data-limit="12">
-                    {{ filterset.form.date_facets }}
+    {# Preview-only modal example. The live modal host is rendered once in styleguide/index.html. #}
+    <div class="cast-search-modal" style="position: static; box-shadow: none; max-height: none;" data-cast-preview-only="true" aria-hidden="true">
+      <form action="#" method="get" class="cast-search-modal-form">
+        <div class="cast-search-modal-header">
+          <svg class="cast-follow-icon" aria-hidden="true" width="20" height="20" viewBox="0 0 16 16" fill="currentColor">
+            <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85zm-5.242.656a5 5 0 1 1 0-10 5 5 0 0 1 0 10z"/>
+          </svg>
+          <label for="styleguide-search-modal-preview">{% translate "Search posts" %}</label>
+          <input type="search" id="styleguide-search-modal-preview" name="styleguide-search-modal-preview" value="django">
+          <button type="button" class="cast-search-modal-close" aria-label="{% translate 'Close' %}">
+            <kbd>Esc</kbd>
+          </button>
+        </div>
+        <div class="cast-search-modal-body">
+          <details class="cast-modal-filter-panel" open>
+            <summary>{% translate "Date" %}</summary>
+            <div class="cast-modal-filter-content">
+              <div class="cast-facet-group">
+                <div class="cast-date-facet-container">
+                  <div class="cast-date-facet-item">
+                    <a href="#">2026-02 (4)</a>
                   </div>
-                </div>
-              </details>
-            {% endif %}
-            {% if "tag_facets" in filterset.form.fields %}
-              <details class="cast-modal-filter-panel" open>
-                <summary>{% translate "Tags" %}</summary>
-                <div class="cast-modal-filter-content">
-                  <div class="cast-facet-group" data-cast-facet-group data-limit="12">
-                    {{ filterset.form.tag_facets }}
+                  <div class="cast-date-facet-item">
+                    <a href="#">2026-01 (7)</a>
                   </div>
-                </div>
-              </details>
-            {% endif %}
-            {% if "category_facets" in filterset.form.fields %}
-              <details class="cast-modal-filter-panel" open>
-                <summary>{% translate "Categories" %}</summary>
-                <div class="cast-modal-filter-content">
-                  <div class="cast-facet-group" data-cast-facet-group data-limit="12">
-                    {{ filterset.form.category_facets }}
+                  <div class="cast-date-facet-item">
+                    <a href="#" class="cast-facet-all-option selected">{% translate "All" %} (18)</a>
                   </div>
-                </div>
-              </details>
-            {% endif %}
-            {% if "o" in filterset.form.fields %}
-              <div class="cast-modal-filter-panel cast-modal-ordering">
-                <div class="cast-modal-ordering-title">{% translate "Ordering" %}</div>
-                <div class="cast-modal-filter-content">
-                  {{ filterset.form.o|as_crispy_field }}
                 </div>
               </div>
-            {% endif %}
+            </div>
+          </details>
+          <details class="cast-modal-filter-panel" open>
+            <summary>{% translate "Tags" %}</summary>
+            <div class="cast-modal-filter-content">
+              <div class="cast-facet-group">
+                <div class="cast-date-facet-container">
+                  <div class="cast-date-facet-item">
+                    <a href="#" class="selected">python (8)</a>
+                  </div>
+                  <div class="cast-date-facet-item">
+                    <a href="#">django (6)</a>
+                  </div>
+                  <div class="cast-date-facet-item">
+                    <a href="#">testing (2)</a>
+                  </div>
+                  <div class="cast-date-facet-item">
+                    <a href="#" class="cast-facet-all-option">{% translate "All" %} (18)</a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </details>
+          <details class="cast-modal-filter-panel" open>
+            <summary>{% translate "Categories" %}</summary>
+            <div class="cast-modal-filter-content">
+              <div class="cast-facet-group">
+                <div class="cast-date-facet-container">
+                  <div class="cast-date-facet-item">
+                    <a href="#">Today I Learned (5)</a>
+                  </div>
+                  <div class="cast-date-facet-item">
+                    <a href="#">Podcast notes (3)</a>
+                  </div>
+                  <div class="cast-date-facet-item">
+                    <a href="#" class="cast-facet-all-option">{% translate "All" %} (18)</a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </details>
+          <div class="cast-modal-filter-panel cast-modal-ordering">
+            <div class="cast-modal-ordering-title">{% translate "Ordering" %}</div>
+            <div class="cast-modal-filter-content">
+              <label class="visually-hidden" for="styleguide-search-modal-ordering">{% translate "Ordering" %}</label>
+              <select class="form-select" id="styleguide-search-modal-ordering" name="styleguide-search-modal-ordering">
+                <option>{% translate "Newest first" %}</option>
+                <option>{% translate "Oldest first" %}</option>
+              </select>
+            </div>
           </div>
-          <div class="cast-search-modal-footer">
-            <a href="#" class="cast-btn-clear">{% translate "Clear all" %}</a>
-            <button type="button" class="cast-btn-search">{% translate "Search" %}</button>
-          </div>
-        </form>
-      </div>
-    {% endif %}
+        </div>
+        <div class="cast-search-modal-footer">
+          <a href="#" class="cast-btn-clear">{% translate "Clear all" %}</a>
+          <button type="button" class="cast-btn-search">{% translate "Search" %}</button>
+        </div>
+      </form>
+    </div>
   </div>
 
   <h3 class="h5 mt-4">{% translate "Active filter bar (sample)" %}</h3>

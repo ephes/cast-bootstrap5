@@ -6,25 +6,34 @@
     <ul class="cast-filter-tags">
       {% if filterset.form.search.value %}
         <li class="cast-filter-tag">
-          <span>{% translate "Search" %}: "{{ filterset.form.search.value }}"</span>
+          <span class="text-body-secondary">{% translate "Search" %}:</span>
+          <span class="fw-semibold">{{ filterset.form.search.value|truncatechars:100 }}</span>
           <a href="{% remove_filter_url 'search' %}" class="cast-filter-tag-remove" aria-label="{% translate 'Remove search filter' %}">&#10005;</a>
         </li>
       {% endif %}
 
       {% for facet in active_facets %}
         <li class="cast-filter-tag">
-          <span>{{ facet.label }}: {{ facet.display_value }}</span>
+          <span class="text-body-secondary">{{ facet.label }}:</span>
+          <span class="fw-semibold">{{ facet.display_value }}</span>
           <a href="{% remove_filter_url facet.param_name %}" class="cast-filter-tag-remove" aria-label="{% translate 'Remove' %} {{ facet.label }}">&#10005;</a>
         </li>
       {% endfor %}
 
-      {% if filterset.form.o.value %}
+      {% if request.GET.o == "-visible_date" or request.GET.o == "visible_date" %}
         <li class="cast-filter-tag">
-          <span>{% translate "Order" %}: {{ filterset.form.o.value }}</span>
+          <span class="text-body-secondary">{% translate "Order" %}:</span>
+          <span class="fw-semibold">
+            {% if request.GET.o == "-visible_date" %}
+              {% translate "Date (descending)" %}
+            {% else %}
+              {% translate "Date" %}
+            {% endif %}
+          </span>
           <a href="{% remove_filter_url 'o' %}" class="cast-filter-tag-remove" aria-label="{% translate 'Remove ordering' %}">&#10005;</a>
         </li>
       {% endif %}
     </ul>
-    <a href="{{ page.url }}" class="cast-filter-clear-all">{% translate "Clear all" %}</a>
+    <a href="{{ page.url }}" class="cast-filter-clear-all btn btn-sm btn-outline-secondary">{% translate "Clear all" %}</a>
   </nav>
 {% endif %}

@@ -12,6 +12,8 @@
 
 {% block content %}
   {% include "cast/styleguide/layout.html" %}
+  {# Keep a single live search modal host on the styleguide page. #}
+  {% include "cast/bootstrap5/_search_modal.html" with page=blog filterset=filterset %}
 
   {# Dark Mode Toggle for Styleguide #}
   {% if not request.GET.nav_preview and not request.GET.nav_layout %}
@@ -174,6 +176,7 @@
 {% block javascript %}
   {{ block.super }}
   {% vite_hmr_client app="cast-bootstrap5" %}
+  {% vite_asset 'src/search/cast-search-modal.ts' app="cast-bootstrap5" %}
   {% vite_asset 'src/gallery/image-gallery-bs5.ts' app="cast-bootstrap5" %}
   {% vite_asset 'src/audio/podlove-player.ts' app="cast-bootstrap5" %}
 {% endblock javascript %}
