@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "test": "vitest -r js/src/tests/",
+    "test": "vitest run",
     "coverage": "vitest run --coverage",
     "preview": "vite preview",
     "scss": "sass ../cast_bootstrap5/static/cast_bootstrap5/scss/main.scss:../cast_bootstrap5/static/cast_bootstrap5/css/bootstrap5/cast.css --style=compressed --no-source-map --no-charset",

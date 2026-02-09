@@ -41,6 +41,9 @@ export default defineConfig({
         main: resolve("./src/gallery/image-gallery-bs5.ts"),
         podlovePlayer: resolve("./src/audio/podlove-player.ts"),
         themeSwitcher: resolve("./src/theme/theme-switcher.ts"),
+        searchModal: resolve("./src/search/cast-search-modal.ts"),
+        filterEnhancements: resolve("./src/filters/filter-enhancements-bootstrap.ts"),
+        postContentEnhancements: resolve("./src/content/post-content-enhancements.ts"),
       },
       output: {
         chunkFileNames: undefined,

@@ -93,6 +93,9 @@
 {% block javascript %}
   {{ block.super }}
   {% vite_hmr_client app="cast-bootstrap5" %}
+  {% vite_asset 'src/search/cast-search-modal.ts' app="cast-bootstrap5" %}
+  {% vite_asset 'src/filters/filter-enhancements-bootstrap.ts' app="cast-bootstrap5" %}
+  {% vite_asset 'src/content/post-content-enhancements.ts' app="cast-bootstrap5" %}
   {% vite_asset 'src/gallery/image-gallery-bs5.ts' app="cast-bootstrap5" %}
   {% if use_audio_player %}
     {% vite_asset 'src/audio/podlove-player.ts' app="cast-bootstrap5" %}

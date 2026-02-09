@@ -545,12 +545,19 @@ video {
     align-items: center;
     padding: 0.25rem 0.75rem;
     font-size: var(--cast-font-size-sm);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
     background-color: var(--cast-bg-alt);
     border: 1px solid var(--cast-border);
     border-radius: 2rem;
     color: var(--cast-text);
     text-decoration: none;
     transition: all var(--cast-transition-fast);
+  }
+
+  a.cast-facet-all-option {
+    min-width: 9.5ch;
+    justify-content: center;
   }
 
   a:hover {
@@ -564,6 +571,13 @@ video {
     background-color: var(--cast-accent);
     border-color: var(--cast-accent);
     color: #fff;
+  }
+
+  a.is-disabled,
+  a[aria-disabled='true'] {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
   }
 
   a:focus-visible {
@@ -1025,7 +1039,23 @@ main#main-content {
 
 // --- Modal body (filter panels) ---
 .cast-search-modal-body {
+  position: relative;
   padding: 0.5rem 1.25rem;
+}
+
+.cast-facet-loading {
+  position: absolute;
+  top: 0.5rem;
+  right: 1.25rem;
+  margin: 0;
+  padding: 0.125rem 0.5rem;
+  font-size: var(--cast-font-size-sm);
+  color: var(--cast-text-muted);
+  background: var(--cast-bg-alt);
+  border: 1px solid var(--cast-border);
+  border-radius: 999px;
+  pointer-events: none;
+  z-index: 1;
 }
 .cast-modal-filter-panel {
   border-bottom: 1px solid var(--cast-border);
@@ -1092,10 +1122,18 @@ main#main-content {
 // --- Modal footer (actions) ---
 .cast-search-modal-footer {
   display: flex;
+  align-items: center;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: 0.75rem;
   padding: 0.75rem 1.25rem;
   border-top: 1px solid var(--cast-border);
+}
+
+.cast-no-results {
+  margin-right: auto;
+  font-size: var(--cast-font-size-sm);
+  color: var(--cast-warning);
 }
 .cast-btn-clear {
   display: inline-flex;
@@ -1126,6 +1164,10 @@ main#main-content {
   &:hover {
     background-color: var(--cast-accent-hover);
     border-color: var(--cast-accent-hover);
+  }
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 }
 
