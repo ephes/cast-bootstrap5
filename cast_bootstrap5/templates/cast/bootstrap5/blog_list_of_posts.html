@@ -26,36 +26,7 @@
         <div class="intro lead">{{ page.description|richtext }}</div>
       </div>
 
-      {% block feeds %}
-        <div class="cast-post-list-actions">
-          <div class="cast-feeds-container">
-            <div class="cast-feed-item">
-              <a class="cast-feed-link" href="{% url "cast:latest_entries_feed" slug=blog.slug %}">
-                <img
-                  alt="RSS feed icon"
-                  class="cast-feed-icon"
-                  src="{% static 'cast/img/Feed-icon.svg' %}"
-                  height="64"
-                  width="64"
-                >
-                <span>Plain RSS</span>
-              </a>
-            </div>
-            {% if blog.is_podcast %}
-              <div class="cast-feed-item">
-                <a class="cast-feed-link" href="{% url "cast:podcast_feed_rss" slug=podcast.slug audio_format='m4a' %}">
-                  <span>Podcast RSS MP4</span>
-                </a>
-              </div>
-              <div class="cast-feed-item">
-                <a class="cast-feed-link" href="{% url "cast:podcast_feed_atom" slug=podcast.slug audio_format='m4a' %}">
-                  <span>Podcast Atom MP4</span>
-                </a>
-              </div>
-            {% endif %}
-          </div>
-        </div>
-      {% endblock feeds %}
+      {% block feeds %}{% endblock feeds %}
     </div>
 
     {% block filters %}
