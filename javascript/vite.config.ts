@@ -39,7 +39,8 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: resolve("./src/gallery/image-gallery-bs5.ts"),
-        podlovePlayer: resolve("./src/audio/podlove-player.ts")
+        podlovePlayer: resolve("./src/audio/podlove-player.ts"),
+        themeSwitcher: resolve("./src/theme/theme-switcher.ts"),
       },
       output: {
         chunkFileNames: undefined,
