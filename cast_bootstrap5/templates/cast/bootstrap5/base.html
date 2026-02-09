@@ -151,32 +151,9 @@
         <path d="M7.646 4.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1-.708.708L8 5.707l-5.646 5.647a.5.5 0 0 1-.708-.708l6-6z" fill="currentColor"/>
       </svg>
     </button>
-    <script>
-      (function () {
-        var btn = document.querySelector('.cast-scroll-top');
-        if (!btn) return;
-        var ticking = false;
-        function onScroll() {
-          if (!ticking) {
-            requestAnimationFrame(function () {
-              var show = window.scrollY > window.innerHeight * 3;
-              btn.classList.toggle('is-visible', show);
-              btn.tabIndex = show ? 0 : -1;
-              btn.setAttribute('aria-hidden', show ? 'false' : 'true');
-              ticking = false;
-            });
-            ticking = true;
-          }
-        }
-        window.addEventListener('scroll', onScroll, { passive: true });
-        onScroll();
-        btn.addEventListener('click', function () {
-          window.scrollTo({ top: 0, behavior: 'smooth' });
-        });
-      })();
-    </script>
     <div class="additional_javascript">
       {% block javascript %}
+        {% vite_asset 'src/theme/scroll-top.ts' app="cast-bootstrap5" %}
         {% vite_asset 'src/theme/theme-switcher.ts' app="cast-bootstrap5" %}
         <script defer src="{% static 'cast_bootstrap5/js/bootstrap5/bootstrap.bundle.min.js' %}"></script>
         <script defer src="{% static 'cast_bootstrap5/js/htmx.min.js' %}"></script>

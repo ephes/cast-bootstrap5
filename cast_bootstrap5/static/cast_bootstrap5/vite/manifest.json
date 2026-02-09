@@ -29,6 +29,12 @@
     "src": "src/search/cast-search-modal.ts",
     "isEntry": true
   },
+  "src/theme/scroll-top.ts": {
+    "file": "scrollTop-S6eCSEMj.js",
+    "name": "scrollTop",
+    "src": "src/theme/scroll-top.ts",
+    "isEntry": true
+  },
   "src/theme/theme-switcher.ts": {
     "file": "themeSwitcher-B2NBugFZ.js",
     "name": "themeSwitcher",
