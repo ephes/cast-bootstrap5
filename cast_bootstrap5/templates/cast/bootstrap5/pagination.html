@@ -28,6 +28,7 @@
       {% endif %}
       <!-- page numbers -->
       {% for num in page_range %}
+        {# This boundary marker assumes paginator elision keeps first/last page numbers in page_range (on_ends >= 1). #}
         {% if num == ellipsis %}
           <!-- ... -->
           <li class="page-item page-ellipsis disabled">
@@ -35,12 +36,12 @@
           </li>
         {% elif num == page_number %}
           <!-- currently active page -->
-          <li class="page-item page-number active">
+          <li class="page-item page-number{% if forloop.first or forloop.last %} page-number-boundary{% endif %} active">
             <span class="page-link">{{ num }}</span>
           </li>
         {% else %}
           <!-- clickable links to other page numbers -->
-          <li class="page-item page-number">
+          <li class="page-item page-number{% if forloop.first or forloop.last %} page-number-boundary{% endif %}">
             <a
               data-hx-get="?page={{ num }}{{ parameters }}"
               data-hx-target="#paging-area"

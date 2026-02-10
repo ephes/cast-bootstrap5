@@ -1456,8 +1456,7 @@ main#main-content {
     gap: 0.5rem;
   }
 
-  .pagination .page-number:not(.active),
-  .pagination .page-ellipsis {
+  .pagination .page-number:not(.active):not(.page-number-boundary) {
     position: absolute;
     width: 1px;
     height: 1px;
