@@ -817,6 +817,40 @@ podlove-player {
   gap: var(--cast-spacer-2);
 }
 
+@media (max-width: 991.98px) {
+  .navbar-collapse .cast-nav-actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-start;
+    gap: var(--cast-spacer-2);
+    margin-top: var(--cast-spacer-2);
+    padding-top: var(--cast-spacer-2);
+    border-top: 1px solid var(--cast-border);
+  }
+
+  .navbar-collapse .cast-nav-actions .nav-item,
+  .navbar-collapse .cast-nav-actions .theme-selector {
+    width: auto;
+    margin: 0;
+  }
+
+  .navbar-collapse .cast-nav-actions .cast-follow-link,
+  .navbar-collapse .cast-nav-actions .cast-search-trigger {
+    width: auto;
+    min-height: var(--cast-touch-target-min);
+  }
+
+  .navbar-collapse .cast-nav-actions .cast-theme-toggle {
+    width: auto;
+    min-height: var(--cast-touch-target-min);
+  }
+
+  .navbar-collapse .cast-nav-actions .theme-selector .dropdown-menu-end {
+    max-width: calc(100vw - (var(--cast-spacer-3) * 2));
+  }
+}
+
 // Sticky header with backdrop blur (optional enhancement)
 .navbar-sticky {
   position: sticky;
