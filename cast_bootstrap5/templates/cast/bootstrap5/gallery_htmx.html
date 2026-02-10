@@ -1,13 +1,13 @@
 <div class="cast-gallery-container">
   {% for image in images %}
     <a
-      href="{{ image.file.url }}"
+      href="{{ image.modal.src.jpeg }}"
       data-hx-get="{% url 'cast:gallery-modal' template_base_dir=template_base_dir %}?image_pks={{ image_pks }}&current_image_index={{ forloop.counter0 }}&block_id={{ block.id }}"
       data-hx-trigger="click"
       data-hx-target="#imageGalleryModal-{{ block.id }}"
       class="cast-image-gallery-thumbnail"
       aria-label="{% if image.default_alt_text %}Open image: {{ image.default_alt_text }}{% else %}Open image{% endif %}"
-      data-full="{{ image.file.url }}"
+      data-full="{{ image.modal.src.jpeg }}"
       data-bs-toggle="modal"
       data-bs-target="#imageGalleryModal-{{ block.id }}"
     >
@@ -53,7 +53,7 @@
           </button>
         </div>
         <div class="modal-body cast-gallery-body">
-          <a href="{% if images %}{{ images.0.file.url }}{% else %}#{% endif %}" aria-label="Open full-size image">
+          <a href="{% if images %}{{ images.0.modal.src.jpeg }}{% else %}#{% endif %}" aria-label="Open full-size image">
             {% with placeholder_src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==" %}
               <picture class="modal-picture">
                 <source class="modal-source" srcset="{{ placeholder_src }} 1w" sizes="1px" type="image/avif">
