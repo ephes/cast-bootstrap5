@@ -1,7 +1,17 @@
 {% load i18n %}
 {% if follow_links %}
   {% with links=follow_links %}
-    {% if links.rss %}
+    {% if links.feed_detail %}
+      <li class="nav-item">
+        <a class="nav-link cast-follow-link" href="{{ links.feed_detail }}" aria-label="{% trans "Feeds" %}">
+          <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false" class="cast-follow-icon">
+            <path d="M1.5 1.5a1 1 0 0 1 1-1h1a12 12 0 0 1 12 12v1a1 1 0 0 1-1 1h-1a1 1 0 0 1-1-1v-1a10 10 0 0 0-10-10h-1a1 1 0 0 1-1-1v-1z"></path>
+            <path d="M1.5 5.5a1 1 0 0 1 1-1h1a8 8 0 0 1 8 8v1a1 1 0 0 1-1 1h-1a1 1 0 0 1-1-1v-1a6 6 0 0 0-6-6h-1a1 1 0 0 1-1-1v-1z"></path>
+            <path d="M1 14.5a1.5 1.5 0 1 0 3 0a1.5 1.5 0 0 0-3 0"></path>
+          </svg>
+        </a>
+      </li>
+    {% elif links.rss %}
       <li class="nav-item">
         <a class="nav-link cast-follow-link" href="{{ links.rss }}" aria-label="{% trans "RSS feed" %}">
           <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false" class="cast-follow-icon">
