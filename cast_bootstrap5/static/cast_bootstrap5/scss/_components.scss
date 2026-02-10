@@ -466,7 +466,13 @@ video {
 }
 
 #paging-area {
+  content-visibility: auto;
+  contain-intrinsic-size: 1px 1200px;
   view-transition-name: paging-area;
+
+  &.vt-active {
+    content-visibility: visible;
+  }
 }
 
 ::view-transition-old(paging-area) {

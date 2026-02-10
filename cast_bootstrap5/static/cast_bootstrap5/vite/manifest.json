@@ -29,6 +29,12 @@
     "src": "src/search/cast-search-modal.ts",
     "isEntry": true
   },
+  "src/theme/paging-content-visibility.ts": {
+    "file": "pagingContentVisibility-jIZwedJQ.js",
+    "name": "pagingContentVisibility",
+    "src": "src/theme/paging-content-visibility.ts",
+    "isEntry": true
+  },
   "src/theme/scroll-top.ts": {
     "file": "scrollTop-S6eCSEMj.js",
     "name": "scrollTop",
