@@ -468,6 +468,14 @@ video {
 #paging-area {
   content-visibility: auto;
   contain-intrinsic-size: 1px 1200px;
+  view-transition-name: paging-area;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(paging-area),
+  ::view-transition-new(paging-area) {
+    animation-duration: 0s !important;
+  }
 }
 
 // Post cards
