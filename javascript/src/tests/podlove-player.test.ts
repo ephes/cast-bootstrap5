@@ -239,7 +239,7 @@ describe('PodlovePlayerElement', () => {
     unobserveSpy.mockRestore();
   });
 
-  it('should not reinitialize the player when reattached', () => {
+  it('should reinitialize the player when reattached', () => {
     const element = document.createElement('podlove-player');
     element.setAttribute('id', 'audio_63');
     element.setAttribute('data-url', '/api/audios/podlove/63/post/75/');
@@ -256,7 +256,7 @@ describe('PodlovePlayerElement', () => {
     const reattachObserver = element.observer as IntersectionObserverMock;
     reattachObserver.trigger([{ isIntersecting: true, target: element } as IntersectionObserverEntry]);
 
-    expect(globalThis.podlovePlayer).toHaveBeenCalledTimes(1);
+    expect(globalThis.podlovePlayer).toHaveBeenCalledTimes(2);
   });
 
   it('should unobserve the element when it is removed', () => {
@@ -268,5 +268,170 @@ describe('PodlovePlayerElement', () => {
 
     expect(unobserveSpy).toHaveBeenCalledWith(element);
     unobserveSpy.mockRestore();
+  });
+
+  describe('dark mode toggle', () => {
+    it('should reinitialize with new config URL when data-bs-theme changes', async () => {
+      document.documentElement.setAttribute('data-bs-theme', 'light');
+      const playerHost = setupAndTrigger();
+      expect(playerHost).not.toBeNull();
+      expect(global.podlovePlayer).toHaveBeenCalledTimes(1);
+      expect(global.podlovePlayer).toHaveBeenCalledWith(
+        playerHost,
+        '/api/audios/podlove/63/post/75/',
+        '/api/audios/player_config/?color_scheme=light'
+      );
+
+      // Toggle to dark
+      document.documentElement.setAttribute('data-bs-theme', 'dark');
+      // MutationObserver fires asynchronously
+      await new Promise((r) => setTimeout(r, 0));
+
+      expect(global.podlovePlayer).toHaveBeenCalledTimes(2);
+      const lastCall = global.podlovePlayer.mock.calls[1];
+      expect(lastCall[1]).toBe('/api/audios/podlove/63/post/75/');
+      expect(lastCall[2]).toBe('/api/audios/player_config/?color_scheme=dark');
+    });
+
+    it('should not reinitialize when color scheme has not changed', async () => {
+      document.documentElement.setAttribute('data-bs-theme', 'light');
+      // Flush pending MutationObserver callbacks (from beforeEach removeAttribute
+      // and the setAttribute above) before creating the player
+      await new Promise((r) => setTimeout(r, 0));
+
+      setupAndTrigger();
+      expect(global.podlovePlayer).toHaveBeenCalledTimes(1);
+
+      // Set same value again
+      document.documentElement.setAttribute('data-bs-theme', 'light');
+      await new Promise((r) => setTimeout(r, 0));
+
+      expect(global.podlovePlayer).toHaveBeenCalledTimes(1);
+    });
+
+    it('should replace the old player host element after reinitialization', async () => {
+      document.documentElement.setAttribute('data-bs-theme', 'light');
+      const element = document.createElement('podlove-player');
+      element.setAttribute('id', 'audio_63');
+      element.setAttribute('data-url', '/api/audios/podlove/63/post/75/');
+      document.body.appendChild(element);
+
+      const observerInstance = element.observer;
+      observerInstance.callback([{ isIntersecting: true, target: element }], observerInstance);
+
+      const oldHost = element.querySelector('.podlove-player-host');
+      expect(oldHost).not.toBeNull();
+
+      // Toggle to dark
+      document.documentElement.setAttribute('data-bs-theme', 'dark');
+      await new Promise((r) => setTimeout(r, 0));
+
+      const newHost = element.querySelector('.podlove-player-host');
+      expect(newHost).not.toBeNull();
+      expect(newHost).not.toBe(oldHost);
+      // Old host should no longer be in the DOM
+      expect(oldHost!.parentElement).toBeNull();
+    });
+
+    it('should discard stale async callback when theme toggles during embed script load', async () => {
+      // Remove the global podlovePlayer so the async loadEmbedScript path is taken
+      const originalPodlovePlayer = global.podlovePlayer;
+      delete (global as any).podlovePlayer;
+
+      try {
+        const element = document.createElement('podlove-player');
+        element.setAttribute('id', 'audio_race');
+        element.setAttribute('data-url', '/api/audios/podlove/1/post/1/');
+        element.setAttribute('data-embed', '/embed.js');
+        document.documentElement.setAttribute('data-bs-theme', 'light');
+        document.body.appendChild(element);
+
+        const observerInstance = element.observer;
+        observerInstance.callback([{ isIntersecting: true, target: element }], observerInstance);
+
+        // At this point, loadEmbedScript is pending (script tag added to head)
+        // Player is "initialized" but podlovePlayer hasn't been called yet
+
+        // Toggle theme while script is still loading
+        document.documentElement.setAttribute('data-bs-theme', 'dark');
+        await new Promise((r) => setTimeout(r, 0));
+
+        // Now simulate the script finishing loading by restoring podlovePlayer
+        // and firing the load event on the script
+        (global as any).podlovePlayer = vi.fn();
+        const scriptTag = document.querySelector('script[data-podlove-embed]');
+        if (scriptTag) {
+          scriptTag.setAttribute('data-podlove-embed-loaded', 'true');
+          scriptTag.dispatchEvent(new Event('load'));
+        }
+        await new Promise((r) => setTimeout(r, 0));
+
+        // The stale first init should have been discarded by the version guard.
+        // Only the second init (dark theme) should have called podlovePlayer.
+        const calls = (global.podlovePlayer as ReturnType<typeof vi.fn>).mock.calls;
+        expect(calls.length).toBeGreaterThan(0);
+        for (const call of calls) {
+          const configArg = call[2] as string;
+          expect(configArg).toContain('color_scheme=dark');
+          expect(configArg).not.toContain('color_scheme=light');
+        }
+      } finally {
+        global.podlovePlayer = originalPodlovePlayer;
+      }
+    });
+
+    it('should allow reinitialization after disconnect during pending embed load', async () => {
+      const originalPodlovePlayer = global.podlovePlayer;
+      delete (global as any).podlovePlayer;
+
+      try {
+        const element = document.createElement('podlove-player');
+        element.setAttribute('id', 'audio_disconnect');
+        element.setAttribute('data-url', '/api/audios/podlove/1/post/1/');
+        element.setAttribute('data-embed', '/embed.js');
+        document.body.appendChild(element);
+
+        const observerInstance = element.observer;
+        observerInstance.callback([{ isIntersecting: true, target: element }], observerInstance);
+
+        // Element is "initialized" but embed script is still loading
+        expect(element.isInitialized).toBe(true);
+
+        // Disconnect while script is pending
+        document.body.removeChild(element);
+        expect(element.isInitialized).toBe(false);
+
+        // Reattach — should be able to initialize again
+        (global as any).podlovePlayer = vi.fn();
+        document.body.appendChild(element);
+
+        const reattachObserver = element.observer;
+        reattachObserver.callback([{ isIntersecting: true, target: element }], reattachObserver);
+
+        expect(element.isInitialized).toBe(true);
+        expect(global.podlovePlayer).toHaveBeenCalledTimes(1);
+      } finally {
+        global.podlovePlayer = originalPodlovePlayer;
+      }
+    });
+
+    it('should not reinitialize non-initialized players', async () => {
+      document.documentElement.setAttribute('data-bs-theme', 'light');
+
+      // Create element but do NOT trigger intersection observer
+      const element = document.createElement('podlove-player');
+      element.setAttribute('id', 'audio_99');
+      element.setAttribute('data-url', '/api/audios/podlove/99/post/100/');
+      document.body.appendChild(element);
+
+      expect(global.podlovePlayer).not.toHaveBeenCalled();
+
+      // Toggle theme
+      document.documentElement.setAttribute('data-bs-theme', 'dark');
+      await new Promise((r) => setTimeout(r, 0));
+
+      // Player was never initialized, so it should not be called
+      expect(global.podlovePlayer).not.toHaveBeenCalled();
+    });
   });
 });

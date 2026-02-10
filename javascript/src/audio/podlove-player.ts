@@ -7,6 +7,7 @@ let embedScriptPromise: Promise<void> | null = null;
 let playerInstanceCounter = 0;
 let pageLoadPromise: Promise<void> | null = null;
 let sharedObserver: IntersectionObserver | null = null;
+let lastKnownColorScheme: string | null = null;
 const EMBED_SCRIPT_ATTR = "data-podlove-embed";
 const EMBED_SCRIPT_LOADED_ATTR = "data-podlove-embed-loaded";
 const EMBED_SCRIPT_FAILED_ATTR = "data-podlove-embed-failed";
@@ -143,12 +144,27 @@ class PodlovePlayerElement extends HTMLElement {
   observer: IntersectionObserver | null;
   isInitialized: boolean;
   playerDiv: HTMLDivElement | null;
+  initVersion: number;
 
   constructor() {
     super();
     this.observer = null;
     this.isInitialized = false;
     this.playerDiv = null;
+    this.initVersion = 0;
+  }
+
+  reinitializePlayer() {
+    if (!this.isInitialized || !this.isConnected) {
+      return;
+    }
+    if (this.playerDiv) {
+      this.playerDiv.remove();
+      this.playerDiv = null;
+    }
+    this.isInitialized = false;
+    delete this.dataset.playerInstanceId;
+    this.initializePlayer();
   }
 
   connectedCallback() {
@@ -166,6 +182,9 @@ class PodlovePlayerElement extends HTMLElement {
     if (this.observer) {
       this.observer.unobserve(this);
     }
+    // Invalidate any in-flight async init and allow re-init on reattach
+    this.initVersion += 1;
+    this.isInitialized = false;
   }
 
   renderPlaceholder() {
@@ -211,7 +230,7 @@ class PodlovePlayerElement extends HTMLElement {
   }
 
   initializePlayer() {
-    if (this.isInitialized) {
+    if (this.isInitialized || !this.isConnected) {
       return;
     }
 
@@ -236,6 +255,8 @@ class PodlovePlayerElement extends HTMLElement {
       return;
     }
     this.isInitialized = true;
+    this.initVersion += 1;
+    const currentVersion = this.initVersion;
     let configUrl = this.getAttribute('data-config') || '/api/audios/player_config/';
     configUrl = appendColorScheme(configUrl);
     const podloveTemplate = this.getAttribute('data-template');
@@ -256,6 +277,9 @@ class PodlovePlayerElement extends HTMLElement {
       }
       loadEmbedScript(embedUrl)
         .then(() => {
+          if (currentVersion !== this.initVersion || !this.isConnected) {
+            return; // Stale: a reinitialize or disconnect happened while loading
+          }
           if (typeof podlovePlayer === "function") {
             podlovePlayer(playerHost, url, configUrl);
             return;
@@ -263,7 +287,9 @@ class PodlovePlayerElement extends HTMLElement {
           throw new Error("Podlove embed script did not register.");
         })
         .catch(() => {
-          this.isInitialized = false;
+          if (currentVersion === this.initVersion) {
+            this.isInitialized = false;
+          }
           // Intentionally silent: the placeholder remains and avoids console spam.
         });
     }
@@ -292,3 +318,22 @@ class PodlovePlayerElement extends HTMLElement {
 }
 
 customElements.define('podlove-player', PodlovePlayerElement);
+
+// Watch for dark mode toggle and reinitialize players
+lastKnownColorScheme = getColorScheme();
+const themeObserver = new MutationObserver(() => {
+  const newScheme = getColorScheme();
+  if (newScheme === lastKnownColorScheme) {
+    return;
+  }
+  lastKnownColorScheme = newScheme;
+  document.querySelectorAll('podlove-player').forEach((el) => {
+    if (el instanceof PodlovePlayerElement) {
+      el.reinitializePlayer();
+    }
+  });
+});
+themeObserver.observe(document.documentElement, {
+  attributes: true,
+  attributeFilter: ['data-bs-theme'],
+});
