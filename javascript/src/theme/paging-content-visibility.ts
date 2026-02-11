@@ -1,5 +1,6 @@
 const PAGING_AREA_SELECTOR = "#paging-area";
 const VT_ACTIVE_CLASS = "vt-active";
+const MAX_SCROLL_Y_FOR_TRANSITION = 120;
 
 let beforeTransitionHandler: ((event: Event) => void) | null = null;
 let afterSettleHandler: ((event: Event) => void) | null = null;
@@ -75,6 +76,11 @@ export function initPagingContentVisibility(): void {
       if (!eventTargetsPagingArea(event)) {
         return;
       }
+      if (window.scrollY > MAX_SCROLL_Y_FOR_TRANSITION) {
+        event.preventDefault();
+        return;
+      }
+      window.scrollTo(0, 0);
       activatePagingArea();
     };
     doc.addEventListener("htmx:beforeTransition", beforeTransitionHandler);

@@ -9,6 +9,8 @@ describe("paging-content-visibility", () => {
   beforeEach(() => {
     destroyPagingContentVisibility();
     document.body.innerHTML = '<div id="paging-area"></div><div id="other-area"></div>';
+    vi.spyOn(window, "scrollTo").mockImplementation(() => {});
+    Object.defineProperty(window, "scrollY", { configurable: true, value: 0 });
   });
 
   afterEach(() => {
@@ -21,6 +23,7 @@ describe("paging-content-visibility", () => {
     initPagingContentVisibility();
 
     document.dispatchEvent(new CustomEvent("htmx:beforeTransition", { detail: { target: pagingArea } }));
+    expect(window.scrollTo).toHaveBeenCalledWith(0, 0);
     expect(pagingArea.classList.contains("vt-active")).toBe(true);
 
     document.dispatchEvent(new CustomEvent("htmx:afterSettle", { detail: { target: pagingArea } }));
@@ -41,6 +44,22 @@ describe("paging-content-visibility", () => {
     initPagingContentVisibility();
 
     document.dispatchEvent(new CustomEvent("htmx:beforeTransition", { detail: { target: otherArea } }));
+    expect(pagingArea.classList.contains("vt-active")).toBe(false);
+  });
+
+  it("skips transition when already far down the page", () => {
+    const pagingArea = document.querySelector("#paging-area") as HTMLElement;
+    Object.defineProperty(window, "scrollY", { configurable: true, value: 500 });
+    initPagingContentVisibility();
+
+    const event = new CustomEvent("htmx:beforeTransition", {
+      cancelable: true,
+      detail: { target: pagingArea },
+    });
+    document.dispatchEvent(event);
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(window.scrollTo).not.toHaveBeenCalled();
     expect(pagingArea.classList.contains("vt-active")).toBe(false);
   });
 
