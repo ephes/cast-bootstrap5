@@ -468,10 +468,16 @@ video {
 #paging-area {
   content-visibility: auto;
   contain-intrinsic-size: 1px 1200px;
-  view-transition-name: paging-area;
 
   &.vt-active {
     content-visibility: visible;
+    view-transition-name: paging-area;
+  }
+}
+
+@supports (view-transition-name: root) {
+  @view-transition {
+    navigation: auto;
   }
 }
 
@@ -494,6 +500,8 @@ video {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(root),
+  ::view-transition-new(root),
   ::view-transition-old(paging-area),
   ::view-transition-new(paging-area) {
     animation-duration: 0s !important;

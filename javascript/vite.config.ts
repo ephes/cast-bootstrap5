@@ -43,6 +43,7 @@ export default defineConfig({
         themeSwitcher: resolve("./src/theme/theme-switcher.ts"),
         scrollTop: resolve("./src/theme/scroll-top.ts"),
         pagingContentVisibility: resolve("./src/theme/paging-content-visibility.ts"),
+        postLinkPrefetch: resolve("./src/theme/post-link-prefetch.ts"),
         searchModal: resolve("./src/search/cast-search-modal.ts"),
         filterEnhancements: resolve("./src/filters/filter-enhancements-bootstrap.ts"),
         postContentEnhancements: resolve("./src/content/post-content-enhancements.ts"),

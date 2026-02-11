@@ -4,14 +4,14 @@
 <article class="{% if render_detail %}post-detail{% else %}post-card{% endif %}">
   <header>
     <h2 class="{% if render_detail %}post-title{% else %}post-card-title{% endif %}">
-      <a href="{{ page.page_url }}">{{ page.title }}</a>
+      <a href="{{ page.page_url }}"{% if not render_detail %} data-cast-prefetch{% endif %}>{{ page.title }}</a>
       {% if render_for_feed and comments_are_enabled %}
         {% translate "(click here to comment)" %}
       {% endif %}
     </h2>
     <!-- link is on one line to avoid underlined whitespace -->
     <div class="post-card-meta">
-      <a href="{{ page.page_url }}"><time datetime="{{ page.visible_date|date:"c" }}">{{ page.visible_date|date }}</time>,</a>
+      <a href="{{ page.page_url }}"{% if not render_detail %} data-cast-prefetch{% endif %}><time datetime="{{ page.visible_date|date:"c" }}">{{ page.visible_date|date }}</time>,</a>
       <span class="author">{{ page.owner.username | title}}</span>
     </div>
   </header>
@@ -30,7 +30,7 @@
         {% if not render_detail %}
           {% block detail_link %}
             <div class="post-card-readmore">
-              <a href="{{ page.page_url }}" aria-label="{% translate "Read more about" %} {{ page.title }}">{% translate "Read more" %} →</a>
+              <a href="{{ page.page_url }}" data-cast-prefetch aria-label="{% translate "Read more about" %} {{ page.title }}">{% translate "Read more" %} →</a>
             </div>
           {% endblock %}
         {% endif %}

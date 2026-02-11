@@ -35,6 +35,12 @@
     "src": "src/theme/paging-content-visibility.ts",
     "isEntry": true
   },
+  "src/theme/post-link-prefetch.ts": {
+    "file": "postLinkPrefetch-CGFG_7wM.js",
+    "name": "postLinkPrefetch",
+    "src": "src/theme/post-link-prefetch.ts",
+    "isEntry": true
+  },
   "src/theme/scroll-top.ts": {
     "file": "scrollTop-S6eCSEMj.js",
     "name": "scrollTop",
