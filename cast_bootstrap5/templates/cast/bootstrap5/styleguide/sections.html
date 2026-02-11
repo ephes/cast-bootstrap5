@@ -370,7 +370,7 @@
 
 <section id="post-list" class="mb-5">
   <h2 class="h3">{% translate "Post list" %}</h2>
-  <div id="paging-area">
+  <div id="paging-area" hx-history-elt>
     {% include "cast/"|add:template_base_dir|add:"/_list_of_posts_and_paging_controls.html" %}
   </div>
 </section>

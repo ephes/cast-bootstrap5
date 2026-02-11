@@ -173,6 +173,147 @@ describe("image gallery test", () => {
         expect(thumbnailLink.getAttribute("data-gallery-bs-toggle")).toBe("modal");
     });
 
+    test("connectedCallback rebinds listeners when htmx restore leaves stale marker classes", () => {
+        const gallery = new ImageGalleryBs5();
+        gallery.id = "gallery-test";
+        gallery.innerHTML = `
+            <div class="cast-gallery-container">
+                <a
+                  class="cast-image-gallery-thumbnail event-added"
+                  data-bs-target="#gallery-modal"
+                  data-full="full-image.jpg"
+                >
+                    <picture>
+                        <source data-modal-srcset="test.jpg" />
+                        <img id="img-0" data-prev="false" data-next="false" alt="Image 1" />
+                    </picture>
+                </a>
+            </div>
+            <div id="gallery-modal" class="modal">
+                <div class="modal-body">
+                    <a><picture><source /><img /></picture></a>
+                </div>
+                <div class="modal-footer"></div>
+            </div>
+        `;
+
+        document.body.appendChild(gallery);
+        gallery.connectedCallback();
+
+        const setModalImageSpy = vi.spyOn(gallery, "setModalImage");
+        const thumbnailLink = gallery.querySelector(".cast-image-gallery-thumbnail") as HTMLElement;
+        const img = gallery.querySelector("#img-0") as HTMLElement;
+        const clickEvent = new dom.window.MouseEvent("click", { bubbles: true, cancelable: true });
+        const dispatchResult = thumbnailLink.dispatchEvent(clickEvent);
+
+        expect(dispatchResult).toBe(false);
+        expect(gallery.currentImage).toBe(img);
+        expect(setModalImageSpy).toHaveBeenCalledTimes(1);
+    });
+
+    test("connectedCallback does not create duplicate thumbnail listeners on repeated calls", () => {
+        const gallery = new ImageGalleryBs5();
+        gallery.id = "gallery-test";
+        gallery.innerHTML = `
+            <div class="cast-gallery-container">
+                <a class="cast-image-gallery-thumbnail" data-bs-target="#gallery-modal" data-full="full-image.jpg">
+                    <picture>
+                        <source data-modal-srcset="test.jpg" />
+                        <img id="img-0" data-prev="false" data-next="false" alt="Image 1" />
+                    </picture>
+                </a>
+            </div>
+            <div id="gallery-modal" class="modal">
+                <div class="modal-body">
+                    <a><picture><source /><img /></picture></a>
+                </div>
+                <div class="modal-footer"></div>
+            </div>
+        `;
+
+        document.body.appendChild(gallery);
+        gallery.connectedCallback();
+        gallery.connectedCallback();
+
+        const setModalImageSpy = vi.spyOn(gallery, "setModalImage");
+        const thumbnailLink = gallery.querySelector(".cast-image-gallery-thumbnail") as HTMLElement;
+        thumbnailLink.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true, cancelable: true }));
+
+        expect(setModalImageSpy).toHaveBeenCalledTimes(1);
+    });
+
+    test("disconnectedCallback removes thumbnail listeners", () => {
+        const gallery = new ImageGalleryBs5();
+        gallery.id = "gallery-test";
+        gallery.innerHTML = `
+            <div class="cast-gallery-container">
+                <a class="cast-image-gallery-thumbnail" data-bs-target="#gallery-modal" data-full="full-image.jpg">
+                    <picture>
+                        <source data-modal-srcset="test.jpg" />
+                        <img id="img-0" data-prev="false" data-next="false" alt="Image 1" />
+                    </picture>
+                </a>
+            </div>
+            <div id="gallery-modal" class="modal">
+                <div class="modal-body">
+                    <a><picture><source /><img /></picture></a>
+                </div>
+                <div class="modal-footer"></div>
+            </div>
+        `;
+
+        document.body.appendChild(gallery);
+        gallery.connectedCallback();
+        gallery.disconnectedCallback();
+
+        const setModalImageSpy = vi.spyOn(gallery, "setModalImage");
+        const thumbnailLink = gallery.querySelector(".cast-image-gallery-thumbnail") as HTMLElement;
+        const dispatchResult = thumbnailLink.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true, cancelable: true }));
+
+        expect(dispatchResult).toBe(true);
+        expect(setModalImageSpy).not.toHaveBeenCalled();
+    });
+
+    test("bindModalEvents does not create duplicate footer listeners", () => {
+        const gallery = new ImageGalleryBs5();
+        gallery.id = "gallery-test";
+        gallery.innerHTML = `
+            <div class="cast-gallery-container">
+                <a class="cast-image-gallery-thumbnail" data-bs-target="#gallery-modal" data-full="full-image.jpg">
+                    <picture>
+                        <source data-modal-srcset="test.jpg" />
+                        <img id="img-0" data-prev="false" data-next="img-1" alt="Image 1" />
+                    </picture>
+                </a>
+                <a class="cast-image-gallery-thumbnail" data-bs-target="#gallery-modal" data-full="full-image-2.jpg">
+                    <picture>
+                        <source data-modal-srcset="test-2.jpg" />
+                        <img id="img-1" data-prev="img-0" data-next="false" alt="Image 2" />
+                    </picture>
+                </a>
+            </div>
+            <div id="gallery-modal" class="modal">
+                <div class="modal-body">
+                    <a><picture><source /><img /></picture></a>
+                </div>
+                <div class="modal-footer"></div>
+            </div>
+        `;
+
+        document.body.appendChild(gallery);
+
+        const img0 = gallery.querySelector("#img-0") as HTMLElement;
+        const replaceImageSpy = vi.spyOn(gallery, "replaceImage");
+
+        gallery.setModalImage(img0);
+        gallery.setModalImage(img0);
+
+        const prevButton = document.querySelector("#data-prev") as HTMLButtonElement;
+        prevButton.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true, cancelable: true }));
+
+        expect(replaceImageSpy).toHaveBeenCalledTimes(1);
+    });
+
     test("gallery opens modal immediately even while image is loading", () => {
         const gallery = new ImageGalleryBs5();
         gallery.id = "gallery-test";

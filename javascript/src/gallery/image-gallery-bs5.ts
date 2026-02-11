@@ -193,28 +193,21 @@ export default class ImageGalleryBs5 extends HTMLElement {
 
     private bindModalEvents(modal: HTMLElement): void {
         const modalFooter = modal.querySelector(".modal-footer");
-        if (modalFooter && !modalFooter.hasAttribute("data-gallery-footer-bound")) {
+        if (modalFooter) {
+            modalFooter.removeEventListener("click", this.boundFooterClick);
             modalFooter.addEventListener("click", this.boundFooterClick);
-            modalFooter.setAttribute("data-gallery-footer-bound", "true");
         }
 
-        if (!modal.hasAttribute("data-gallery-keydown-bound")) {
-            modal.addEventListener("keydown", this.boundKeydown);
-            modal.setAttribute("data-gallery-keydown-bound", "true");
-        }
+        modal.removeEventListener("keydown", this.boundKeydown);
+        modal.addEventListener("keydown", this.boundKeydown);
     }
 
     private unbindModalEvents(modal: HTMLElement): void {
         const modalFooter = modal.querySelector(".modal-footer");
-        if (modalFooter && modalFooter.hasAttribute("data-gallery-footer-bound")) {
+        if (modalFooter) {
             modalFooter.removeEventListener("click", this.boundFooterClick);
-            modalFooter.removeAttribute("data-gallery-footer-bound");
         }
-
-        if (modal.hasAttribute("data-gallery-keydown-bound")) {
-            modal.removeEventListener("keydown", this.boundKeydown);
-            modal.removeAttribute("data-gallery-keydown-bound");
-        }
+        modal.removeEventListener("keydown", this.boundKeydown);
     }
 
     private ensureModalInBody(modal: HTMLElement): void {
@@ -386,10 +379,11 @@ export default class ImageGalleryBs5 extends HTMLElement {
                 link.setAttribute("data-gallery-bs-toggle", link.getAttribute("data-bs-toggle") ?? "modal");
                 link.removeAttribute("data-bs-toggle");
             }
-            if (!link.classList.contains("event-added")) {
-                link.addEventListener("click", this.boundThumbnailClick);
-                link.classList.add("event-added");
-            }
+
+            // htmx history restore can bring back stale marker classes without listeners.
+            // Always re-bind to the current component instance.
+            link.removeEventListener("click", this.boundThumbnailClick);
+            link.addEventListener("click", this.boundThumbnailClick);
         });
     }
 
@@ -398,7 +392,6 @@ export default class ImageGalleryBs5 extends HTMLElement {
         let thumbnailLinks = this.querySelectorAll(".cast-gallery-container > a");
         thumbnailLinks.forEach((link) => {
             link.removeEventListener("click", this.boundThumbnailClick);
-            link.classList.remove("event-added");
         });
         this.cleanupModal();
     }
