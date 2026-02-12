@@ -288,7 +288,7 @@ describe('PodlovePlayerElement', () => {
       expect(iframe?.style.opacity).toBe('0');
 
       iframe?.dispatchEvent(new Event('load'));
-      vi.advanceTimersByTime(699);
+      vi.advanceTimersByTime(899);
       expect(iframe?.style.opacity).toBe('0');
       vi.advanceTimersByTime(1);
 
@@ -393,6 +393,54 @@ describe('PodlovePlayerElement', () => {
       expect(container?.getAttribute('data-cast-mask-active')).toBeNull();
     } finally {
       global.podlovePlayer = originalPodlovePlayer;
+      vi.useRealTimers();
+    }
+  });
+
+  it('should remask visible paging-area iframes on pagination beforeRequest and restore them on timeout', () => {
+    vi.useFakeTimers();
+
+    try {
+      const pagingArea = document.createElement('div');
+      pagingArea.id = 'paging-area';
+      const pagination = document.createElement('ul');
+      pagination.className = 'pagination';
+      const paginationLink = document.createElement('a');
+      paginationLink.className = 'page-link';
+      pagination.appendChild(paginationLink);
+
+      const element = document.createElement('podlove-player');
+      pagingArea.appendChild(element);
+      pagingArea.appendChild(pagination);
+      document.body.appendChild(pagingArea);
+
+      const container = element.querySelector('.podlove-player-container') as HTMLDivElement | null;
+      expect(container).not.toBeNull();
+
+      const iframe = document.createElement('iframe');
+      container?.appendChild(iframe);
+      iframe.style.opacity = '1';
+      iframe.style.pointerEvents = 'auto';
+
+      paginationLink.dispatchEvent(new CustomEvent('htmx:beforeRequest', { bubbles: true, cancelable: true }));
+
+      expect(container?.getAttribute('data-cast-mask-active')).toBe('true');
+      expect(iframe.getAttribute('data-cast-iframe-masked')).toBe('true');
+      expect(iframe.getAttribute('data-cast-paging-remask')).toBe('true');
+      expect(iframe.style.opacity).toBe('0');
+      expect(iframe.style.pointerEvents).toBe('none');
+
+      vi.advanceTimersByTime(1599);
+      expect(iframe.getAttribute('data-cast-paging-remask')).toBe('true');
+      expect(container?.getAttribute('data-cast-mask-active')).toBe('true');
+
+      vi.advanceTimersByTime(1);
+      expect(iframe.getAttribute('data-cast-paging-remask')).toBeNull();
+      expect(iframe.getAttribute('data-cast-iframe-masked')).toBeNull();
+      expect(iframe.style.opacity).toBe('');
+      expect(iframe.style.pointerEvents).toBe('');
+      expect(container?.getAttribute('data-cast-mask-active')).toBeNull();
+    } finally {
       vi.useRealTimers();
     }
   });

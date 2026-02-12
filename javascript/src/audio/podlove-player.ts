@@ -18,10 +18,14 @@ const LIGHT_LOADING_BG = "#ffffff";
 const RESERVED_MIN_HEIGHT_DESKTOP_PX = 297;
 const RESERVED_MIN_HEIGHT_MOBILE_PX = 309;
 const IFRAME_REVEAL_DELAY_LIGHT_MS = 100;
-const IFRAME_REVEAL_DELAY_DARK_MS = 700;
+const IFRAME_REVEAL_DELAY_DARK_MS = 900;
 const IFRAME_REVEAL_TIMEOUT_MS = 2500;
 const IFRAME_MASKED_ATTR = "data-cast-iframe-masked";
 const CONTAINER_MASK_ACTIVE_ATTR = "data-cast-mask-active";
+const PAGING_AREA_SELECTOR = "#paging-area";
+const PAGINATION_LINK_SELECTOR = ".pagination a, .cast-pagination a";
+const PAGING_REMASK_ATTR = "data-cast-paging-remask";
+const PAGING_REMASK_RESTORE_MS = 1600;
 
 function waitForPageLoad(): Promise<void> {
   if (document.readyState === "complete") {
@@ -164,6 +168,66 @@ function getReservedMinHeightPx(): number {
     return RESERVED_MIN_HEIGHT_MOBILE_PX;
   }
   return RESERVED_MIN_HEIGHT_DESKTOP_PX;
+}
+
+function forceMaskIframeForPaging(container: HTMLElement, iframe: HTMLIFrameElement): void {
+  if (iframe.getAttribute(PAGING_REMASK_ATTR) === "true") {
+    return;
+  }
+  iframe.setAttribute(PAGING_REMASK_ATTR, "true");
+  iframe.setAttribute(IFRAME_MASKED_ATTR, "true");
+  iframe.style.opacity = "0";
+  iframe.style.pointerEvents = "none";
+  iframe.style.backgroundColor = "inherit";
+  iframe.style.colorScheme = "inherit";
+  container.setAttribute(CONTAINER_MASK_ACTIVE_ATTR, "true");
+
+  window.setTimeout(() => {
+    if (!iframe.isConnected || iframe.getAttribute(PAGING_REMASK_ATTR) !== "true") {
+      return;
+    }
+    iframe.removeAttribute(PAGING_REMASK_ATTR);
+    if (iframe.getAttribute(IFRAME_MASKED_ATTR) === "true") {
+      iframe.removeAttribute(IFRAME_MASKED_ATTR);
+    }
+    iframe.style.removeProperty("opacity");
+    iframe.style.removeProperty("pointer-events");
+    iframe.style.removeProperty("background-color");
+    iframe.style.removeProperty("color-scheme");
+    if (!container.querySelector(`iframe[${PAGING_REMASK_ATTR}="true"]`)) {
+      container.removeAttribute(CONTAINER_MASK_ACTIVE_ATTR);
+    }
+  }, PAGING_REMASK_RESTORE_MS);
+}
+
+function remaskVisiblePagingIframes(event: Event): void {
+  const target = event.target;
+  if (!(target instanceof Element)) {
+    return;
+  }
+  if (!target.closest(PAGINATION_LINK_SELECTOR)) {
+    return;
+  }
+
+  const pagingArea = document.querySelector<HTMLElement>(PAGING_AREA_SELECTOR);
+  if (!pagingArea) {
+    return;
+  }
+
+  pagingArea.querySelectorAll(".podlove-player-container").forEach((container) => {
+    if (!(container instanceof HTMLElement)) {
+      return;
+    }
+    container.querySelectorAll("iframe").forEach((iframe) => {
+      if (!(iframe instanceof HTMLIFrameElement)) {
+        return;
+      }
+      if (iframe.getAttribute(IFRAME_MASKED_ATTR) === "true") {
+        return;
+      }
+      forceMaskIframeForPaging(container, iframe);
+    });
+  });
 }
 
 class PodlovePlayerElement extends HTMLElement {
@@ -578,4 +642,8 @@ if (document.body) {
   observeBodyTheme();
 } else {
   window.addEventListener("DOMContentLoaded", observeBodyTheme, { once: true });
+}
+
+if (typeof document !== "undefined") {
+  document.addEventListener("htmx:beforeRequest", remaskVisiblePagingIframes, true);
 }
