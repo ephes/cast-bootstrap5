@@ -124,7 +124,7 @@ describe('PodlovePlayerElement', () => {
     );
   });
 
-  it('should release reserved min-height only after iframe reveal settles', () => {
+  it('should release reserved min-height only after iframe reveal delay', () => {
     vi.useFakeTimers();
     const originalPodlovePlayer = global.podlovePlayer;
     global.podlovePlayer = vi.fn((playerHost: HTMLDivElement) => {
@@ -152,8 +152,8 @@ describe('PodlovePlayerElement', () => {
       expect(iframe).not.toBeNull();
       iframe?.dispatchEvent(new Event('load'));
 
-      // Not released before reveal + settle + curtain fade.
-      vi.advanceTimersByTime(439);
+      // Not released before reveal delay.
+      vi.advanceTimersByTime(99);
       expect(container?.style.minHeight).toBe('297px');
       expect(element.style.minHeight).toBe('297px');
 
@@ -229,80 +229,6 @@ describe('PodlovePlayerElement', () => {
     }
   });
 
-  it('should create, fade, and remove curtain across reveal lifecycle', () => {
-    vi.useFakeTimers();
-    const originalPodlovePlayer = global.podlovePlayer;
-    global.podlovePlayer = vi.fn((playerHost: HTMLDivElement) => {
-      const iframe = document.createElement('iframe');
-      playerHost.appendChild(iframe);
-    });
-
-    try {
-      const element = document.createElement('podlove-player');
-      element.setAttribute('id', 'audio_63');
-      element.setAttribute('data-url', '/api/audios/podlove/63/post/75/');
-      document.body.appendChild(element);
-
-      const observerInstance = element.observer as IntersectionObserverMock;
-      observerInstance.trigger([
-        { isIntersecting: true, target: element } as IntersectionObserverEntry,
-      ]);
-
-      const curtainSelector = '.podlove-player-curtain';
-      const iframe = element.querySelector('iframe') as HTMLIFrameElement | null;
-      const curtain = element.querySelector(curtainSelector) as HTMLDivElement | null;
-      expect(iframe).not.toBeNull();
-      expect(curtain).not.toBeNull();
-      expect(curtain?.style.opacity).not.toBe('0');
-
-      iframe?.dispatchEvent(new Event('load'));
-      vi.advanceTimersByTime(100);
-      expect((element.querySelector(curtainSelector) as HTMLDivElement | null)?.style.opacity).toBe('1');
-
-      vi.advanceTimersByTime(120);
-      expect((element.querySelector(curtainSelector) as HTMLDivElement | null)?.style.opacity).toBe('0');
-
-      vi.advanceTimersByTime(220);
-      expect(element.querySelector(curtainSelector)).toBeNull();
-    } finally {
-      global.podlovePlayer = originalPodlovePlayer;
-      vi.useRealTimers();
-    }
-  });
-
-  it('should clear pending curtain when player is disconnected', () => {
-    vi.useFakeTimers();
-    const originalPodlovePlayer = global.podlovePlayer;
-    global.podlovePlayer = vi.fn((playerHost: HTMLDivElement) => {
-      const iframe = document.createElement('iframe');
-      playerHost.appendChild(iframe);
-    });
-
-    try {
-      const element = document.createElement('podlove-player');
-      element.setAttribute('id', 'audio_63');
-      element.setAttribute('data-url', '/api/audios/podlove/63/post/75/');
-      document.body.appendChild(element);
-
-      const observerInstance = element.observer as IntersectionObserverMock;
-      observerInstance.trigger([
-        { isIntersecting: true, target: element } as IntersectionObserverEntry,
-      ]);
-
-      const iframe = element.querySelector('iframe') as HTMLIFrameElement | null;
-      expect(iframe).not.toBeNull();
-      iframe?.dispatchEvent(new Event('load'));
-      vi.advanceTimersByTime(100);
-      expect(element.querySelector('.podlove-player-curtain')).not.toBeNull();
-
-      document.body.removeChild(element);
-      expect(element.querySelector('.podlove-player-curtain')).toBeNull();
-    } finally {
-      global.podlovePlayer = originalPodlovePlayer;
-      vi.useRealTimers();
-    }
-  });
-
   it('should reveal iframe via timeout fallback when load does not fire', () => {
     vi.useFakeTimers();
     const originalPodlovePlayer = global.podlovePlayer;
@@ -346,7 +272,7 @@ describe('PodlovePlayerElement', () => {
     });
 
     try {
-      document.body.style.backgroundColor = 'rgb(15, 23, 42)';
+      document.documentElement.setAttribute('data-bs-theme', 'dark');
       const element = document.createElement('podlove-player');
       element.setAttribute('id', 'audio_63');
       element.setAttribute('data-url', '/api/audios/podlove/63/post/75/');
@@ -423,17 +349,6 @@ describe('PodlovePlayerElement', () => {
     expect(style).not.toBeNull();
     expect(style?.textContent).toContain('color-scheme: dark');
     expect(style?.textContent).toContain('background-color: #1e293b');
-  });
-
-  it('should apply dark loading background from surrounding page background', () => {
-    document.body.style.backgroundColor = 'rgb(15, 23, 42)';
-    const element = document.createElement('podlove-player');
-    document.body.appendChild(element);
-
-    const container = element.querySelector('.podlove-player-container') as HTMLDivElement | null;
-    expect(container).not.toBeNull();
-    expect(container?.style.backgroundColor).toBe('rgb(15, 23, 42)');
-    expect(container?.style.colorScheme).toBe('dark');
   });
 
   it('should append the color scheme to the config url when theme is set', () => {
@@ -517,10 +432,11 @@ describe('PodlovePlayerElement', () => {
     );
   });
 
-  it('should infer dark color scheme from page background without theme attrs', () => {
-    document.body.style.backgroundColor = 'rgb(15, 23, 42)';
+  it('should keep explicit light mode when OS preference is dark', () => {
+    document.documentElement.setAttribute('data-bs-theme', 'light');
+    const originalMatchMedia = globalThis.matchMedia;
     globalThis.matchMedia = vi.fn().mockImplementation(() => ({
-      matches: false,
+      matches: true,
       media: '(prefers-color-scheme: dark)',
       onchange: null,
       addEventListener: vi.fn(),
@@ -530,14 +446,18 @@ describe('PodlovePlayerElement', () => {
       dispatchEvent: vi.fn(),
     }));
 
-    const playerHost = setupAndTrigger();
+    try {
+      const playerHost = setupAndTrigger();
 
-    expect(playerHost).not.toBeNull();
-    expect(global.podlovePlayer).toHaveBeenCalledWith(
-      playerHost,
-      '/api/audios/podlove/63/post/75/',
-      '/api/audios/player_config/?color_scheme=dark'
-    );
+      expect(playerHost).not.toBeNull();
+      expect(global.podlovePlayer).toHaveBeenCalledWith(
+        playerHost,
+        '/api/audios/podlove/63/post/75/',
+        '/api/audios/player_config/?color_scheme=light'
+      );
+    } finally {
+      globalThis.matchMedia = originalMatchMedia;
+    }
   });
 
   it('should not initialize the player when not in view', () => {
@@ -622,6 +542,17 @@ describe('PodlovePlayerElement', () => {
 
   it('should clear inline reserved min-height when embed script load fails', async () => {
     const originalPodlovePlayer = global.podlovePlayer;
+    const originalMatchMedia = globalThis.matchMedia;
+    globalThis.matchMedia = vi.fn().mockImplementation((query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }));
     delete (global as any).podlovePlayer;
 
     try {
@@ -651,12 +582,14 @@ describe('PodlovePlayerElement', () => {
       expect(element.style.minHeight).toBe('');
     } finally {
       global.podlovePlayer = originalPodlovePlayer;
+      globalThis.matchMedia = originalMatchMedia;
     }
   });
 
   describe('dark mode toggle', () => {
     it('should reinitialize with new config URL when data-bs-theme changes', async () => {
       document.documentElement.setAttribute('data-bs-theme', 'light');
+      await new Promise((r) => setTimeout(r, 0));
       const playerHost = setupAndTrigger();
       expect(playerHost).not.toBeNull();
       expect(global.podlovePlayer).toHaveBeenCalledTimes(1);
@@ -695,6 +628,7 @@ describe('PodlovePlayerElement', () => {
 
     it('should replace the old player host element after reinitialization', async () => {
       document.documentElement.setAttribute('data-bs-theme', 'light');
+      await new Promise((r) => setTimeout(r, 0));
       const element = document.createElement('podlove-player');
       element.setAttribute('id', 'audio_63');
       element.setAttribute('data-url', '/api/audios/podlove/63/post/75/');
@@ -728,6 +662,7 @@ describe('PodlovePlayerElement', () => {
         element.setAttribute('data-url', '/api/audios/podlove/1/post/1/');
         element.setAttribute('data-embed', '/embed.js');
         document.documentElement.setAttribute('data-bs-theme', 'light');
+        await new Promise((r) => setTimeout(r, 0));
         document.body.appendChild(element);
 
         const observerInstance = element.observer;

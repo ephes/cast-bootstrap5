@@ -21,10 +21,6 @@ const IFRAME_REVEAL_DELAY_LIGHT_MS = 100;
 const IFRAME_REVEAL_DELAY_DARK_MS = 700;
 const IFRAME_REVEAL_TIMEOUT_MS = 2500;
 const IFRAME_MASKED_ATTR = "data-cast-iframe-masked";
-const CURTAIN_CLASS = "podlove-player-curtain";
-const CURTAIN_FADE_MS = 220;
-const CURTAIN_SETTLE_DELAY_LIGHT_MS = 120;
-const CURTAIN_SETTLE_DELAY_DARK_MS = 450;
 
 function waitForPageLoad(): Promise<void> {
   if (document.readyState === "complete") {
@@ -126,47 +122,6 @@ function loadEmbedScript(embedUrl: string): Promise<void> {
   return embedScriptPromise;
 }
 
-function parseRgbChannels(color: string): [number, number, number] | null {
-  const match = color.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i);
-  if (!match) {
-    return null;
-  }
-  const [, r, g, b] = match;
-  return [Number(r), Number(g), Number(b)];
-}
-
-function isTransparent(color: string): boolean {
-  return color === "transparent" || color === "rgba(0, 0, 0, 0)";
-}
-
-function inferDarkFromColor(color: string): boolean | null {
-  const rgb = parseRgbChannels(color);
-  if (!rgb) {
-    return null;
-  }
-  const [r, g, b] = rgb;
-  const luminance = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
-  return luminance < 0.5;
-}
-
-function inferDarkFromPageBackground(): boolean | null {
-  const candidates = [document.body, document.documentElement];
-  for (const element of candidates) {
-    if (!element) {
-      continue;
-    }
-    const bg = window.getComputedStyle(element).backgroundColor;
-    if (!bg || isTransparent(bg)) {
-      continue;
-    }
-    const inferred = inferDarkFromColor(bg);
-    if (inferred !== null) {
-      return inferred;
-    }
-  }
-  return null;
-}
-
 function getColorScheme(): string | null {
   const configuredTheme =
     document.documentElement.getAttribute("data-bs-theme") ||
@@ -179,30 +134,7 @@ function getColorScheme(): string | null {
   if (typeof window.matchMedia === "function" && window.matchMedia("(prefers-color-scheme: dark)").matches) {
     return "dark";
   }
-  const inferred = inferDarkFromPageBackground();
-  if (inferred !== null) {
-    return inferred ? "dark" : "light";
-  }
   return null;
-}
-
-function resolveLoadingBackground(host: HTMLElement): string {
-  const candidates: Array<HTMLElement | null | undefined> = [
-    host,
-    host.parentElement,
-    document.body,
-    document.documentElement,
-  ];
-  for (const candidate of candidates) {
-    if (!candidate) {
-      continue;
-    }
-    const bg = window.getComputedStyle(candidate).backgroundColor;
-    if (bg && !isTransparent(bg)) {
-      return bg;
-    }
-  }
-  return LIGHT_LOADING_BG;
 }
 
 function appendColorScheme(configUrl: string): string {
@@ -241,7 +173,6 @@ class PodlovePlayerElement extends HTMLElement {
   iframeObserver: MutationObserver | null;
   iframeRevealDelayTimeoutId: number | null;
   iframeRevealTimeoutId: number | null;
-  iframeCurtainTimeoutId: number | null;
 
   constructor() {
     super();
@@ -252,7 +183,6 @@ class PodlovePlayerElement extends HTMLElement {
     this.iframeObserver = null;
     this.iframeRevealDelayTimeoutId = null;
     this.iframeRevealTimeoutId = null;
-    this.iframeCurtainTimeoutId = null;
   }
 
   reinitializePlayer() {
@@ -303,11 +233,6 @@ class PodlovePlayerElement extends HTMLElement {
       window.clearTimeout(this.iframeRevealTimeoutId);
       this.iframeRevealTimeoutId = null;
     }
-    if (this.iframeCurtainTimeoutId !== null) {
-      window.clearTimeout(this.iframeCurtainTimeoutId);
-      this.iframeCurtainTimeoutId = null;
-    }
-    this.querySelectorAll(`.${CURTAIN_CLASS}`).forEach((curtain) => curtain.remove());
   }
 
   applyReservedHeight(container: HTMLElement) {
@@ -323,22 +248,6 @@ class PodlovePlayerElement extends HTMLElement {
     this.clearIframeMasking();
     const revealDelayMs =
       container.style.colorScheme === "dark" ? IFRAME_REVEAL_DELAY_DARK_MS : IFRAME_REVEAL_DELAY_LIGHT_MS;
-    const settleDelayMs =
-      container.style.colorScheme === "dark" ? CURTAIN_SETTLE_DELAY_DARK_MS : CURTAIN_SETTLE_DELAY_LIGHT_MS;
-
-    const getOrCreateCurtain = (): HTMLDivElement => {
-      const existing = container.querySelector(`.${CURTAIN_CLASS}`);
-      if (existing instanceof HTMLDivElement) {
-        existing.style.backgroundColor = container.style.backgroundColor || window.getComputedStyle(container).backgroundColor;
-        existing.style.opacity = "1";
-        return existing;
-      }
-      const curtain = document.createElement("div");
-      curtain.classList.add(CURTAIN_CLASS);
-      curtain.style.backgroundColor = container.style.backgroundColor || window.getComputedStyle(container).backgroundColor;
-      container.appendChild(curtain);
-      return curtain;
-    };
 
     const reveal = (iframe: HTMLIFrameElement) => {
       if (this.initVersion !== expectedVersion) {
@@ -350,24 +259,7 @@ class PodlovePlayerElement extends HTMLElement {
       iframe.style.removeProperty("background-color");
       iframe.style.removeProperty("color-scheme");
       iframe.removeAttribute(IFRAME_MASKED_ATTR);
-
-      const curtain = getOrCreateCurtain();
-      // This field intentionally tracks the currently pending curtain timer:
-      // first settle timer (A), then fade-removal timer (B) once A fires.
-      this.iframeCurtainTimeoutId = window.setTimeout(() => {
-        if (this.initVersion !== expectedVersion) {
-          return;
-        }
-        curtain.style.opacity = "0";
-        this.iframeCurtainTimeoutId = window.setTimeout(() => {
-          if (this.initVersion !== expectedVersion) {
-            return;
-          }
-          curtain.remove();
-          this.releaseReservedHeight(container);
-          this.iframeCurtainTimeoutId = null;
-        }, CURTAIN_FADE_MS);
-      }, settleDelayMs);
+      this.releaseReservedHeight(container);
 
       if (this.iframeRevealTimeoutId !== null) {
         window.clearTimeout(this.iframeRevealTimeoutId);
@@ -390,7 +282,6 @@ class PodlovePlayerElement extends HTMLElement {
       if (iframe.getAttribute(IFRAME_MASKED_ATTR) === "true") {
         return;
       }
-      getOrCreateCurtain();
       iframe.setAttribute(IFRAME_MASKED_ATTR, "true");
       iframe.style.opacity = "0";
       iframe.style.pointerEvents = "none";
@@ -425,10 +316,9 @@ class PodlovePlayerElement extends HTMLElement {
     if (!(container instanceof HTMLElement)) {
       return;
     }
-    const background = resolveLoadingBackground(this);
-    const inferredDark = inferDarkFromColor(background);
-    container.style.backgroundColor = background;
-    container.style.colorScheme = inferredDark === true ? "dark" : "light";
+    const colorScheme = getColorScheme() === "dark" ? "dark" : "light";
+    container.style.backgroundColor = colorScheme === "dark" ? DARK_LOADING_BG : LIGHT_LOADING_BG;
+    container.style.colorScheme = colorScheme;
   }
 
   renderPlaceholder() {
@@ -445,8 +335,6 @@ class PodlovePlayerElement extends HTMLElement {
           max-width: 936px;
           min-height: ${RESERVED_MIN_HEIGHT_DESKTOP_PX}px;
           margin: 0 auto;
-          position: relative;
-          overflow: hidden;
           background-color: ${LIGHT_LOADING_BG};
         }
         @media (max-width: 768px) {
@@ -454,18 +342,6 @@ class PodlovePlayerElement extends HTMLElement {
             max-width: 366px;
             min-height: ${RESERVED_MIN_HEIGHT_MOBILE_PX}px;
           }
-        }
-        podlove-player .podlove-player-container .${CURTAIN_CLASS} {
-          position: absolute;
-          inset: 0;
-          pointer-events: none;
-          z-index: 2;
-          opacity: 1;
-          transition: opacity ${CURTAIN_FADE_MS}ms ease;
-        }
-        podlove-player .podlove-player-host {
-          position: relative;
-          z-index: 1;
         }
         podlove-player .podlove-player-container iframe {
           width: 100%;
@@ -656,5 +532,21 @@ const themeObserver = new MutationObserver(() => {
 });
 themeObserver.observe(document.documentElement, {
   attributes: true,
-  attributeFilter: ['data-bs-theme'],
+  attributeFilter: ['data-bs-theme', 'data-theme'],
 });
+
+const observeBodyTheme = () => {
+  if (!document.body) {
+    return;
+  }
+  themeObserver.observe(document.body, {
+    attributes: true,
+    attributeFilter: ['data-bs-theme', 'data-theme'],
+  });
+};
+
+if (document.body) {
+  observeBodyTheme();
+} else {
+  window.addEventListener("DOMContentLoaded", observeBodyTheme, { once: true });
+}
