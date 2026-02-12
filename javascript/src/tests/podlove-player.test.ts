@@ -46,6 +46,11 @@ describe('PodlovePlayerElement', () => {
   beforeEach(() => {
     document.body.innerHTML = '';
     document.documentElement.removeAttribute('data-bs-theme');
+    document.documentElement.removeAttribute('data-theme');
+    document.body.removeAttribute('data-bs-theme');
+    document.body.removeAttribute('data-theme');
+    document.body.style.backgroundColor = '';
+    document.documentElement.style.backgroundColor = '';
     global.podlovePlayer.mockReset();
   });
 
@@ -149,6 +154,17 @@ describe('PodlovePlayerElement', () => {
     expect(style?.textContent).toContain('background-color: #1e293b');
   });
 
+  it('should apply dark loading background from surrounding page background', () => {
+    document.body.style.backgroundColor = 'rgb(15, 23, 42)';
+    const element = document.createElement('podlove-player');
+    document.body.appendChild(element);
+
+    const container = element.querySelector('.podlove-player-container') as HTMLDivElement | null;
+    expect(container).not.toBeNull();
+    expect(container?.style.backgroundColor).toBe('rgb(15, 23, 42)');
+    expect(container?.style.colorScheme).toBe('dark');
+  });
+
   it('should append the color scheme to the config url when theme is set', () => {
     document.documentElement.setAttribute('data-bs-theme', 'dark');
     const playerHost = setupAndTrigger();
@@ -227,6 +243,29 @@ describe('PodlovePlayerElement', () => {
       playerHost,
       '/api/audios/podlove/63/post/75/',
       '/api/audios/player_config/?color_scheme=light'
+    );
+  });
+
+  it('should infer dark color scheme from page background without theme attrs', () => {
+    document.body.style.backgroundColor = 'rgb(15, 23, 42)';
+    globalThis.matchMedia = vi.fn().mockImplementation(() => ({
+      matches: false,
+      media: '(prefers-color-scheme: dark)',
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }));
+
+    const playerHost = setupAndTrigger();
+
+    expect(playerHost).not.toBeNull();
+    expect(global.podlovePlayer).toHaveBeenCalledWith(
+      playerHost,
+      '/api/audios/podlove/63/post/75/',
+      '/api/audios/player_config/?color_scheme=dark'
     );
   });
 

@@ -116,12 +116,83 @@ function loadEmbedScript(embedUrl: string): Promise<void> {
   return embedScriptPromise;
 }
 
-function getColorScheme(): string | null {
-  const theme = document.documentElement.getAttribute("data-bs-theme");
-  if (theme === "light" || theme === "dark") {
-    return theme;
+function parseRgbChannels(color: string): [number, number, number] | null {
+  const match = color.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i);
+  if (!match) {
+    return null;
+  }
+  const [, r, g, b] = match;
+  return [Number(r), Number(g), Number(b)];
+}
+
+function isTransparent(color: string): boolean {
+  return color === "transparent" || color === "rgba(0, 0, 0, 0)";
+}
+
+function inferDarkFromColor(color: string): boolean | null {
+  const rgb = parseRgbChannels(color);
+  if (!rgb) {
+    return null;
+  }
+  const [r, g, b] = rgb;
+  const luminance = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+  return luminance < 0.5;
+}
+
+function inferDarkFromPageBackground(): boolean | null {
+  const candidates = [document.body, document.documentElement];
+  for (const element of candidates) {
+    if (!element) {
+      continue;
+    }
+    const bg = window.getComputedStyle(element).backgroundColor;
+    if (!bg || isTransparent(bg)) {
+      continue;
+    }
+    const inferred = inferDarkFromColor(bg);
+    if (inferred !== null) {
+      return inferred;
+    }
   }
   return null;
+}
+
+function getColorScheme(): string | null {
+  const configuredTheme =
+    document.documentElement.getAttribute("data-bs-theme") ||
+    document.documentElement.getAttribute("data-theme") ||
+    document.body?.getAttribute("data-bs-theme") ||
+    document.body?.getAttribute("data-theme");
+  if (configuredTheme === "light" || configuredTheme === "dark") {
+    return configuredTheme;
+  }
+  if (typeof window.matchMedia === "function" && window.matchMedia("(prefers-color-scheme: dark)").matches) {
+    return "dark";
+  }
+  const inferred = inferDarkFromPageBackground();
+  if (inferred !== null) {
+    return inferred ? "dark" : "light";
+  }
+  return null;
+}
+
+function resolveLoadingBackground(host: HTMLElement): string {
+  const candidates: Array<HTMLElement | null | undefined> = [
+    host,
+    host.parentElement,
+    document.body,
+    document.documentElement,
+  ];
+  for (const candidate of candidates) {
+    if (!candidate) {
+      continue;
+    }
+    const bg = window.getComputedStyle(candidate).backgroundColor;
+    if (bg && !isTransparent(bg)) {
+      return bg;
+    }
+  }
+  return LIGHT_LOADING_BG;
 }
 
 function appendColorScheme(configUrl: string): string {
@@ -191,6 +262,16 @@ class PodlovePlayerElement extends HTMLElement {
     this.isInitialized = false;
   }
 
+  applyLoadingTheme(container: Element) {
+    if (!(container instanceof HTMLElement)) {
+      return;
+    }
+    const background = resolveLoadingBackground(this);
+    const inferredDark = inferDarkFromColor(background);
+    container.style.backgroundColor = background;
+    container.style.colorScheme = inferredDark === true ? "dark" : "light";
+  }
+
   renderPlaceholder() {
     if (this.querySelector('.podlove-player-container')) {
       return;
@@ -217,7 +298,8 @@ class PodlovePlayerElement extends HTMLElement {
           width: 100%;
           height: 100%;
           border: none;
-          background-color: ${LIGHT_LOADING_BG};
+          background-color: inherit;
+          color-scheme: inherit;
         }
         @media (prefers-color-scheme: dark) {
           podlove-player .podlove-player-container {
@@ -228,17 +310,29 @@ class PodlovePlayerElement extends HTMLElement {
             color-scheme: dark;
           }
         }
-        html[data-bs-theme="dark"] podlove-player .podlove-player-container {
+        html[data-bs-theme="dark"] podlove-player .podlove-player-container,
+        html[data-theme="dark"] podlove-player .podlove-player-container,
+        body[data-bs-theme="dark"] podlove-player .podlove-player-container,
+        body[data-theme="dark"] podlove-player .podlove-player-container {
           background-color: ${DARK_LOADING_BG};
         }
-        html[data-bs-theme="dark"] podlove-player .podlove-player-container iframe {
+        html[data-bs-theme="dark"] podlove-player .podlove-player-container iframe,
+        html[data-theme="dark"] podlove-player .podlove-player-container iframe,
+        body[data-bs-theme="dark"] podlove-player .podlove-player-container iframe,
+        body[data-theme="dark"] podlove-player .podlove-player-container iframe {
           background-color: ${DARK_LOADING_BG};
           color-scheme: dark;
         }
-        html[data-bs-theme="light"] podlove-player .podlove-player-container {
+        html[data-bs-theme="light"] podlove-player .podlove-player-container,
+        html[data-theme="light"] podlove-player .podlove-player-container,
+        body[data-bs-theme="light"] podlove-player .podlove-player-container,
+        body[data-theme="light"] podlove-player .podlove-player-container {
           background-color: ${LIGHT_LOADING_BG};
         }
-        html[data-bs-theme="light"] podlove-player .podlove-player-container iframe {
+        html[data-bs-theme="light"] podlove-player .podlove-player-container iframe,
+        html[data-theme="light"] podlove-player .podlove-player-container iframe,
+        body[data-bs-theme="light"] podlove-player .podlove-player-container iframe,
+        body[data-theme="light"] podlove-player .podlove-player-container iframe {
           background-color: ${LIGHT_LOADING_BG};
           color-scheme: light;
         }
@@ -249,6 +343,7 @@ class PodlovePlayerElement extends HTMLElement {
     // Reserve space to prevent layout shifts
     const container = document.createElement('div');
     container.classList.add('podlove-player-container');
+    this.applyLoadingTheme(container);
 
     this.appendChild(container);
   }
@@ -267,6 +362,7 @@ class PodlovePlayerElement extends HTMLElement {
     if (!container) {
       return;
     }
+    this.applyLoadingTheme(container);
 
     let audioId = this.getAttribute('id');
     if (!audioId) {
