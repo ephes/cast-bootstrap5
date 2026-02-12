@@ -47,6 +47,15 @@ function getPagingArea(): HTMLElement | null {
   return doc.querySelector<HTMLElement>(PAGING_AREA_SELECTOR);
 }
 
+function pagingAreaContainsPodlovePlayer(): boolean {
+  const pagingArea = getPagingArea();
+  if (!pagingArea) {
+    return false;
+  }
+
+  return pagingArea.querySelector("podlove-player") !== null;
+}
+
 function activatePagingArea(): void {
   const pagingArea = getPagingArea();
   if (!pagingArea) {
@@ -77,6 +86,10 @@ export function initPagingContentVisibility(): void {
         return;
       }
       if (window.scrollY > MAX_SCROLL_Y_FOR_TRANSITION) {
+        event.preventDefault();
+        return;
+      }
+      if (pagingAreaContainsPodlovePlayer()) {
         event.preventDefault();
         return;
       }

@@ -63,6 +63,22 @@ describe("paging-content-visibility", () => {
     expect(pagingArea.classList.contains("vt-active")).toBe(false);
   });
 
+  it("skips transition when paging area contains podlove players", () => {
+    const pagingArea = document.querySelector("#paging-area") as HTMLElement;
+    pagingArea.innerHTML = "<podlove-player></podlove-player>";
+    initPagingContentVisibility();
+
+    const event = new CustomEvent("htmx:beforeTransition", {
+      cancelable: true,
+      detail: { target: pagingArea },
+    });
+    document.dispatchEvent(event);
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(window.scrollTo).not.toHaveBeenCalled();
+    expect(pagingArea.classList.contains("vt-active")).toBe(false);
+  });
+
   it("removes vt-active when htmx errors or aborts", () => {
     const pagingArea = document.querySelector("#paging-area") as HTMLElement;
     initPagingContentVisibility();
