@@ -1,10 +1,14 @@
 const PAGING_AREA_SELECTOR = "#paging-area";
 const VT_ACTIVE_CLASS = "vt-active";
 const MAX_SCROLL_Y_FOR_TRANSITION = 120;
+const PAGING_MASK_ACTIVE_ATTR = "data-cast-paging-mask-active";
+const PAGING_MASK_SETTLE_DELAY_MS = 300;
 
+let beforeRequestHandler: ((event: Event) => void) | null = null;
 let beforeTransitionHandler: ((event: Event) => void) | null = null;
 let afterSettleHandler: ((event: Event) => void) | null = null;
 let cleanupHandler: ((event: Event) => void) | null = null;
+let pagingMaskTimeoutId: number | null = null;
 
 type HtmxEventDetail = {
   target?: EventTarget | null;
@@ -74,10 +78,59 @@ function deactivatePagingArea(): void {
   pagingArea.classList.remove(VT_ACTIVE_CLASS);
 }
 
+function clearPagingMaskTimeout(): void {
+  if (pagingMaskTimeoutId === null) {
+    return;
+  }
+
+  window.clearTimeout(pagingMaskTimeoutId);
+  pagingMaskTimeoutId = null;
+}
+
+function activatePagingMask(): void {
+  const pagingArea = getPagingArea();
+  if (!pagingArea) {
+    return;
+  }
+
+  clearPagingMaskTimeout();
+  pagingArea.setAttribute(PAGING_MASK_ACTIVE_ATTR, "true");
+}
+
+function deactivatePagingMask(): void {
+  const pagingArea = getPagingArea();
+  if (!pagingArea) {
+    return;
+  }
+
+  pagingArea.removeAttribute(PAGING_MASK_ACTIVE_ATTR);
+}
+
+function schedulePagingMaskDeactivation(delayMs: number): void {
+  clearPagingMaskTimeout();
+  pagingMaskTimeoutId = window.setTimeout(() => {
+    deactivatePagingMask();
+    pagingMaskTimeoutId = null;
+  }, delayMs);
+}
+
 export function initPagingContentVisibility(): void {
   const doc = getDocument();
   if (!doc) {
     return;
+  }
+
+  if (!beforeRequestHandler) {
+    beforeRequestHandler = (event: Event) => {
+      if (!eventTargetsPagingArea(event)) {
+        return;
+      }
+      if (!pagingAreaContainsPodlovePlayer()) {
+        return;
+      }
+      activatePagingMask();
+    };
+    doc.addEventListener("htmx:beforeRequest", beforeRequestHandler);
   }
 
   if (!beforeTransitionHandler) {
@@ -91,6 +144,7 @@ export function initPagingContentVisibility(): void {
       }
       if (pagingAreaContainsPodlovePlayer()) {
         event.preventDefault();
+        activatePagingMask();
         return;
       }
       window.scrollTo(0, 0);
@@ -105,6 +159,7 @@ export function initPagingContentVisibility(): void {
         return;
       }
       deactivatePagingArea();
+      schedulePagingMaskDeactivation(PAGING_MASK_SETTLE_DELAY_MS);
     };
     doc.addEventListener("htmx:afterSettle", afterSettleHandler);
   }
@@ -115,6 +170,8 @@ export function initPagingContentVisibility(): void {
         return;
       }
       deactivatePagingArea();
+      clearPagingMaskTimeout();
+      deactivatePagingMask();
     };
     doc.addEventListener("htmx:responseError", cleanupHandler);
     doc.addEventListener("htmx:sendAbort", cleanupHandler);
@@ -131,6 +188,9 @@ export function destroyPagingContentVisibility(): void {
   if (beforeTransitionHandler) {
     doc.removeEventListener("htmx:beforeTransition", beforeTransitionHandler);
   }
+  if (beforeRequestHandler) {
+    doc.removeEventListener("htmx:beforeRequest", beforeRequestHandler);
+  }
   if (afterSettleHandler) {
     doc.removeEventListener("htmx:afterSettle", afterSettleHandler);
   }
@@ -140,10 +200,13 @@ export function destroyPagingContentVisibility(): void {
     doc.removeEventListener("htmx:swapError", cleanupHandler);
   }
 
+  clearPagingMaskTimeout();
+  beforeRequestHandler = null;
   beforeTransitionHandler = null;
   afterSettleHandler = null;
   cleanupHandler = null;
   deactivatePagingArea();
+  deactivatePagingMask();
 }
 
 if (typeof document !== "undefined") {

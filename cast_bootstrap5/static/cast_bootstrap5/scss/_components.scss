@@ -466,12 +466,26 @@ video {
 }
 
 #paging-area {
+  position: relative;
   content-visibility: auto;
   contain-intrinsic-size: 1px 1200px;
 
   &.vt-active {
     content-visibility: visible;
     view-transition-name: paging-area;
+  }
+
+  &[data-cast-paging-mask-active="true"] {
+    isolation: isolate;
+
+    &::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+      pointer-events: none;
+      background: var(--bs-body-bg);
+    }
   }
 }
 

@@ -15,6 +15,7 @@ describe("paging-content-visibility", () => {
 
   afterEach(() => {
     destroyPagingContentVisibility();
+    vi.useRealTimers();
     vi.restoreAllMocks();
   });
 
@@ -79,6 +80,34 @@ describe("paging-content-visibility", () => {
     expect(pagingArea.classList.contains("vt-active")).toBe(false);
   });
 
+  it("activates a podlove paging mask on beforeRequest and clears it after settle delay", () => {
+    vi.useFakeTimers();
+    const pagingArea = document.querySelector("#paging-area") as HTMLElement;
+    pagingArea.innerHTML = "<podlove-player></podlove-player>";
+    initPagingContentVisibility();
+
+    document.dispatchEvent(new CustomEvent("htmx:beforeRequest", { detail: { target: pagingArea } }));
+    expect(pagingArea.getAttribute("data-cast-paging-mask-active")).toBe("true");
+
+    document.dispatchEvent(new CustomEvent("htmx:afterSettle", { detail: { target: pagingArea } }));
+    expect(pagingArea.getAttribute("data-cast-paging-mask-active")).toBe("true");
+
+    vi.advanceTimersByTime(299);
+    expect(pagingArea.getAttribute("data-cast-paging-mask-active")).toBe("true");
+
+    vi.advanceTimersByTime(1);
+    expect(pagingArea.getAttribute("data-cast-paging-mask-active")).toBeNull();
+    vi.useRealTimers();
+  });
+
+  it("does not activate a paging mask for non-podlove requests", () => {
+    const pagingArea = document.querySelector("#paging-area") as HTMLElement;
+    initPagingContentVisibility();
+
+    document.dispatchEvent(new CustomEvent("htmx:beforeRequest", { detail: { target: pagingArea } }));
+    expect(pagingArea.getAttribute("data-cast-paging-mask-active")).toBeNull();
+  });
+
   it("removes vt-active when htmx errors or aborts", () => {
     const pagingArea = document.querySelector("#paging-area") as HTMLElement;
     initPagingContentVisibility();
@@ -102,6 +131,30 @@ describe("paging-content-visibility", () => {
     expect(pagingArea.classList.contains("vt-active")).toBe(false);
   });
 
+  it("removes paging mask when htmx errors or aborts", () => {
+    const pagingArea = document.querySelector("#paging-area") as HTMLElement;
+    pagingArea.innerHTML = "<podlove-player></podlove-player>";
+    initPagingContentVisibility();
+
+    document.dispatchEvent(new CustomEvent("htmx:beforeRequest", { detail: { target: pagingArea } }));
+    expect(pagingArea.getAttribute("data-cast-paging-mask-active")).toBe("true");
+
+    document.dispatchEvent(new CustomEvent("htmx:responseError", { detail: { target: pagingArea } }));
+    expect(pagingArea.getAttribute("data-cast-paging-mask-active")).toBeNull();
+
+    document.dispatchEvent(new CustomEvent("htmx:beforeRequest", { detail: { target: pagingArea } }));
+    expect(pagingArea.getAttribute("data-cast-paging-mask-active")).toBe("true");
+
+    document.dispatchEvent(new CustomEvent("htmx:sendAbort", { detail: { target: pagingArea } }));
+    expect(pagingArea.getAttribute("data-cast-paging-mask-active")).toBeNull();
+
+    document.dispatchEvent(new CustomEvent("htmx:beforeRequest", { detail: { target: pagingArea } }));
+    expect(pagingArea.getAttribute("data-cast-paging-mask-active")).toBe("true");
+
+    document.dispatchEvent(new CustomEvent("htmx:swapError", { detail: { target: pagingArea } }));
+    expect(pagingArea.getAttribute("data-cast-paging-mask-active")).toBeNull();
+  });
+
   it("ignores cleanup events from unrelated htmx requests", () => {
     const pagingArea = document.querySelector("#paging-area") as HTMLElement;
     const otherArea = document.querySelector("#other-area") as HTMLElement;
@@ -121,12 +174,14 @@ describe("paging-content-visibility", () => {
     initPagingContentVisibility();
 
     const beforeTransitionCalls = addEventListenerSpy.mock.calls.filter(([name]) => name === "htmx:beforeTransition");
+    const beforeRequestCalls = addEventListenerSpy.mock.calls.filter(([name]) => name === "htmx:beforeRequest");
     const afterSettleCalls = addEventListenerSpy.mock.calls.filter(([name]) => name === "htmx:afterSettle");
     const responseErrorCalls = addEventListenerSpy.mock.calls.filter(([name]) => name === "htmx:responseError");
     const sendAbortCalls = addEventListenerSpy.mock.calls.filter(([name]) => name === "htmx:sendAbort");
     const swapErrorCalls = addEventListenerSpy.mock.calls.filter(([name]) => name === "htmx:swapError");
 
     expect(beforeTransitionCalls).toHaveLength(1);
+    expect(beforeRequestCalls).toHaveLength(1);
     expect(afterSettleCalls).toHaveLength(1);
     expect(responseErrorCalls).toHaveLength(1);
     expect(sendAbortCalls).toHaveLength(1);
@@ -138,6 +193,7 @@ describe("paging-content-visibility", () => {
     initPagingContentVisibility();
 
     expect(() => {
+      document.dispatchEvent(new CustomEvent("htmx:beforeRequest", { detail: { target: document.body } }));
       document.dispatchEvent(new CustomEvent("htmx:beforeTransition", { detail: { target: document.body } }));
       document.dispatchEvent(new CustomEvent("htmx:afterSettle", { detail: { target: document.body } }));
       document.dispatchEvent(new CustomEvent("htmx:responseError", { detail: { target: document.body } }));
