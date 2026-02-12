@@ -124,7 +124,15 @@ describe('PodlovePlayerElement', () => {
     );
   });
 
-  it('should release reserved min-height after successful load', () => {
+  it('should release reserved min-height only after iframe reveal settles', () => {
+    vi.useFakeTimers();
+    const originalPodlovePlayer = global.podlovePlayer;
+    global.podlovePlayer = vi.fn((playerHost: HTMLDivElement) => {
+      const iframe = document.createElement('iframe');
+      playerHost.appendChild(iframe);
+    });
+
+    try {
     const element = document.createElement('podlove-player');
     element.setAttribute('id', 'audio_63');
     element.setAttribute('data-url', '/api/audios/podlove/63/post/75/');
@@ -132,16 +140,30 @@ describe('PodlovePlayerElement', () => {
 
     const container = element.querySelector('.podlove-player-container') as HTMLDivElement | null;
     expect(container).not.toBeNull();
-    expect(container?.style.minHeight).toBe('');
-    expect(element.style.minHeight).toBe('');
+      expect(container?.style.minHeight).toBe('300px');
+      expect(element.style.minHeight).toBe('300px');
 
     const observerInstance = element.observer as IntersectionObserverMock;
     observerInstance.trigger([
       { isIntersecting: true, target: element } as IntersectionObserverEntry,
     ]);
 
-    expect(container?.style.minHeight).toBe('auto');
-    expect(element.style.minHeight).toBe('auto');
+      const iframe = element.querySelector('iframe') as HTMLIFrameElement | null;
+      expect(iframe).not.toBeNull();
+      iframe?.dispatchEvent(new Event('load'));
+
+      // Not released before reveal + settle + curtain fade.
+      vi.advanceTimersByTime(439);
+      expect(container?.style.minHeight).toBe('300px');
+      expect(element.style.minHeight).toBe('300px');
+
+      vi.advanceTimersByTime(1);
+      expect(container?.style.minHeight).toBe('auto');
+      expect(element.style.minHeight).toBe('auto');
+    } finally {
+      global.podlovePlayer = originalPodlovePlayer;
+      vi.useRealTimers();
+    }
   });
 
   it('should keep iframe hidden until load event before revealing it', () => {
@@ -468,8 +490,8 @@ describe('PodlovePlayerElement', () => {
 
       const container = element.querySelector('.podlove-player-container') as HTMLDivElement | null;
       expect(container).not.toBeNull();
-      expect(container?.style.minHeight).toBe('');
-      expect(element.style.minHeight).toBe('');
+      expect(container?.style.minHeight).toBe('300px');
+      expect(element.style.minHeight).toBe('300px');
 
       const observerInstance = element.observer as IntersectionObserverMock;
       observerInstance.trigger([
@@ -483,8 +505,8 @@ describe('PodlovePlayerElement', () => {
       await new Promise((resolve) => setTimeout(resolve, 0));
 
       expect(element.isInitialized).toBe(false);
-      expect(container?.style.minHeight).toBe('');
-      expect(element.style.minHeight).toBe('');
+      expect(container?.style.minHeight).toBe('300px');
+      expect(element.style.minHeight).toBe('300px');
     } finally {
       global.podlovePlayer = originalPodlovePlayer;
     }
