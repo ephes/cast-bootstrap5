@@ -133,20 +133,20 @@ describe('PodlovePlayerElement', () => {
     });
 
     try {
-    const element = document.createElement('podlove-player');
-    element.setAttribute('id', 'audio_63');
-    element.setAttribute('data-url', '/api/audios/podlove/63/post/75/');
-    document.body.appendChild(element);
+      const element = document.createElement('podlove-player');
+      element.setAttribute('id', 'audio_63');
+      element.setAttribute('data-url', '/api/audios/podlove/63/post/75/');
+      document.body.appendChild(element);
 
-    const container = element.querySelector('.podlove-player-container') as HTMLDivElement | null;
-    expect(container).not.toBeNull();
+      const container = element.querySelector('.podlove-player-container') as HTMLDivElement | null;
+      expect(container).not.toBeNull();
       expect(container?.style.minHeight).toBe('300px');
       expect(element.style.minHeight).toBe('300px');
 
-    const observerInstance = element.observer as IntersectionObserverMock;
-    observerInstance.trigger([
-      { isIntersecting: true, target: element } as IntersectionObserverEntry,
-    ]);
+      const observerInstance = element.observer as IntersectionObserverMock;
+      observerInstance.trigger([
+        { isIntersecting: true, target: element } as IntersectionObserverEntry,
+      ]);
 
       const iframe = element.querySelector('iframe') as HTMLIFrameElement | null;
       expect(iframe).not.toBeNull();
@@ -163,6 +163,32 @@ describe('PodlovePlayerElement', () => {
     } finally {
       global.podlovePlayer = originalPodlovePlayer;
       vi.useRealTimers();
+    }
+  });
+
+  it('should reserve mobile min-height when viewport media query matches', () => {
+    const originalMatchMedia = globalThis.matchMedia;
+    globalThis.matchMedia = vi.fn().mockImplementation((query: string) => ({
+      matches: query === '(max-width: 768px)',
+      media: query,
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }));
+
+    try {
+      const element = document.createElement('podlove-player');
+      document.body.appendChild(element);
+
+      const container = element.querySelector('.podlove-player-container') as HTMLDivElement | null;
+      expect(container).not.toBeNull();
+      expect(container?.style.minHeight).toBe('310px');
+      expect(element.style.minHeight).toBe('310px');
+    } finally {
+      globalThis.matchMedia = originalMatchMedia;
     }
   });
 
@@ -197,6 +223,80 @@ describe('PodlovePlayerElement', () => {
       vi.advanceTimersByTime(1);
       expect(iframe?.style.opacity).toBe('1');
       expect(iframe?.style.pointerEvents).toBe('');
+    } finally {
+      global.podlovePlayer = originalPodlovePlayer;
+      vi.useRealTimers();
+    }
+  });
+
+  it('should create, fade, and remove curtain across reveal lifecycle', () => {
+    vi.useFakeTimers();
+    const originalPodlovePlayer = global.podlovePlayer;
+    global.podlovePlayer = vi.fn((playerHost: HTMLDivElement) => {
+      const iframe = document.createElement('iframe');
+      playerHost.appendChild(iframe);
+    });
+
+    try {
+      const element = document.createElement('podlove-player');
+      element.setAttribute('id', 'audio_63');
+      element.setAttribute('data-url', '/api/audios/podlove/63/post/75/');
+      document.body.appendChild(element);
+
+      const observerInstance = element.observer as IntersectionObserverMock;
+      observerInstance.trigger([
+        { isIntersecting: true, target: element } as IntersectionObserverEntry,
+      ]);
+
+      const curtainSelector = '.podlove-player-curtain';
+      const iframe = element.querySelector('iframe') as HTMLIFrameElement | null;
+      const curtain = element.querySelector(curtainSelector) as HTMLDivElement | null;
+      expect(iframe).not.toBeNull();
+      expect(curtain).not.toBeNull();
+      expect(curtain?.style.opacity).not.toBe('0');
+
+      iframe?.dispatchEvent(new Event('load'));
+      vi.advanceTimersByTime(100);
+      expect((element.querySelector(curtainSelector) as HTMLDivElement | null)?.style.opacity).toBe('1');
+
+      vi.advanceTimersByTime(120);
+      expect((element.querySelector(curtainSelector) as HTMLDivElement | null)?.style.opacity).toBe('0');
+
+      vi.advanceTimersByTime(220);
+      expect(element.querySelector(curtainSelector)).toBeNull();
+    } finally {
+      global.podlovePlayer = originalPodlovePlayer;
+      vi.useRealTimers();
+    }
+  });
+
+  it('should clear pending curtain when player is disconnected', () => {
+    vi.useFakeTimers();
+    const originalPodlovePlayer = global.podlovePlayer;
+    global.podlovePlayer = vi.fn((playerHost: HTMLDivElement) => {
+      const iframe = document.createElement('iframe');
+      playerHost.appendChild(iframe);
+    });
+
+    try {
+      const element = document.createElement('podlove-player');
+      element.setAttribute('id', 'audio_63');
+      element.setAttribute('data-url', '/api/audios/podlove/63/post/75/');
+      document.body.appendChild(element);
+
+      const observerInstance = element.observer as IntersectionObserverMock;
+      observerInstance.trigger([
+        { isIntersecting: true, target: element } as IntersectionObserverEntry,
+      ]);
+
+      const iframe = element.querySelector('iframe') as HTMLIFrameElement | null;
+      expect(iframe).not.toBeNull();
+      iframe?.dispatchEvent(new Event('load'));
+      vi.advanceTimersByTime(100);
+      expect(element.querySelector('.podlove-player-curtain')).not.toBeNull();
+
+      document.body.removeChild(element);
+      expect(element.querySelector('.podlove-player-curtain')).toBeNull();
     } finally {
       global.podlovePlayer = originalPodlovePlayer;
       vi.useRealTimers();
@@ -520,7 +620,7 @@ describe('PodlovePlayerElement', () => {
     unobserveSpy.mockRestore();
   });
 
-  it('should keep reserved min-height when embed script load fails', async () => {
+  it('should clear inline reserved min-height when embed script load fails', async () => {
     const originalPodlovePlayer = global.podlovePlayer;
     delete (global as any).podlovePlayer;
 
@@ -547,8 +647,8 @@ describe('PodlovePlayerElement', () => {
       await new Promise((resolve) => setTimeout(resolve, 0));
 
       expect(element.isInitialized).toBe(false);
-      expect(container?.style.minHeight).toBe('300px');
-      expect(element.style.minHeight).toBe('300px');
+      expect(container?.style.minHeight).toBe('');
+      expect(element.style.minHeight).toBe('');
     } finally {
       global.podlovePlayer = originalPodlovePlayer;
     }

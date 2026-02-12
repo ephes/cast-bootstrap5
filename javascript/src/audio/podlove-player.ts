@@ -352,6 +352,8 @@ class PodlovePlayerElement extends HTMLElement {
       iframe.removeAttribute(IFRAME_MASKED_ATTR);
 
       const curtain = getOrCreateCurtain();
+      // This field intentionally tracks the currently pending curtain timer:
+      // first settle timer (A), then fade-removal timer (B) once A fires.
       this.iframeCurtainTimeoutId = window.setTimeout(() => {
         if (this.initVersion !== expectedVersion) {
           return;
@@ -591,6 +593,7 @@ class PodlovePlayerElement extends HTMLElement {
         .catch(() => {
           if (currentVersion === this.initVersion) {
             this.isInitialized = false;
+            this.clearReservedHeight(container);
           }
           // Intentionally silent: the placeholder remains and avoids console spam.
         });
@@ -625,6 +628,13 @@ class PodlovePlayerElement extends HTMLElement {
     }
     // Some consumers reserve space on the custom element itself.
     this.style.minHeight = "auto";
+  }
+
+  clearReservedHeight(container: Element) {
+    if (container instanceof HTMLElement) {
+      container.style.removeProperty("min-height");
+    }
+    this.style.removeProperty("min-height");
   }
 }
 
