@@ -119,6 +119,26 @@ describe('PodlovePlayerElement', () => {
     );
   });
 
+  it('should release reserved min-height after successful load', () => {
+    const element = document.createElement('podlove-player');
+    element.setAttribute('id', 'audio_63');
+    element.setAttribute('data-url', '/api/audios/podlove/63/post/75/');
+    document.body.appendChild(element);
+
+    const container = element.querySelector('.podlove-player-container') as HTMLDivElement | null;
+    expect(container).not.toBeNull();
+    expect(container?.style.minHeight).toBe('');
+    expect(element.style.minHeight).toBe('');
+
+    const observerInstance = element.observer as IntersectionObserverMock;
+    observerInstance.trigger([
+      { isIntersecting: true, target: element } as IntersectionObserverEntry,
+    ]);
+
+    expect(container?.style.minHeight).toBe('auto');
+    expect(element.style.minHeight).toBe('auto');
+  });
+
   it('should append the color scheme to the config url when theme is set', () => {
     document.documentElement.setAttribute('data-bs-theme', 'dark');
     const playerHost = setupAndTrigger();
@@ -268,6 +288,40 @@ describe('PodlovePlayerElement', () => {
 
     expect(unobserveSpy).toHaveBeenCalledWith(element);
     unobserveSpy.mockRestore();
+  });
+
+  it('should keep reserved min-height when embed script load fails', async () => {
+    const originalPodlovePlayer = global.podlovePlayer;
+    delete (global as any).podlovePlayer;
+
+    try {
+      const element = document.createElement('podlove-player');
+      element.setAttribute('id', 'audio_error');
+      element.setAttribute('data-url', '/api/audios/podlove/63/post/75/');
+      document.body.appendChild(element);
+
+      const container = element.querySelector('.podlove-player-container') as HTMLDivElement | null;
+      expect(container).not.toBeNull();
+      expect(container?.style.minHeight).toBe('');
+      expect(element.style.minHeight).toBe('');
+
+      const observerInstance = element.observer as IntersectionObserverMock;
+      observerInstance.trigger([
+        { isIntersecting: true, target: element } as IntersectionObserverEntry,
+      ]);
+
+      const script = document.querySelector('script[data-podlove-embed]') as HTMLScriptElement | null;
+      expect(script).not.toBeNull();
+      script?.dispatchEvent(new Event('error'));
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(element.isInitialized).toBe(false);
+      expect(container?.style.minHeight).toBe('');
+      expect(element.style.minHeight).toBe('');
+    } finally {
+      global.podlovePlayer = originalPodlovePlayer;
+    }
   });
 
   describe('dark mode toggle', () => {

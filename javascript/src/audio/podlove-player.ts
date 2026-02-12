@@ -269,6 +269,7 @@ class PodlovePlayerElement extends HTMLElement {
     if (typeof podlovePlayer === 'function') {
       // Initialize existing Podlove player
       podlovePlayer(playerHost, url, configUrl);
+      this.releaseReservedHeight(container);
     } else {
       // If in dev mode on localhost and embedUrl starts with a slash, use the local embedUrl
       // otherwise the vite url 5173 will be used -> which will not work
@@ -282,6 +283,7 @@ class PodlovePlayerElement extends HTMLElement {
           }
           if (typeof podlovePlayer === "function") {
             podlovePlayer(playerHost, url, configUrl);
+            this.releaseReservedHeight(container);
             return;
           }
           throw new Error("Podlove embed script did not register.");
@@ -314,6 +316,15 @@ class PodlovePlayerElement extends HTMLElement {
     }
 
     return this.playerDiv;
+  }
+
+  releaseReservedHeight(container: Element) {
+    if (container instanceof HTMLElement) {
+      // Keep reserved space while loading, then release it after successful init.
+      container.style.minHeight = "auto";
+    }
+    // Some consumers reserve space on the custom element itself.
+    this.style.minHeight = "auto";
   }
 }
 
