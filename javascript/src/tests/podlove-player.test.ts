@@ -140,8 +140,8 @@ describe('PodlovePlayerElement', () => {
 
       const container = element.querySelector('.podlove-player-container') as HTMLDivElement | null;
       expect(container).not.toBeNull();
-      expect(container?.style.minHeight).toBe('300px');
-      expect(element.style.minHeight).toBe('300px');
+      expect(container?.style.minHeight).toBe('297px');
+      expect(element.style.minHeight).toBe('297px');
 
       const observerInstance = element.observer as IntersectionObserverMock;
       observerInstance.trigger([
@@ -154,8 +154,8 @@ describe('PodlovePlayerElement', () => {
 
       // Not released before reveal + settle + curtain fade.
       vi.advanceTimersByTime(439);
-      expect(container?.style.minHeight).toBe('300px');
-      expect(element.style.minHeight).toBe('300px');
+      expect(container?.style.minHeight).toBe('297px');
+      expect(element.style.minHeight).toBe('297px');
 
       vi.advanceTimersByTime(1);
       expect(container?.style.minHeight).toBe('auto');
@@ -185,8 +185,8 @@ describe('PodlovePlayerElement', () => {
 
       const container = element.querySelector('.podlove-player-container') as HTMLDivElement | null;
       expect(container).not.toBeNull();
-      expect(container?.style.minHeight).toBe('310px');
-      expect(element.style.minHeight).toBe('310px');
+      expect(container?.style.minHeight).toBe('309px');
+      expect(element.style.minHeight).toBe('309px');
     } finally {
       globalThis.matchMedia = originalMatchMedia;
     }
@@ -632,8 +632,8 @@ describe('PodlovePlayerElement', () => {
 
       const container = element.querySelector('.podlove-player-container') as HTMLDivElement | null;
       expect(container).not.toBeNull();
-      expect(container?.style.minHeight).toBe('300px');
-      expect(element.style.minHeight).toBe('300px');
+      expect(container?.style.minHeight).toBe('297px');
+      expect(element.style.minHeight).toBe('297px');
 
       const observerInstance = element.observer as IntersectionObserverMock;
       observerInstance.trigger([
