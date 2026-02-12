@@ -239,6 +239,7 @@ class PodlovePlayerElement extends HTMLElement {
   playerDiv: HTMLDivElement | null;
   initVersion: number;
   iframeObserver: MutationObserver | null;
+  iframeRevealDelayTimeoutId: number | null;
   iframeRevealTimeoutId: number | null;
   iframeCurtainTimeoutId: number | null;
 
@@ -249,6 +250,7 @@ class PodlovePlayerElement extends HTMLElement {
     this.playerDiv = null;
     this.initVersion = 0;
     this.iframeObserver = null;
+    this.iframeRevealDelayTimeoutId = null;
     this.iframeRevealTimeoutId = null;
     this.iframeCurtainTimeoutId = null;
   }
@@ -292,6 +294,10 @@ class PodlovePlayerElement extends HTMLElement {
     if (this.iframeObserver) {
       this.iframeObserver.disconnect();
       this.iframeObserver = null;
+    }
+    if (this.iframeRevealDelayTimeoutId !== null) {
+      window.clearTimeout(this.iframeRevealDelayTimeoutId);
+      this.iframeRevealDelayTimeoutId = null;
     }
     if (this.iframeRevealTimeoutId !== null) {
       window.clearTimeout(this.iframeRevealTimeoutId);
@@ -341,6 +347,9 @@ class PodlovePlayerElement extends HTMLElement {
       iframe.style.opacity = "1";
       iframe.style.pointerEvents = "";
       iframe.style.removeProperty("transition");
+      iframe.style.removeProperty("background-color");
+      iframe.style.removeProperty("color-scheme");
+      iframe.removeAttribute(IFRAME_MASKED_ATTR);
 
       const curtain = getOrCreateCurtain();
       this.iframeCurtainTimeoutId = window.setTimeout(() => {
@@ -362,10 +371,17 @@ class PodlovePlayerElement extends HTMLElement {
         window.clearTimeout(this.iframeRevealTimeoutId);
         this.iframeRevealTimeoutId = null;
       }
+      if (this.iframeRevealDelayTimeoutId !== null) {
+        window.clearTimeout(this.iframeRevealDelayTimeoutId);
+        this.iframeRevealDelayTimeoutId = null;
+      }
     };
 
     const revealWithDelay = (iframe: HTMLIFrameElement) => {
-      window.setTimeout(() => reveal(iframe), revealDelayMs);
+      if (this.iframeRevealDelayTimeoutId !== null) {
+        window.clearTimeout(this.iframeRevealDelayTimeoutId);
+      }
+      this.iframeRevealDelayTimeoutId = window.setTimeout(() => reveal(iframe), revealDelayMs);
     };
 
     const setupIframe = (iframe: HTMLIFrameElement) => {

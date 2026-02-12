@@ -273,6 +273,48 @@ describe('PodlovePlayerElement', () => {
     }
   });
 
+  it('should mask asynchronously created iframe via observer path', async () => {
+    vi.useFakeTimers();
+    const originalPodlovePlayer = global.podlovePlayer;
+    global.podlovePlayer = vi.fn((playerHost: HTMLDivElement) => {
+      window.setTimeout(() => {
+        const iframe = document.createElement('iframe');
+        playerHost.appendChild(iframe);
+      }, 0);
+    });
+
+    try {
+      const element = document.createElement('podlove-player');
+      element.setAttribute('id', 'audio_63');
+      element.setAttribute('data-url', '/api/audios/podlove/63/post/75/');
+      document.body.appendChild(element);
+
+      const observerInstance = element.observer as IntersectionObserverMock;
+      observerInstance.trigger([
+        { isIntersecting: true, target: element } as IntersectionObserverEntry,
+      ]);
+
+      expect(element.querySelector('iframe')).toBeNull();
+
+      vi.advanceTimersByTime(0);
+      await Promise.resolve();
+
+      const iframe = element.querySelector('iframe') as HTMLIFrameElement | null;
+      expect(iframe).not.toBeNull();
+      expect(iframe?.getAttribute('data-cast-iframe-masked')).toBe('true');
+      expect(iframe?.style.opacity).toBe('0');
+
+      iframe?.dispatchEvent(new Event('load'));
+      vi.advanceTimersByTime(100);
+
+      expect(iframe?.style.opacity).toBe('1');
+      expect(iframe?.getAttribute('data-cast-iframe-masked')).toBeNull();
+    } finally {
+      global.podlovePlayer = originalPodlovePlayer;
+      vi.useRealTimers();
+    }
+  });
+
   it('should inject dark loading styles to avoid iframe white flashes', () => {
     const element = document.createElement('podlove-player');
     document.body.appendChild(element);
