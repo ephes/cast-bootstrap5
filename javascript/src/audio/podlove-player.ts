@@ -26,6 +26,8 @@ const PAGING_AREA_SELECTOR = "#paging-area";
 const PAGINATION_LINK_SELECTOR = ".pagination a, .cast-pagination a";
 const PAGING_REMASK_ATTR = "data-cast-paging-remask";
 const PAGING_REMASK_RESTORE_MS = 1600;
+const PAGING_MASK_ACTIVE_ATTR = "data-cast-paging-mask-active";
+const IFRAME_REVEAL_RETRY_WHILE_PAGING_MASK_MS = 50;
 
 function waitForPageLoad(): Promise<void> {
   if (document.readyState === "complete") {
@@ -321,12 +323,32 @@ class PodlovePlayerElement extends HTMLElement {
       container.style.colorScheme === "dark" ? IFRAME_REVEAL_DELAY_DARK_MS : IFRAME_REVEAL_DELAY_LIGHT_MS;
     const processedIframes = new WeakSet<HTMLIFrameElement>();
     let latestIframe: HTMLIFrameElement | null = null;
+    const isPagingMaskActive = () => {
+      const pagingArea = document.querySelector<HTMLElement>(PAGING_AREA_SELECTOR);
+      return pagingArea?.getAttribute(PAGING_MASK_ACTIVE_ATTR) === "true";
+    };
+    const shouldHoldReveal = (iframe: HTMLIFrameElement) => {
+      if (iframe.getAttribute(PAGING_REMASK_ATTR) === "true") {
+        return true;
+      }
+      return isPagingMaskActive();
+    };
 
     const reveal = (iframe: HTMLIFrameElement | null) => {
       if (this.initVersion !== expectedVersion) {
         return;
       }
       if (!(iframe instanceof HTMLIFrameElement) || !container.contains(iframe)) {
+        return;
+      }
+      if (shouldHoldReveal(iframe)) {
+        if (this.iframeRevealDelayTimeoutId !== null) {
+          window.clearTimeout(this.iframeRevealDelayTimeoutId);
+        }
+        this.iframeRevealDelayTimeoutId = window.setTimeout(
+          () => reveal(iframe),
+          IFRAME_REVEAL_RETRY_WHILE_PAGING_MASK_MS
+        );
         return;
       }
       iframe.style.opacity = "1";

@@ -445,6 +445,72 @@ describe('PodlovePlayerElement', () => {
     }
   });
 
+  it('should keep reveal deferred while paging mask is active even when iframe load fires', async () => {
+    vi.useFakeTimers();
+    const originalPodlovePlayer = global.podlovePlayer;
+    global.podlovePlayer = vi.fn((playerHost: HTMLDivElement) => {
+      const iframe = document.createElement('iframe');
+      playerHost.appendChild(iframe);
+    });
+
+    try {
+      const pagingArea = document.createElement('div');
+      pagingArea.id = 'paging-area';
+      const pagination = document.createElement('ul');
+      pagination.className = 'pagination';
+      const paginationLink = document.createElement('a');
+      paginationLink.className = 'page-link';
+      pagination.appendChild(paginationLink);
+
+      const element = document.createElement('podlove-player');
+      element.setAttribute('id', 'audio_63');
+      element.setAttribute('data-url', '/api/audios/podlove/63/post/75/');
+      pagingArea.appendChild(element);
+      pagingArea.appendChild(pagination);
+      document.body.appendChild(pagingArea);
+
+      const observerInstance = element.observer as IntersectionObserverMock;
+      observerInstance.trigger([
+        { isIntersecting: true, target: element } as IntersectionObserverEntry,
+      ]);
+
+      const container = element.querySelector('.podlove-player-container') as HTMLDivElement | null;
+      const iframe = element.querySelector('iframe') as HTMLIFrameElement | null;
+      expect(container).not.toBeNull();
+      expect(iframe).not.toBeNull();
+
+      iframe?.dispatchEvent(new Event('load'));
+      vi.advanceTimersByTime(100);
+      expect(iframe?.style.opacity).toBe('1');
+
+      pagingArea.setAttribute('data-cast-paging-mask-active', 'true');
+      paginationLink.dispatchEvent(new CustomEvent('htmx:beforeRequest', { bubbles: true, cancelable: true }));
+      expect(iframe?.getAttribute('data-cast-paging-remask')).toBe('true');
+      expect(iframe?.style.opacity).toBe('0');
+
+      const replacementIframe = document.createElement('iframe');
+      container?.appendChild(replacementIframe);
+      await Promise.resolve();
+
+      expect(replacementIframe.getAttribute('data-cast-iframe-masked')).toBe('true');
+      replacementIframe.dispatchEvent(new Event('load'));
+
+      vi.advanceTimersByTime(100);
+      expect(replacementIframe.style.opacity).toBe('0');
+      expect(replacementIframe.getAttribute('data-cast-iframe-masked')).toBe('true');
+      expect(container?.getAttribute('data-cast-mask-active')).toBe('true');
+
+      pagingArea.removeAttribute('data-cast-paging-mask-active');
+      vi.advanceTimersByTime(50);
+      expect(replacementIframe.style.opacity).toBe('1');
+      expect(replacementIframe.getAttribute('data-cast-iframe-masked')).toBeNull();
+      expect(container?.getAttribute('data-cast-mask-active')).toBeNull();
+    } finally {
+      global.podlovePlayer = originalPodlovePlayer;
+      vi.useRealTimers();
+    }
+  });
+
   it('should inject dark loading styles to avoid iframe white flashes', () => {
     const element = document.createElement('podlove-player');
     document.body.appendChild(element);
