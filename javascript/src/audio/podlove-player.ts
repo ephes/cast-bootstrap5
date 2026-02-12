@@ -13,6 +13,8 @@ const EMBED_SCRIPT_LOADED_ATTR = "data-podlove-embed-loaded";
 const EMBED_SCRIPT_FAILED_ATTR = "data-podlove-embed-failed";
 const PLAYER_STYLE_ID = "podlove-player-styles";
 const COLOR_SCHEME_PARAM = "color_scheme";
+const DARK_LOADING_BG = "#1e293b";
+const LIGHT_LOADING_BG = "#ffffff";
 
 function waitForPageLoad(): Promise<void> {
   if (document.readyState === "complete") {
@@ -131,7 +133,9 @@ function appendColorScheme(configUrl: string): string {
   const hashIndex = configUrl.indexOf("#");
   const base = hashIndex === -1 ? configUrl : configUrl.slice(0, hashIndex);
   const hash = hashIndex === -1 ? "" : configUrl.slice(hashIndex + 1);
-  const [path, query = ""] = base.split("?");
+  const queryIndex = base.indexOf("?");
+  const path = queryIndex === -1 ? base : base.slice(0, queryIndex);
+  const query = queryIndex === -1 ? "" : base.slice(queryIndex + 1);
   const params = new URLSearchParams(query);
   if (!params.has(COLOR_SCHEME_PARAM)) {
     params.set(COLOR_SCHEME_PARAM, colorScheme);
@@ -201,6 +205,7 @@ class PodlovePlayerElement extends HTMLElement {
           max-width: 936px;
           min-height: 300px;
           margin: 0 auto;
+          background-color: ${LIGHT_LOADING_BG};
         }
         @media (max-width: 768px) {
           podlove-player .podlove-player-container {
@@ -212,6 +217,30 @@ class PodlovePlayerElement extends HTMLElement {
           width: 100%;
           height: 100%;
           border: none;
+          background-color: ${LIGHT_LOADING_BG};
+        }
+        @media (prefers-color-scheme: dark) {
+          podlove-player .podlove-player-container {
+            background-color: ${DARK_LOADING_BG};
+          }
+          podlove-player .podlove-player-container iframe {
+            background-color: ${DARK_LOADING_BG};
+            color-scheme: dark;
+          }
+        }
+        html[data-bs-theme="dark"] podlove-player .podlove-player-container {
+          background-color: ${DARK_LOADING_BG};
+        }
+        html[data-bs-theme="dark"] podlove-player .podlove-player-container iframe {
+          background-color: ${DARK_LOADING_BG};
+          color-scheme: dark;
+        }
+        html[data-bs-theme="light"] podlove-player .podlove-player-container {
+          background-color: ${LIGHT_LOADING_BG};
+        }
+        html[data-bs-theme="light"] podlove-player .podlove-player-container iframe {
+          background-color: ${LIGHT_LOADING_BG};
+          color-scheme: light;
         }
       `;
       document.head.appendChild(style);

@@ -139,6 +139,16 @@ describe('PodlovePlayerElement', () => {
     expect(element.style.minHeight).toBe('auto');
   });
 
+  it('should inject dark loading styles to avoid iframe white flashes', () => {
+    const element = document.createElement('podlove-player');
+    document.body.appendChild(element);
+
+    const style = document.getElementById('podlove-player-styles');
+    expect(style).not.toBeNull();
+    expect(style?.textContent).toContain('color-scheme: dark');
+    expect(style?.textContent).toContain('background-color: #1e293b');
+  });
+
   it('should append the color scheme to the config url when theme is set', () => {
     document.documentElement.setAttribute('data-bs-theme', 'dark');
     const playerHost = setupAndTrigger();
@@ -196,6 +206,16 @@ describe('PodlovePlayerElement', () => {
       '/api/audios/podlove/63/post/75/',
       '/api/audios/player_config/?color_scheme=light'
     );
+  });
+
+  it('should include explicit-light background reset styles to override dark media query', () => {
+    const element = document.createElement('podlove-player');
+    document.body.appendChild(element);
+
+    const style = document.getElementById('podlove-player-styles');
+    expect(style).not.toBeNull();
+    expect(style?.textContent).toContain('html[data-bs-theme="light"] podlove-player .podlove-player-container');
+    expect(style?.textContent).toContain('background-color: #ffffff');
   });
 
   it('should use the light color scheme when theme is light', () => {
