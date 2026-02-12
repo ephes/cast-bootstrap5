@@ -78,6 +78,7 @@ describe("paging-content-visibility", () => {
     expect(event.defaultPrevented).toBe(true);
     expect(window.scrollTo).not.toHaveBeenCalled();
     expect(pagingArea.classList.contains("vt-active")).toBe(false);
+    expect(pagingArea.getAttribute("data-cast-paging-mask-active")).toBe("true");
   });
 
   it("activates a podlove paging mask on beforeRequest and clears it after settle delay", () => {

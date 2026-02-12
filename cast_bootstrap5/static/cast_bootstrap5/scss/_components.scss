@@ -470,12 +470,25 @@ video {
   content-visibility: auto;
   contain-intrinsic-size: 1px 1200px;
 
+  // Prevent compositor white-flash in dark mode: the transparent default
+  // exposes uninitialised compositor layers during content-visibility repaints.
+  [data-bs-theme="dark"] & {
+    background-color: var(--bs-body-bg);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    background-color: var(--bs-body-bg);
+  }
+
   &.vt-active {
     content-visibility: visible;
     view-transition-name: paging-area;
   }
 
   &[data-cast-paging-mask-active="true"] {
+    // Force subtree rendering so the ::after overlay is never skipped by
+    // the content-visibility: auto optimisation during HTMX swaps.
+    content-visibility: visible;
     isolation: isolate;
 
     &::after {
