@@ -15,6 +15,10 @@ const PLAYER_STYLE_ID = "podlove-player-styles";
 const COLOR_SCHEME_PARAM = "color_scheme";
 const DARK_LOADING_BG = "#1e293b";
 const LIGHT_LOADING_BG = "#ffffff";
+const IFRAME_REVEAL_DELAY_LIGHT_MS = 100;
+const IFRAME_REVEAL_DELAY_DARK_MS = 700;
+const IFRAME_REVEAL_TIMEOUT_MS = 2500;
+const IFRAME_MASKED_ATTR = "data-cast-iframe-masked";
 
 function waitForPageLoad(): Promise<void> {
   if (document.readyState === "complete") {
@@ -220,6 +224,8 @@ class PodlovePlayerElement extends HTMLElement {
   isInitialized: boolean;
   playerDiv: HTMLDivElement | null;
   initVersion: number;
+  iframeObserver: MutationObserver | null;
+  iframeRevealTimeoutId: number | null;
 
   constructor() {
     super();
@@ -227,12 +233,15 @@ class PodlovePlayerElement extends HTMLElement {
     this.isInitialized = false;
     this.playerDiv = null;
     this.initVersion = 0;
+    this.iframeObserver = null;
+    this.iframeRevealTimeoutId = null;
   }
 
   reinitializePlayer() {
     if (!this.isInitialized || !this.isConnected) {
       return;
     }
+    this.clearIframeMasking();
     if (this.playerDiv) {
       this.playerDiv.remove();
       this.playerDiv = null;
@@ -257,9 +266,80 @@ class PodlovePlayerElement extends HTMLElement {
     if (this.observer) {
       this.observer.unobserve(this);
     }
+    this.clearIframeMasking();
     // Invalidate any in-flight async init and allow re-init on reattach
     this.initVersion += 1;
     this.isInitialized = false;
+  }
+
+  clearIframeMasking() {
+    if (this.iframeObserver) {
+      this.iframeObserver.disconnect();
+      this.iframeObserver = null;
+    }
+    if (this.iframeRevealTimeoutId !== null) {
+      window.clearTimeout(this.iframeRevealTimeoutId);
+      this.iframeRevealTimeoutId = null;
+    }
+  }
+
+  maskIframeUntilReady(container: Element, expectedVersion: number) {
+    if (!(container instanceof HTMLElement)) {
+      return;
+    }
+    this.clearIframeMasking();
+    const revealDelayMs =
+      container.style.colorScheme === "dark" ? IFRAME_REVEAL_DELAY_DARK_MS : IFRAME_REVEAL_DELAY_LIGHT_MS;
+
+    const reveal = (iframe: HTMLIFrameElement) => {
+      if (this.initVersion !== expectedVersion) {
+        return;
+      }
+      iframe.style.opacity = "1";
+      iframe.style.pointerEvents = "";
+      iframe.style.removeProperty("transition");
+      if (this.iframeRevealTimeoutId !== null) {
+        window.clearTimeout(this.iframeRevealTimeoutId);
+        this.iframeRevealTimeoutId = null;
+      }
+    };
+
+    const revealWithDelay = (iframe: HTMLIFrameElement) => {
+      window.setTimeout(() => reveal(iframe), revealDelayMs);
+    };
+
+    const setupIframe = (iframe: HTMLIFrameElement) => {
+      if (iframe.getAttribute(IFRAME_MASKED_ATTR) === "true") {
+        return;
+      }
+      iframe.setAttribute(IFRAME_MASKED_ATTR, "true");
+      iframe.style.opacity = "0";
+      iframe.style.pointerEvents = "none";
+      iframe.style.transition = "opacity 160ms ease";
+      iframe.style.backgroundColor = "inherit";
+      iframe.style.colorScheme = "inherit";
+      iframe.addEventListener("load", () => revealWithDelay(iframe), { once: true });
+      this.iframeRevealTimeoutId = window.setTimeout(() => reveal(iframe), IFRAME_REVEAL_TIMEOUT_MS);
+    };
+
+    const existing = container.querySelector("iframe");
+    if (existing instanceof HTMLIFrameElement) {
+      setupIframe(existing);
+      return;
+    }
+
+    this.iframeObserver = new MutationObserver(() => {
+      const iframe = container.querySelector("iframe");
+      if (!(iframe instanceof HTMLIFrameElement)) {
+        return;
+      }
+      setupIframe(iframe);
+      if (this.iframeObserver) {
+        this.iframeObserver.disconnect();
+        this.iframeObserver = null;
+      }
+    });
+    this.iframeObserver.observe(container, { childList: true, subtree: true });
   }
 
   applyLoadingTheme(container: Element) {
@@ -394,6 +474,7 @@ class PodlovePlayerElement extends HTMLElement {
     if (typeof podlovePlayer === 'function') {
       // Initialize existing Podlove player
       podlovePlayer(playerHost, url, configUrl);
+      this.maskIframeUntilReady(container, currentVersion);
       this.releaseReservedHeight(container);
     } else {
       // If in dev mode on localhost and embedUrl starts with a slash, use the local embedUrl
@@ -408,6 +489,7 @@ class PodlovePlayerElement extends HTMLElement {
           }
           if (typeof podlovePlayer === "function") {
             podlovePlayer(playerHost, url, configUrl);
+            this.maskIframeUntilReady(container, currentVersion);
             this.releaseReservedHeight(container);
             return;
           }

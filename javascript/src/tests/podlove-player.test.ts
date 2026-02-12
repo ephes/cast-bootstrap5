@@ -144,6 +144,113 @@ describe('PodlovePlayerElement', () => {
     expect(element.style.minHeight).toBe('auto');
   });
 
+  it('should keep iframe hidden until load event before revealing it', () => {
+    vi.useFakeTimers();
+    const originalPodlovePlayer = global.podlovePlayer;
+    global.podlovePlayer = vi.fn((playerHost: HTMLDivElement) => {
+      const iframe = document.createElement('iframe');
+      playerHost.appendChild(iframe);
+    });
+
+    try {
+      const element = document.createElement('podlove-player');
+      element.setAttribute('id', 'audio_63');
+      element.setAttribute('data-url', '/api/audios/podlove/63/post/75/');
+      document.body.appendChild(element);
+
+      const observerInstance = element.observer as IntersectionObserverMock;
+      observerInstance.trigger([
+        { isIntersecting: true, target: element } as IntersectionObserverEntry,
+      ]);
+
+      const iframe = element.querySelector('iframe') as HTMLIFrameElement | null;
+      expect(iframe).not.toBeNull();
+      expect(iframe?.style.opacity).toBe('0');
+      expect(iframe?.style.pointerEvents).toBe('none');
+
+      iframe?.dispatchEvent(new Event('load'));
+      vi.advanceTimersByTime(99);
+      expect(iframe?.style.opacity).toBe('0');
+
+      vi.advanceTimersByTime(1);
+      expect(iframe?.style.opacity).toBe('1');
+      expect(iframe?.style.pointerEvents).toBe('');
+    } finally {
+      global.podlovePlayer = originalPodlovePlayer;
+      vi.useRealTimers();
+    }
+  });
+
+  it('should reveal iframe via timeout fallback when load does not fire', () => {
+    vi.useFakeTimers();
+    const originalPodlovePlayer = global.podlovePlayer;
+    global.podlovePlayer = vi.fn((playerHost: HTMLDivElement) => {
+      const iframe = document.createElement('iframe');
+      playerHost.appendChild(iframe);
+    });
+
+    try {
+      const element = document.createElement('podlove-player');
+      element.setAttribute('id', 'audio_63');
+      element.setAttribute('data-url', '/api/audios/podlove/63/post/75/');
+      document.body.appendChild(element);
+
+      const observerInstance = element.observer as IntersectionObserverMock;
+      observerInstance.trigger([
+        { isIntersecting: true, target: element } as IntersectionObserverEntry,
+      ]);
+
+      const iframe = element.querySelector('iframe') as HTMLIFrameElement | null;
+      expect(iframe).not.toBeNull();
+      expect(iframe?.style.opacity).toBe('0');
+
+      vi.advanceTimersByTime(2499);
+      expect(iframe?.style.opacity).toBe('0');
+      vi.advanceTimersByTime(1);
+
+      expect(iframe?.style.opacity).toBe('1');
+    } finally {
+      global.podlovePlayer = originalPodlovePlayer;
+      vi.useRealTimers();
+    }
+  });
+
+  it('should use a longer reveal delay for dark-mode loading fallback', () => {
+    vi.useFakeTimers();
+    const originalPodlovePlayer = global.podlovePlayer;
+    global.podlovePlayer = vi.fn((playerHost: HTMLDivElement) => {
+      const iframe = document.createElement('iframe');
+      playerHost.appendChild(iframe);
+    });
+
+    try {
+      document.body.style.backgroundColor = 'rgb(15, 23, 42)';
+      const element = document.createElement('podlove-player');
+      element.setAttribute('id', 'audio_63');
+      element.setAttribute('data-url', '/api/audios/podlove/63/post/75/');
+      document.body.appendChild(element);
+
+      const observerInstance = element.observer as IntersectionObserverMock;
+      observerInstance.trigger([
+        { isIntersecting: true, target: element } as IntersectionObserverEntry,
+      ]);
+
+      const iframe = element.querySelector('iframe') as HTMLIFrameElement | null;
+      expect(iframe).not.toBeNull();
+      expect(iframe?.style.opacity).toBe('0');
+
+      iframe?.dispatchEvent(new Event('load'));
+      vi.advanceTimersByTime(699);
+      expect(iframe?.style.opacity).toBe('0');
+      vi.advanceTimersByTime(1);
+
+      expect(iframe?.style.opacity).toBe('1');
+    } finally {
+      global.podlovePlayer = originalPodlovePlayer;
+      vi.useRealTimers();
+    }
+  });
+
   it('should inject dark loading styles to avoid iframe white flashes', () => {
     const element = document.createElement('podlove-player');
     document.body.appendChild(element);
