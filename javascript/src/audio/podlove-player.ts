@@ -22,6 +22,10 @@ const IFRAME_REVEAL_DELAY_DARK_MS = 900;
 const IFRAME_REVEAL_TIMEOUT_MS = 2500;
 const IFRAME_MASKED_ATTR = "data-cast-iframe-masked";
 const CONTAINER_MASK_ACTIVE_ATTR = "data-cast-mask-active";
+const REVEAL_SHIELD_CLASS = "podlove-player-reveal-shield";
+const REVEAL_SHIELD_HOLD_LIGHT_MS = 80;
+const REVEAL_SHIELD_HOLD_DARK_MS = 180;
+const REVEAL_SHIELD_FADE_MS = 120;
 const PAGING_AREA_SELECTOR = "#paging-area";
 const PAGINATION_LINK_SELECTOR = ".pagination a, .cast-pagination a";
 const PAGING_REMASK_ATTR = "data-cast-paging-remask";
@@ -240,6 +244,7 @@ class PodlovePlayerElement extends HTMLElement {
   iframeObserver: MutationObserver | null;
   iframeRevealDelayTimeoutId: number | null;
   iframeRevealTimeoutId: number | null;
+  iframeRevealShieldTimeoutId: number | null;
 
   constructor() {
     super();
@@ -250,6 +255,7 @@ class PodlovePlayerElement extends HTMLElement {
     this.iframeObserver = null;
     this.iframeRevealDelayTimeoutId = null;
     this.iframeRevealTimeoutId = null;
+    this.iframeRevealShieldTimeoutId = null;
   }
 
   reinitializePlayer() {
@@ -300,9 +306,16 @@ class PodlovePlayerElement extends HTMLElement {
       window.clearTimeout(this.iframeRevealTimeoutId);
       this.iframeRevealTimeoutId = null;
     }
+    if (this.iframeRevealShieldTimeoutId !== null) {
+      window.clearTimeout(this.iframeRevealShieldTimeoutId);
+      this.iframeRevealShieldTimeoutId = null;
+    }
     this.querySelectorAll(".podlove-player-container").forEach((container) => {
       if (container instanceof HTMLElement) {
         container.removeAttribute(CONTAINER_MASK_ACTIVE_ATTR);
+        container.querySelectorAll(`.${REVEAL_SHIELD_CLASS}`).forEach((shield) => {
+          shield.remove();
+        });
       }
     });
   }
@@ -311,6 +324,44 @@ class PodlovePlayerElement extends HTMLElement {
     const reservedMinHeight = `${getReservedMinHeightPx()}px`;
     container.style.minHeight = reservedMinHeight;
     this.style.minHeight = reservedMinHeight;
+  }
+
+  getOrCreateRevealShield(container: HTMLElement): HTMLDivElement {
+    const existing = container.querySelector(`.${REVEAL_SHIELD_CLASS}`);
+    if (existing instanceof HTMLDivElement) {
+      existing.style.backgroundColor = container.style.backgroundColor || window.getComputedStyle(container).backgroundColor;
+      existing.style.opacity = "1";
+      return existing;
+    }
+    const shield = document.createElement("div");
+    shield.classList.add(REVEAL_SHIELD_CLASS);
+    shield.style.backgroundColor = container.style.backgroundColor || window.getComputedStyle(container).backgroundColor;
+    shield.style.opacity = "1";
+    container.appendChild(shield);
+    return shield;
+  }
+
+  scheduleRevealShieldRelease(container: HTMLElement, expectedVersion: number) {
+    if (this.iframeRevealShieldTimeoutId !== null) {
+      window.clearTimeout(this.iframeRevealShieldTimeoutId);
+      this.iframeRevealShieldTimeoutId = null;
+    }
+    const shield = this.getOrCreateRevealShield(container);
+    const holdMs = container.style.colorScheme === "dark" ? REVEAL_SHIELD_HOLD_DARK_MS : REVEAL_SHIELD_HOLD_LIGHT_MS;
+    this.iframeRevealShieldTimeoutId = window.setTimeout(() => {
+      if (this.initVersion !== expectedVersion) {
+        return;
+      }
+      shield.style.opacity = "0";
+      this.iframeRevealShieldTimeoutId = window.setTimeout(() => {
+        if (this.initVersion !== expectedVersion) {
+          return;
+        }
+        shield.remove();
+        this.releaseReservedHeight(container);
+        this.iframeRevealShieldTimeoutId = null;
+      }, REVEAL_SHIELD_FADE_MS);
+    }, holdMs);
   }
 
   maskIframeUntilReady(container: Element, expectedVersion: number) {
@@ -358,7 +409,7 @@ class PodlovePlayerElement extends HTMLElement {
       iframe.style.removeProperty("color-scheme");
       iframe.removeAttribute(IFRAME_MASKED_ATTR);
       container.removeAttribute(CONTAINER_MASK_ACTIVE_ATTR);
-      this.releaseReservedHeight(container);
+      this.scheduleRevealShieldRelease(container, expectedVersion);
 
       if (this.iframeRevealTimeoutId !== null) {
         window.clearTimeout(this.iframeRevealTimeoutId);
@@ -383,6 +434,7 @@ class PodlovePlayerElement extends HTMLElement {
       }
       processedIframes.add(iframe);
       latestIframe = iframe;
+      this.getOrCreateRevealShield(container);
       iframe.setAttribute(IFRAME_MASKED_ATTR, "true");
       iframe.style.opacity = "0";
       iframe.style.pointerEvents = "none";
@@ -444,6 +496,8 @@ class PodlovePlayerElement extends HTMLElement {
           max-width: 936px;
           min-height: ${RESERVED_MIN_HEIGHT_DESKTOP_PX}px;
           margin: 0 auto;
+          position: relative;
+          overflow: hidden;
           background-color: ${LIGHT_LOADING_BG};
         }
         @media (max-width: 768px) {
@@ -458,6 +512,18 @@ class PodlovePlayerElement extends HTMLElement {
           border: none;
           background-color: inherit;
           color-scheme: inherit;
+        }
+        podlove-player .podlove-player-host {
+          position: relative;
+          z-index: 1;
+        }
+        podlove-player .podlove-player-container .${REVEAL_SHIELD_CLASS} {
+          position: absolute;
+          inset: 0;
+          pointer-events: none;
+          z-index: 2;
+          opacity: 1;
+          transition: opacity ${REVEAL_SHIELD_FADE_MS}ms ease;
         }
         podlove-player .podlove-player-container[${CONTAINER_MASK_ACTIVE_ATTR}="true"] iframe {
           opacity: 0 !important;

@@ -124,7 +124,7 @@ describe('PodlovePlayerElement', () => {
     );
   });
 
-  it('should release reserved min-height only after iframe reveal delay', () => {
+  it('should release reserved min-height only after reveal shield settles', () => {
     vi.useFakeTimers();
     const originalPodlovePlayer = global.podlovePlayer;
     global.podlovePlayer = vi.fn((playerHost: HTMLDivElement) => {
@@ -154,6 +154,11 @@ describe('PodlovePlayerElement', () => {
 
       // Not released before reveal delay.
       vi.advanceTimersByTime(99);
+      expect(container?.style.minHeight).toBe('297px');
+      expect(element.style.minHeight).toBe('297px');
+
+      // Reveal starts at 100ms but shield hold/fade keeps reserved height.
+      vi.advanceTimersByTime(200);
       expect(container?.style.minHeight).toBe('297px');
       expect(element.style.minHeight).toBe('297px');
 
@@ -223,6 +228,57 @@ describe('PodlovePlayerElement', () => {
       vi.advanceTimersByTime(1);
       expect(iframe?.style.opacity).toBe('1');
       expect(iframe?.style.pointerEvents).toBe('');
+    } finally {
+      global.podlovePlayer = originalPodlovePlayer;
+      vi.useRealTimers();
+    }
+  });
+
+  it('should keep a reveal shield during iframe reveal and remove it after fade', () => {
+    vi.useFakeTimers();
+    const originalPodlovePlayer = global.podlovePlayer;
+    global.podlovePlayer = vi.fn((playerHost: HTMLDivElement) => {
+      const iframe = document.createElement('iframe');
+      playerHost.appendChild(iframe);
+    });
+
+    try {
+      const element = document.createElement('podlove-player');
+      element.setAttribute('id', 'audio_63');
+      element.setAttribute('data-url', '/api/audios/podlove/63/post/75/');
+      document.body.appendChild(element);
+
+      const observerInstance = element.observer as IntersectionObserverMock;
+      observerInstance.trigger([
+        { isIntersecting: true, target: element } as IntersectionObserverEntry,
+      ]);
+
+      const container = element.querySelector('.podlove-player-container') as HTMLDivElement | null;
+      const iframe = element.querySelector('iframe') as HTMLIFrameElement | null;
+      expect(container).not.toBeNull();
+      expect(iframe).not.toBeNull();
+
+      iframe?.dispatchEvent(new Event('load'));
+
+      // Before reveal delay: shield exists and iframe is hidden.
+      vi.advanceTimersByTime(99);
+      let shield = element.querySelector('.podlove-player-reveal-shield') as HTMLDivElement | null;
+      expect(shield).not.toBeNull();
+      expect(iframe?.style.opacity).toBe('0');
+
+      // Reveal at 100ms, shield still covering.
+      vi.advanceTimersByTime(1);
+      shield = element.querySelector('.podlove-player-reveal-shield') as HTMLDivElement | null;
+      expect(iframe?.style.opacity).toBe('1');
+      expect(shield?.style.opacity).toBe('1');
+
+      // Hold + fade window.
+      vi.advanceTimersByTime(80);
+      expect(shield?.style.opacity).toBe('0');
+      vi.advanceTimersByTime(119);
+      expect(element.querySelector('.podlove-player-reveal-shield')).not.toBeNull();
+      vi.advanceTimersByTime(1);
+      expect(element.querySelector('.podlove-player-reveal-shield')).toBeNull();
     } finally {
       global.podlovePlayer = originalPodlovePlayer;
       vi.useRealTimers();
