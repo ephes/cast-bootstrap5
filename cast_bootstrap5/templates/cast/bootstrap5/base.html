@@ -41,9 +41,8 @@
         document.documentElement.setAttribute('data-bs-theme', theme);
       })();
     </script>
-    {# Font preloads for faster loading #}
+    {# Font preload: Inter only (JetBrains Mono is below-the-fold, not preloaded) #}
     <link rel="preload" href="{% static 'cast_bootstrap5/fonts/Inter-Variable.woff2' %}" as="font" type="font/woff2" crossorigin>
-    <link rel="preload" href="{% static 'cast_bootstrap5/fonts/JetBrainsMono-Variable.woff2' %}" as="font" type="font/woff2" crossorigin>
     {% block css %}
       <link rel="stylesheet" href="{% static 'cast_bootstrap5/css/bootstrap5/bootstrap.min.css' %}">
       <link href="{% static 'cast_bootstrap5/css/bootstrap5/cast.css' %}" rel="stylesheet">
