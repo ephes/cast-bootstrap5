@@ -825,6 +825,20 @@ podlove-player {
   display: block;
   border-radius: var(--cast-border-radius);
   overflow: hidden;
+
+  // In dark mode, hide iframes by default until JS has verified readiness
+  // and explicitly set inline opacity: 1.  This closes the timing gap
+  // between iframe creation and JS masking on slow connections where the
+  // cross-origin dark-readiness check cannot inspect iframe internals.
+  [data-bs-theme="dark"] & iframe {
+    opacity: 0;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    iframe {
+      opacity: 0;
+    }
+  }
 }
 
 // -----------------------------------------------------------------------------

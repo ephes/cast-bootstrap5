@@ -20,6 +20,7 @@ const RESERVED_MIN_HEIGHT_MOBILE_PX = 309;
 const IFRAME_REVEAL_DELAY_LIGHT_MS = 100;
 const IFRAME_REVEAL_DELAY_DARK_MS = 900;
 const IFRAME_REVEAL_TIMEOUT_MS = 2500;
+const IFRAME_REVEAL_TIMEOUT_DARK_MS = 8000;
 const IFRAME_MASKED_ATTR = "data-cast-iframe-masked";
 const CONTAINER_MASK_ACTIVE_ATTR = "data-cast-mask-active";
 const REVEAL_SHIELD_CLASS = "podlove-player-reveal-shield";
@@ -279,8 +280,8 @@ function forceMaskIframeForPaging(container: HTMLElement, iframe: HTMLIFrameElem
     if (iframe.getAttribute(IFRAME_MASKED_ATTR) === "true") {
       iframe.removeAttribute(IFRAME_MASKED_ATTR);
     }
-    iframe.style.removeProperty("opacity");
-    iframe.style.removeProperty("pointer-events");
+    iframe.style.opacity = "1";
+    iframe.style.pointerEvents = "";
     iframe.style.removeProperty("background-color");
     iframe.style.removeProperty("color-scheme");
     if (!container.querySelector(`iframe[${PAGING_REMASK_ATTR}="true"]`)) {
@@ -552,7 +553,9 @@ class PodlovePlayerElement extends HTMLElement {
       if (this.iframeRevealTimeoutId !== null) {
         window.clearTimeout(this.iframeRevealTimeoutId);
       }
-      this.iframeRevealTimeoutId = window.setTimeout(() => reveal(latestIframe), IFRAME_REVEAL_TIMEOUT_MS);
+      const revealTimeoutMs =
+        container.style.colorScheme === "dark" ? IFRAME_REVEAL_TIMEOUT_DARK_MS : IFRAME_REVEAL_TIMEOUT_MS;
+      this.iframeRevealTimeoutId = window.setTimeout(() => reveal(latestIframe), revealTimeoutMs);
     };
 
     const setupAllIframes = () => {

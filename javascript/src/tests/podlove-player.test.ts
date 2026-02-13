@@ -319,6 +319,45 @@ describe('PodlovePlayerElement', () => {
     }
   });
 
+  it('should use a longer reveal timeout fallback in dark mode', () => {
+    vi.useFakeTimers();
+    const originalPodlovePlayer = global.podlovePlayer;
+    global.podlovePlayer = vi.fn((playerHost: HTMLDivElement) => {
+      const iframe = document.createElement('iframe');
+      playerHost.appendChild(iframe);
+    });
+
+    try {
+      document.documentElement.setAttribute('data-bs-theme', 'dark');
+      const element = document.createElement('podlove-player');
+      element.setAttribute('id', 'audio_63');
+      element.setAttribute('data-url', '/api/audios/podlove/63/post/75/');
+      document.body.appendChild(element);
+
+      const observerInstance = element.observer as IntersectionObserverMock;
+      observerInstance.trigger([
+        { isIntersecting: true, target: element } as IntersectionObserverEntry,
+      ]);
+
+      const iframe = element.querySelector('iframe') as HTMLIFrameElement | null;
+      expect(iframe).not.toBeNull();
+      expect(iframe?.style.opacity).toBe('0');
+
+      // Light-mode timeout (2500ms) should NOT reveal in dark mode.
+      vi.advanceTimersByTime(2500);
+      expect(iframe?.style.opacity).toBe('0');
+
+      // Dark-mode extended timeout (8000ms) should reveal.
+      vi.advanceTimersByTime(5499);
+      expect(iframe?.style.opacity).toBe('0');
+      vi.advanceTimersByTime(1);
+      expect(iframe?.style.opacity).toBe('1');
+    } finally {
+      global.podlovePlayer = originalPodlovePlayer;
+      vi.useRealTimers();
+    }
+  });
+
   it('should use a longer reveal delay for dark-mode loading fallback', () => {
     vi.useFakeTimers();
     const originalPodlovePlayer = global.podlovePlayer;
@@ -548,7 +587,7 @@ describe('PodlovePlayerElement', () => {
       vi.advanceTimersByTime(1);
       expect(iframe.getAttribute('data-cast-paging-remask')).toBeNull();
       expect(iframe.getAttribute('data-cast-iframe-masked')).toBeNull();
-      expect(iframe.style.opacity).toBe('');
+      expect(iframe.style.opacity).toBe('1');
       expect(iframe.style.pointerEvents).toBe('');
       expect(container?.getAttribute('data-cast-mask-active')).toBeNull();
     } finally {
