@@ -48,6 +48,16 @@ function waitForPageLoad(): Promise<void> {
   return pageLoadPromise;
 }
 
+const IDLE_CALLBACK_TIMEOUT_MS = 2000;
+
+function deferToIdle(fn: () => void): void {
+  if (typeof requestIdleCallback === "function") {
+    requestIdleCallback(() => fn(), { timeout: IDLE_CALLBACK_TIMEOUT_MS });
+  } else {
+    setTimeout(fn, 0);
+  }
+}
+
 function getSharedObserver(): IntersectionObserver {
   if (!sharedObserver) {
     sharedObserver = new IntersectionObserver((entries, observer) => {
@@ -57,11 +67,16 @@ function getSharedObserver(): IntersectionObserver {
         }
 
         const target = entry.target;
-        if (target instanceof PodlovePlayerElement) {
-          target.initializePlayer();
-        }
-
         observer.unobserve(target);
+
+        if (target instanceof PodlovePlayerElement) {
+          const versionAtSchedule = target.initVersion;
+          deferToIdle(() => {
+            if (target.isConnected && target.initVersion === versionAtSchedule) {
+              target.initializePlayer();
+            }
+          });
+        }
       });
     });
   }

@@ -39,6 +39,13 @@ class IntersectionObserverMock {
 
 globalThis.IntersectionObserver = IntersectionObserverMock as unknown as typeof IntersectionObserver;
 
+// Mock requestIdleCallback to run synchronously so existing tests work unchanged.
+// The deferral behavior is tested explicitly in a dedicated test below.
+globalThis.requestIdleCallback = ((fn: IdleRequestCallback) => {
+  fn({} as IdleDeadline);
+  return 0;
+}) as typeof requestIdleCallback;
+
 // Mock the podlovePlayer function
 global.podlovePlayer = vi.fn();
 
@@ -147,6 +154,7 @@ describe('PodlovePlayerElement', () => {
       observerInstance.trigger([
         { isIntersecting: true, target: element } as IntersectionObserverEntry,
       ]);
+      vi.advanceTimersByTime(0); // flush deferred idle callback
 
       const iframe = element.querySelector('iframe') as HTMLIFrameElement | null;
       expect(iframe).not.toBeNull();
@@ -215,6 +223,7 @@ describe('PodlovePlayerElement', () => {
       observerInstance.trigger([
         { isIntersecting: true, target: element } as IntersectionObserverEntry,
       ]);
+      vi.advanceTimersByTime(0); // flush deferred idle callback
 
       const iframe = element.querySelector('iframe') as HTMLIFrameElement | null;
       expect(iframe).not.toBeNull();
@@ -252,6 +261,7 @@ describe('PodlovePlayerElement', () => {
       observerInstance.trigger([
         { isIntersecting: true, target: element } as IntersectionObserverEntry,
       ]);
+      vi.advanceTimersByTime(0); // flush deferred idle callback
 
       const container = element.querySelector('.podlove-player-container') as HTMLDivElement | null;
       const iframe = element.querySelector('iframe') as HTMLIFrameElement | null;
@@ -303,6 +313,7 @@ describe('PodlovePlayerElement', () => {
       observerInstance.trigger([
         { isIntersecting: true, target: element } as IntersectionObserverEntry,
       ]);
+      vi.advanceTimersByTime(0); // flush deferred idle callback
 
       const iframe = element.querySelector('iframe') as HTMLIFrameElement | null;
       expect(iframe).not.toBeNull();
@@ -338,6 +349,7 @@ describe('PodlovePlayerElement', () => {
       observerInstance.trigger([
         { isIntersecting: true, target: element } as IntersectionObserverEntry,
       ]);
+      vi.advanceTimersByTime(0); // flush deferred idle callback
 
       const iframe = element.querySelector('iframe') as HTMLIFrameElement | null;
       expect(iframe).not.toBeNull();
@@ -377,6 +389,7 @@ describe('PodlovePlayerElement', () => {
       observerInstance.trigger([
         { isIntersecting: true, target: element } as IntersectionObserverEntry,
       ]);
+      vi.advanceTimersByTime(0); // flush deferred idle callback
 
       const iframe = element.querySelector('iframe') as HTMLIFrameElement | null;
       expect(iframe).not.toBeNull();
@@ -414,10 +427,7 @@ describe('PodlovePlayerElement', () => {
       observerInstance.trigger([
         { isIntersecting: true, target: element } as IntersectionObserverEntry,
       ]);
-
-      expect(element.querySelector('iframe')).toBeNull();
-
-      vi.advanceTimersByTime(0);
+      vi.advanceTimersByTime(1); // flush deferred idle callback + inner setTimeout(0) from podlovePlayer mock
       await Promise.resolve();
 
       const iframe = element.querySelector('iframe') as HTMLIFrameElement | null;
@@ -459,6 +469,7 @@ describe('PodlovePlayerElement', () => {
       observerInstance.trigger([
         { isIntersecting: true, target: element } as IntersectionObserverEntry,
       ]);
+      vi.advanceTimersByTime(0); // flush deferred idle callback
 
       const container = element.querySelector('.podlove-player-container') as HTMLDivElement | null;
       expect(container?.getAttribute('data-cast-mask-active')).toBe('true');
@@ -568,6 +579,7 @@ describe('PodlovePlayerElement', () => {
       observerInstance.trigger([
         { isIntersecting: true, target: element } as IntersectionObserverEntry,
       ]);
+      vi.advanceTimersByTime(0); // flush deferred idle callback
 
       const container = element.querySelector('.podlove-player-container') as HTMLDivElement | null;
       const iframe = element.querySelector('iframe') as HTMLIFrameElement | null;
@@ -1016,6 +1028,170 @@ describe('PodlovePlayerElement', () => {
 
       // Player was never initialized, so it should not be called
       expect(global.podlovePlayer).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('idle callback deferral', () => {
+    it('should defer initializePlayer via requestIdleCallback when available', () => {
+      const idleCallbacks: (() => void)[] = [];
+      const originalRIC = globalThis.requestIdleCallback;
+      globalThis.requestIdleCallback = ((fn: IdleRequestCallback) => {
+        idleCallbacks.push(() => fn({} as IdleDeadline));
+        return idleCallbacks.length;
+      }) as typeof requestIdleCallback;
+
+      try {
+        const element = document.createElement('podlove-player');
+        element.setAttribute('id', 'audio_idle');
+        element.setAttribute('data-url', '/api/audios/podlove/63/post/75/');
+        document.body.appendChild(element);
+
+        const observerInstance = element.observer as IntersectionObserverMock;
+        observerInstance.trigger([
+          { isIntersecting: true, target: element } as IntersectionObserverEntry,
+        ]);
+
+        // Player should NOT be initialized yet — deferred to idle callback.
+        expect(global.podlovePlayer).not.toHaveBeenCalled();
+
+        // Flush the idle callback.
+        expect(idleCallbacks.length).toBe(1);
+        idleCallbacks[0]();
+
+        expect(global.podlovePlayer).toHaveBeenCalledTimes(1);
+      } finally {
+        globalThis.requestIdleCallback = originalRIC;
+      }
+    });
+
+    it('should fall back to setTimeout when requestIdleCallback is unavailable', () => {
+      vi.useFakeTimers();
+      const originalRIC = globalThis.requestIdleCallback;
+      delete (globalThis as any).requestIdleCallback;
+
+      try {
+        const element = document.createElement('podlove-player');
+        element.setAttribute('id', 'audio_fallback');
+        element.setAttribute('data-url', '/api/audios/podlove/63/post/75/');
+        document.body.appendChild(element);
+
+        const observerInstance = element.observer as IntersectionObserverMock;
+        observerInstance.trigger([
+          { isIntersecting: true, target: element } as IntersectionObserverEntry,
+        ]);
+
+        // Deferred — not yet called.
+        expect(global.podlovePlayer).not.toHaveBeenCalled();
+
+        // Flush the setTimeout(fn, 0).
+        vi.advanceTimersByTime(0);
+
+        expect(global.podlovePlayer).toHaveBeenCalledTimes(1);
+      } finally {
+        globalThis.requestIdleCallback = originalRIC;
+        vi.useRealTimers();
+      }
+    });
+
+    it('should skip initialization if element is disconnected before idle callback runs', () => {
+      const idleCallbacks: (() => void)[] = [];
+      const originalRIC = globalThis.requestIdleCallback;
+      globalThis.requestIdleCallback = ((fn: IdleRequestCallback) => {
+        idleCallbacks.push(() => fn({} as IdleDeadline));
+        return idleCallbacks.length;
+      }) as typeof requestIdleCallback;
+
+      try {
+        const element = document.createElement('podlove-player');
+        element.setAttribute('id', 'audio_disconnect_idle');
+        element.setAttribute('data-url', '/api/audios/podlove/63/post/75/');
+        document.body.appendChild(element);
+
+        const observerInstance = element.observer as IntersectionObserverMock;
+        observerInstance.trigger([
+          { isIntersecting: true, target: element } as IntersectionObserverEntry,
+        ]);
+
+        // Remove element before idle callback fires (e.g., HTMX page swap).
+        document.body.removeChild(element);
+
+        // Flush the idle callback — should be a no-op due to isConnected guard.
+        expect(idleCallbacks.length).toBe(1);
+        idleCallbacks[0]();
+
+        expect(global.podlovePlayer).not.toHaveBeenCalled();
+      } finally {
+        globalThis.requestIdleCallback = originalRIC;
+      }
+    });
+
+    it('should skip stale idle callback when element is disconnected and reattached before idle fires', () => {
+      const idleCallbacks: (() => void)[] = [];
+      const originalRIC = globalThis.requestIdleCallback;
+      globalThis.requestIdleCallback = ((fn: IdleRequestCallback) => {
+        idleCallbacks.push(() => fn({} as IdleDeadline));
+        return idleCallbacks.length;
+      }) as typeof requestIdleCallback;
+
+      try {
+        const element = document.createElement('podlove-player');
+        element.setAttribute('id', 'audio_reattach_race');
+        element.setAttribute('data-url', '/api/audios/podlove/63/post/75/');
+        document.body.appendChild(element);
+
+        const observerInstance = element.observer as IntersectionObserverMock;
+        observerInstance.trigger([
+          { isIntersecting: true, target: element } as IntersectionObserverEntry,
+        ]);
+
+        // Disconnect bumps initVersion, then reattach (isConnected becomes true again).
+        document.body.removeChild(element);
+        document.body.appendChild(element);
+
+        // Flush the stale idle callback — should be a no-op due to initVersion guard.
+        expect(idleCallbacks.length).toBe(1);
+        idleCallbacks[0]();
+
+        // Player should NOT initialize from the stale callback.
+        expect(global.podlovePlayer).not.toHaveBeenCalled();
+      } finally {
+        globalThis.requestIdleCallback = originalRIC;
+      }
+    });
+
+    it('should schedule one idle callback per player when multiple intersect simultaneously', () => {
+      const idleCallbacks: (() => void)[] = [];
+      const originalRIC = globalThis.requestIdleCallback;
+      globalThis.requestIdleCallback = ((fn: IdleRequestCallback) => {
+        idleCallbacks.push(() => fn({} as IdleDeadline));
+        return idleCallbacks.length;
+      }) as typeof requestIdleCallback;
+
+      try {
+        const elements = [1, 2, 3].map((i) => {
+          const el = document.createElement('podlove-player');
+          el.setAttribute('id', `audio_multi_${i}`);
+          el.setAttribute('data-url', `/api/audios/podlove/${i}/post/${i}/`);
+          document.body.appendChild(el);
+          return el;
+        });
+
+        // All three intersect at once.
+        const observer = elements[0].observer as IntersectionObserverMock;
+        observer.trigger(
+          elements.map((el) => ({ isIntersecting: true, target: el } as IntersectionObserverEntry))
+        );
+
+        expect(idleCallbacks.length).toBe(3);
+        expect(global.podlovePlayer).not.toHaveBeenCalled();
+
+        // Flush all idle callbacks.
+        idleCallbacks.forEach((cb) => cb());
+
+        expect(global.podlovePlayer).toHaveBeenCalledTimes(3);
+      } finally {
+        globalThis.requestIdleCallback = originalRIC;
+      }
     });
   });
 });
