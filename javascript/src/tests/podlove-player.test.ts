@@ -355,6 +355,61 @@ describe('PodlovePlayerElement', () => {
     }
   });
 
+  it('should keep dark-mode iframe masked while iframe backgrounds are light', () => {
+    vi.useFakeTimers();
+    const originalPodlovePlayer = global.podlovePlayer;
+    const iframeDoc = document.implementation.createHTMLDocument('iframe');
+    iframeDoc.documentElement.style.backgroundColor = 'rgb(255, 255, 255)';
+    iframeDoc.body.style.backgroundColor = 'rgb(255, 255, 255)';
+    iframeDoc.body.innerHTML = '<div style="background-color: rgb(255, 255, 255); width: 20px; height: 20px;"></div>';
+    global.podlovePlayer = vi.fn((playerHost: HTMLDivElement) => {
+      const iframe = document.createElement('iframe');
+      Object.defineProperty(iframe, 'contentDocument', {
+        configurable: true,
+        get: () => iframeDoc,
+      });
+      playerHost.appendChild(iframe);
+    });
+
+    try {
+      document.documentElement.setAttribute('data-bs-theme', 'dark');
+      const element = document.createElement('podlove-player');
+      element.setAttribute('id', 'audio_63');
+      element.setAttribute('data-url', '/api/audios/podlove/63/post/75/');
+      document.body.appendChild(element);
+
+      const observerInstance = element.observer as IntersectionObserverMock;
+      observerInstance.trigger([
+        { isIntersecting: true, target: element } as IntersectionObserverEntry,
+      ]);
+
+      const container = element.querySelector('.podlove-player-container') as HTMLDivElement | null;
+      const iframe = element.querySelector('iframe') as HTMLIFrameElement | null;
+      expect(container).not.toBeNull();
+      expect(iframe).not.toBeNull();
+
+      iframe?.dispatchEvent(new Event('load'));
+      vi.advanceTimersByTime(1500);
+
+      // Light iframe backgrounds should keep reveal deferred in dark mode.
+      expect(iframe?.style.opacity).toBe('0');
+      expect(iframe?.getAttribute('data-cast-iframe-masked')).toBe('true');
+      expect(container?.getAttribute('data-cast-mask-active')).toBe('true');
+
+      iframeDoc.documentElement.style.backgroundColor = 'rgb(30, 41, 59)';
+      iframeDoc.body.style.backgroundColor = 'rgb(30, 41, 59)';
+      iframeDoc.body.innerHTML = '<div style="background-color: rgb(30, 41, 59); width: 20px; height: 20px;"></div>';
+
+      vi.advanceTimersByTime(240);
+      expect(iframe?.style.opacity).toBe('1');
+      expect(iframe?.getAttribute('data-cast-iframe-masked')).toBeNull();
+      expect(container?.getAttribute('data-cast-mask-active')).toBeNull();
+    } finally {
+      global.podlovePlayer = originalPodlovePlayer;
+      vi.useRealTimers();
+    }
+  });
+
   it('should mask asynchronously created iframe via observer path', async () => {
     vi.useFakeTimers();
     const originalPodlovePlayer = global.podlovePlayer;
