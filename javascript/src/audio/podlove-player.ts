@@ -33,9 +33,6 @@ const PAGING_REMASK_ATTR = "data-cast-paging-remask";
 const PAGING_REMASK_RESTORE_MS = 1600;
 const PAGING_MASK_ACTIVE_ATTR = "data-cast-paging-mask-active";
 const IFRAME_REVEAL_RETRY_WHILE_PAGING_MASK_MS = 50;
-const IFRAME_DARK_READY_RETRY_MS = 120;
-const IFRAME_DARK_READY_MAX_WAIT_MS = 3600;
-const IFRAME_DARK_BG_SAMPLE_LIMIT = 120;
 
 function waitForPageLoad(): Promise<void> {
   if (document.readyState === "complete") {
@@ -178,86 +175,6 @@ function getReservedMinHeightPx(): number {
     return RESERVED_MIN_HEIGHT_MOBILE_PX;
   }
   return RESERVED_MIN_HEIGHT_DESKTOP_PX;
-}
-
-function parseRgbChannels(value: string | null): [number, number, number] | null {
-  if (!value) {
-    return null;
-  }
-  const text = value.trim().toLowerCase();
-  const match = text.match(/^rgba?\(([^)]+)\)$/);
-  if (!match) {
-    return null;
-  }
-  const parts = match[1]
-    .split(",")
-    .slice(0, 3)
-    .map((part) => Number.parseFloat(part.trim()));
-  if (parts.length !== 3 || parts.some((part) => Number.isNaN(part))) {
-    return null;
-  }
-  return [parts[0], parts[1], parts[2]];
-}
-
-function isLightNeutralColor(value: string | null): boolean {
-  const channels = parseRgbChannels(value);
-  if (!channels) {
-    return false;
-  }
-  const [red, green, blue] = channels;
-  return Math.min(red, green, blue) >= 170 && Math.max(red, green, blue) - Math.min(red, green, blue) <= 35;
-}
-
-function elementHasLightBackgroundSignal(element: Element): boolean {
-  const computed = window.getComputedStyle(element).backgroundColor;
-  if (isLightNeutralColor(computed)) {
-    return true;
-  }
-  if (element instanceof HTMLElement && isLightNeutralColor(element.style.backgroundColor || null)) {
-    return true;
-  }
-  return false;
-}
-
-function hasLightIframeBackgroundSignals(iframe: HTMLIFrameElement): boolean {
-  let doc: Document | null = null;
-  try {
-    doc = iframe.contentDocument;
-  } catch {
-    return false;
-  }
-
-  if (!doc || !doc.documentElement) {
-    return false;
-  }
-
-  if (elementHasLightBackgroundSignal(doc.documentElement)) {
-    return true;
-  }
-  if (doc.body && elementHasLightBackgroundSignal(doc.body)) {
-    return true;
-  }
-
-  const sampleRoot: Element = doc.body || doc.documentElement;
-  const walker = doc.createTreeWalker(sampleRoot, NodeFilter.SHOW_ELEMENT);
-  let current: Node | null = walker.currentNode;
-  let sampled = 0;
-  while (current && sampled < IFRAME_DARK_BG_SAMPLE_LIMIT) {
-    if (current instanceof Element) {
-      sampled += 1;
-      const style = window.getComputedStyle(current);
-      const visible =
-        style.display !== "none" &&
-        style.visibility !== "hidden" &&
-        Number.parseFloat(style.opacity || "1") > 0.01;
-      if (visible && elementHasLightBackgroundSignal(current)) {
-        return true;
-      }
-    }
-    current = walker.nextNode();
-  }
-
-  return false;
 }
 
 function forceMaskIframeForPaging(container: HTMLElement, iframe: HTMLIFrameElement): void {
@@ -457,7 +374,6 @@ class PodlovePlayerElement extends HTMLElement {
     const revealDelayMs =
       container.style.colorScheme === "dark" ? IFRAME_REVEAL_DELAY_DARK_MS : IFRAME_REVEAL_DELAY_LIGHT_MS;
     const processedIframes = new WeakSet<HTMLIFrameElement>();
-    const darkRevealStartTimes = new WeakMap<HTMLIFrameElement, number>();
     let latestIframe: HTMLIFrameElement | null = null;
     const isPagingMaskActive = () => {
       const pagingArea = document.querySelector<HTMLElement>(PAGING_AREA_SELECTOR);
@@ -486,20 +402,6 @@ class PodlovePlayerElement extends HTMLElement {
           IFRAME_REVEAL_RETRY_WHILE_PAGING_MASK_MS
         );
         return;
-      }
-      if (container.style.colorScheme === "dark") {
-        let revealStart = darkRevealStartTimes.get(iframe);
-        if (revealStart === undefined) {
-          revealStart = performance.now();
-          darkRevealStartTimes.set(iframe, revealStart);
-        }
-        if (hasLightIframeBackgroundSignals(iframe) && performance.now() - revealStart < IFRAME_DARK_READY_MAX_WAIT_MS) {
-          if (this.iframeRevealDelayTimeoutId !== null) {
-            window.clearTimeout(this.iframeRevealDelayTimeoutId);
-          }
-          this.iframeRevealDelayTimeoutId = window.setTimeout(() => reveal(iframe), IFRAME_DARK_READY_RETRY_MS);
-          return;
-        }
       }
       iframe.style.opacity = "1";
       iframe.style.pointerEvents = "";
