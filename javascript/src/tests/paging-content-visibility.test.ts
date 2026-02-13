@@ -81,6 +81,27 @@ describe("paging-content-visibility", () => {
     expect(pagingArea.getAttribute("data-cast-paging-mask-active")).toBe("true");
   });
 
+  it("marks paging area as podlove-present when podlove players exist", () => {
+    const pagingArea = document.querySelector("#paging-area") as HTMLElement;
+    pagingArea.innerHTML = "<podlove-player></podlove-player>";
+
+    initPagingContentVisibility();
+
+    expect(pagingArea.getAttribute("data-cast-podlove-present")).toBe("true");
+  });
+
+  it("removes podlove-present marker after swaps without podlove players", () => {
+    const pagingArea = document.querySelector("#paging-area") as HTMLElement;
+    pagingArea.innerHTML = "<podlove-player></podlove-player>";
+    initPagingContentVisibility();
+    expect(pagingArea.getAttribute("data-cast-podlove-present")).toBe("true");
+
+    pagingArea.innerHTML = '<article class="post-card">No player</article>';
+    document.dispatchEvent(new CustomEvent("htmx:afterSettle", { detail: { target: pagingArea } }));
+
+    expect(pagingArea.getAttribute("data-cast-podlove-present")).toBeNull();
+  });
+
   it("activates a podlove paging mask on beforeRequest and clears it after settle delay", () => {
     vi.useFakeTimers();
     const pagingArea = document.querySelector("#paging-area") as HTMLElement;

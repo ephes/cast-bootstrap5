@@ -2,6 +2,7 @@ const PAGING_AREA_SELECTOR = "#paging-area";
 const VT_ACTIVE_CLASS = "vt-active";
 const MAX_SCROLL_Y_FOR_TRANSITION = 120;
 const PAGING_MASK_ACTIVE_ATTR = "data-cast-paging-mask-active";
+const PAGING_HAS_PODLOVE_ATTR = "data-cast-podlove-present";
 const PAGING_MASK_SETTLE_DELAY_MS = 300;
 
 let beforeRequestHandler: ((event: Event) => void) | null = null;
@@ -58,6 +59,20 @@ function pagingAreaContainsPodlovePlayer(): boolean {
   }
 
   return pagingArea.querySelector("podlove-player") !== null;
+}
+
+function syncPagingAreaPodlovePresence(): void {
+  const pagingArea = getPagingArea();
+  if (!pagingArea) {
+    return;
+  }
+
+  if (pagingAreaContainsPodlovePlayer()) {
+    pagingArea.setAttribute(PAGING_HAS_PODLOVE_ATTR, "true");
+    return;
+  }
+
+  pagingArea.removeAttribute(PAGING_HAS_PODLOVE_ATTR);
 }
 
 function activatePagingArea(): void {
@@ -120,11 +135,14 @@ export function initPagingContentVisibility(): void {
     return;
   }
 
+  syncPagingAreaPodlovePresence();
+
   if (!beforeRequestHandler) {
     beforeRequestHandler = (event: Event) => {
       if (!eventTargetsPagingArea(event)) {
         return;
       }
+      syncPagingAreaPodlovePresence();
       if (!pagingAreaContainsPodlovePlayer()) {
         return;
       }
@@ -138,6 +156,7 @@ export function initPagingContentVisibility(): void {
       if (!eventTargetsPagingArea(event)) {
         return;
       }
+      syncPagingAreaPodlovePresence();
       if (window.scrollY > MAX_SCROLL_Y_FOR_TRANSITION) {
         event.preventDefault();
         return;
@@ -160,6 +179,7 @@ export function initPagingContentVisibility(): void {
       }
       deactivatePagingArea();
       schedulePagingMaskDeactivation(PAGING_MASK_SETTLE_DELAY_MS);
+      syncPagingAreaPodlovePresence();
     };
     doc.addEventListener("htmx:afterSettle", afterSettleHandler);
   }
@@ -172,6 +192,7 @@ export function initPagingContentVisibility(): void {
       deactivatePagingArea();
       clearPagingMaskTimeout();
       deactivatePagingMask();
+      syncPagingAreaPodlovePresence();
     };
     doc.addEventListener("htmx:responseError", cleanupHandler);
     doc.addEventListener("htmx:sendAbort", cleanupHandler);
@@ -207,6 +228,8 @@ export function destroyPagingContentVisibility(): void {
   cleanupHandler = null;
   deactivatePagingArea();
   deactivatePagingMask();
+  const pagingArea = getPagingArea();
+  pagingArea?.removeAttribute(PAGING_HAS_PODLOVE_ATTR);
 }
 
 if (typeof document !== "undefined") {

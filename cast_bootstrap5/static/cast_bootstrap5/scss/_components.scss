@@ -470,6 +470,13 @@ video {
   content-visibility: auto;
   contain-intrinsic-size: 1px 1200px;
 
+  // Podlove players are sensitive to partial repaints during resizing,
+  // re-theming, lazy-load and HTMX swaps; keep this subtree always rendered.
+  &[data-cast-podlove-present="true"] {
+    content-visibility: visible;
+    contain-intrinsic-size: auto;
+  }
+
   // Prevent compositor white-flash in dark mode: the transparent default
   // exposes uninitialised compositor layers during content-visibility repaints.
   [data-bs-theme="dark"] & {
