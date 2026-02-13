@@ -189,6 +189,51 @@ describe("paging-content-visibility", () => {
     expect(pagingArea.classList.contains("vt-active")).toBe(true);
   });
 
+  it("scrolls to top on htmx:historyRestore after deferred htmx scroll", () => {
+    vi.useFakeTimers();
+    initPagingContentVisibility();
+
+    Object.defineProperty(window, "scrollY", { configurable: true, value: 856 });
+    document.dispatchEvent(new CustomEvent("htmx:historyRestore"));
+
+    // scrollTo is deferred via setTimeout(0) to run after htmx's own
+    // deferred scroll restoration
+    expect(window.scrollTo).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(0);
+    expect(window.scrollTo).toHaveBeenCalledWith(0, 0);
+    vi.useRealTimers();
+  });
+
+  it("overrides htmx deferred scroll restoration on history restore", () => {
+    vi.useFakeTimers();
+    initPagingContentVisibility();
+
+    // Simulate htmx's En() queuing scroll restoration BEFORE historyRestore fires
+    // (this mirrors the real htmx settle→En()→historyRestore sequence)
+    window.setTimeout(() => window.scrollTo(0, 856), 0);
+
+    // Then htmx:historyRestore fires, which queues our scroll-to-top AFTER
+    document.dispatchEvent(new CustomEvent("htmx:historyRestore"));
+
+    // Flush all timers: htmx scroll runs first, then ours wins
+    vi.advanceTimersByTime(0);
+    expect(window.scrollTo).toHaveBeenCalledTimes(2);
+    expect(window.scrollTo).toHaveBeenLastCalledWith(0, 0);
+    vi.useRealTimers();
+  });
+
+  it("does not scroll on htmx:historyRestore when paging area is absent", () => {
+    vi.useFakeTimers();
+    document.body.innerHTML = '<div id="other-content"></div>';
+    initPagingContentVisibility();
+
+    document.dispatchEvent(new CustomEvent("htmx:historyRestore"));
+
+    vi.advanceTimersByTime(0);
+    expect(window.scrollTo).not.toHaveBeenCalled();
+    vi.useRealTimers();
+  });
+
   it("registers each listener once", () => {
     const addEventListenerSpy = vi.spyOn(document, "addEventListener");
 
@@ -198,6 +243,7 @@ describe("paging-content-visibility", () => {
     const beforeTransitionCalls = addEventListenerSpy.mock.calls.filter(([name]) => name === "htmx:beforeTransition");
     const beforeRequestCalls = addEventListenerSpy.mock.calls.filter(([name]) => name === "htmx:beforeRequest");
     const afterSettleCalls = addEventListenerSpy.mock.calls.filter(([name]) => name === "htmx:afterSettle");
+    const historyRestoreCalls = addEventListenerSpy.mock.calls.filter(([name]) => name === "htmx:historyRestore");
     const responseErrorCalls = addEventListenerSpy.mock.calls.filter(([name]) => name === "htmx:responseError");
     const sendAbortCalls = addEventListenerSpy.mock.calls.filter(([name]) => name === "htmx:sendAbort");
     const swapErrorCalls = addEventListenerSpy.mock.calls.filter(([name]) => name === "htmx:swapError");
@@ -205,6 +251,7 @@ describe("paging-content-visibility", () => {
     expect(beforeTransitionCalls).toHaveLength(1);
     expect(beforeRequestCalls).toHaveLength(1);
     expect(afterSettleCalls).toHaveLength(1);
+    expect(historyRestoreCalls).toHaveLength(1);
     expect(responseErrorCalls).toHaveLength(1);
     expect(sendAbortCalls).toHaveLength(1);
     expect(swapErrorCalls).toHaveLength(1);

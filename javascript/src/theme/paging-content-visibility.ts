@@ -8,6 +8,7 @@ const PAGING_MASK_SETTLE_DELAY_MS = 300;
 let beforeRequestHandler: ((event: Event) => void) | null = null;
 let beforeTransitionHandler: ((event: Event) => void) | null = null;
 let afterSettleHandler: ((event: Event) => void) | null = null;
+let historyRestoreHandler: ((event: Event) => void) | null = null;
 let cleanupHandler: ((event: Event) => void) | null = null;
 let pagingMaskTimeoutId: number | null = null;
 
@@ -184,6 +185,21 @@ export function initPagingContentVisibility(): void {
     doc.addEventListener("htmx:afterSettle", afterSettleHandler);
   }
 
+  if (!historyRestoreHandler) {
+    historyRestoreHandler = () => {
+      if (!getPagingArea()) {
+        return;
+      }
+      // Defer scroll-to-top so it runs after htmx's own deferred scroll
+      // restoration. htmx queues setTimeout(scrollTo(savedY), 0) during
+      // settle (which runs synchronously when settleDelay=0), then fires
+      // htmx:historyRestore. Our setTimeout is queued after theirs, so
+      // FIFO ordering guarantees we execute last.
+      window.setTimeout(() => window.scrollTo(0, 0), 0);
+    };
+    doc.addEventListener("htmx:historyRestore", historyRestoreHandler);
+  }
+
   if (!cleanupHandler) {
     cleanupHandler = (event: Event) => {
       if (!eventTargetsPagingArea(event)) {
@@ -215,6 +231,9 @@ export function destroyPagingContentVisibility(): void {
   if (afterSettleHandler) {
     doc.removeEventListener("htmx:afterSettle", afterSettleHandler);
   }
+  if (historyRestoreHandler) {
+    doc.removeEventListener("htmx:historyRestore", historyRestoreHandler);
+  }
   if (cleanupHandler) {
     doc.removeEventListener("htmx:responseError", cleanupHandler);
     doc.removeEventListener("htmx:sendAbort", cleanupHandler);
@@ -225,6 +244,7 @@ export function destroyPagingContentVisibility(): void {
   beforeRequestHandler = null;
   beforeTransitionHandler = null;
   afterSettleHandler = null;
+  historyRestoreHandler = null;
   cleanupHandler = null;
   deactivatePagingArea();
   deactivatePagingMask();
