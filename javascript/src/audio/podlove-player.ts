@@ -48,15 +48,8 @@ function waitForPageLoad(): Promise<void> {
   return pageLoadPromise;
 }
 
-const IDLE_CALLBACK_TIMEOUT_MS = 2000;
-
-function deferToIdle(fn: () => void): void {
-  if (typeof requestIdleCallback === "function") {
-    requestIdleCallback(() => fn(), { timeout: IDLE_CALLBACK_TIMEOUT_MS });
-  } else {
-    setTimeout(fn, 0);
-  }
-}
+const FACADE_BTN_CLASS = "podlove-player-facade-btn";
+const FACADE_LOADING_CLASS = "podlove-player-facade-loading";
 
 function getSharedObserver(): IntersectionObserver {
   if (!sharedObserver) {
@@ -70,12 +63,7 @@ function getSharedObserver(): IntersectionObserver {
         observer.unobserve(target);
 
         if (target instanceof PodlovePlayerElement) {
-          const versionAtSchedule = target.initVersion;
-          deferToIdle(() => {
-            if (target.isConnected && target.initVersion === versionAtSchedule) {
-              target.initializePlayer();
-            }
-          });
+          target.showFacade();
         }
       });
     });
@@ -304,6 +292,9 @@ class PodlovePlayerElement extends HTMLElement {
       this.observer.unobserve(this);
     }
     this.clearIframeMasking();
+    // Remove stale facade elements so they don't persist after reattach
+    this.querySelector(`.${FACADE_LOADING_CLASS}`)?.remove();
+    this.querySelector(`.${FACADE_BTN_CLASS}`)?.remove();
     // Invalidate any in-flight async init and allow re-init on reattach
     this.initVersion += 1;
     this.isInitialized = false;
@@ -451,6 +442,8 @@ class PodlovePlayerElement extends HTMLElement {
       processedIframes.add(iframe);
       latestIframe = iframe;
       this.getOrCreateRevealShield(container);
+      const facadeSpinner = container.querySelector(`.${FACADE_LOADING_CLASS}`);
+      if (facadeSpinner) facadeSpinner.remove();
       iframe.setAttribute(IFRAME_MASKED_ATTR, "true");
       iframe.style.opacity = "0";
       iframe.style.pointerEvents = "none";
@@ -535,6 +528,47 @@ class PodlovePlayerElement extends HTMLElement {
           position: relative;
           z-index: 1;
         }
+        podlove-player .podlove-player-facade-btn {
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          width: 68px;
+          height: 68px;
+          border-radius: 50%;
+          border: none;
+          background: rgba(0, 0, 0, 0.6);
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 1;
+          transition: transform 0.15s ease, background-color 0.15s ease;
+        }
+        podlove-player .podlove-player-facade-btn:hover {
+          transform: translate(-50%, -50%) scale(1.1);
+          background: rgba(0, 0, 0, 0.8);
+        }
+        podlove-player .podlove-player-facade-btn:focus-visible {
+          outline: 3px solid #6aa5ff;
+          outline-offset: 3px;
+        }
+        podlove-player .podlove-player-facade-loading {
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          width: 40px;
+          height: 40px;
+          margin: -20px 0 0 -20px;
+          border: 4px solid rgba(0, 0, 0, 0.15);
+          border-top-color: #1a1a1a;
+          border-radius: 50%;
+          animation: podlove-facade-spin 0.8s linear infinite;
+          z-index: 1;
+        }
+        @keyframes podlove-facade-spin {
+          to { transform: rotate(360deg); }
+        }
         podlove-player .podlove-player-container .${REVEAL_SHIELD_CLASS} {
           position: absolute;
           inset: 0;
@@ -555,12 +589,23 @@ class PodlovePlayerElement extends HTMLElement {
             background-color: ${DARK_LOADING_BG};
             color-scheme: dark;
           }
+          podlove-player .podlove-player-facade-loading {
+            border-color: rgba(255, 255, 255, 0.15);
+            border-top-color: #ffffff;
+          }
         }
         html[data-bs-theme="dark"] podlove-player .podlove-player-container,
         html[data-theme="dark"] podlove-player .podlove-player-container,
         body[data-bs-theme="dark"] podlove-player .podlove-player-container,
         body[data-theme="dark"] podlove-player .podlove-player-container {
           background-color: ${DARK_LOADING_BG};
+        }
+        html[data-bs-theme="dark"] podlove-player .podlove-player-facade-loading,
+        html[data-theme="dark"] podlove-player .podlove-player-facade-loading,
+        body[data-bs-theme="dark"] podlove-player .podlove-player-facade-loading,
+        body[data-theme="dark"] podlove-player .podlove-player-facade-loading {
+          border-color: rgba(255, 255, 255, 0.15);
+          border-top-color: #ffffff;
         }
         html[data-bs-theme="dark"] podlove-player .podlove-player-container iframe,
         html[data-theme="dark"] podlove-player .podlove-player-container iframe,
@@ -598,6 +643,38 @@ class PodlovePlayerElement extends HTMLElement {
   observeElement() {
     this.observer = getSharedObserver();
     this.observer.observe(this);
+  }
+
+  showFacade() {
+    if (this.isInitialized || !this.getAttribute("data-url")) {
+      return;
+    }
+    const container = this.querySelector(".podlove-player-container");
+    if (!container || container.querySelector(`.${FACADE_BTN_CLASS}`)) {
+      return;
+    }
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = FACADE_BTN_CLASS;
+    btn.setAttribute("aria-label", "Play");
+    btn.innerHTML =
+      '<svg viewBox="0 0 24 24" width="28" height="28" fill="white" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>';
+    btn.addEventListener("click", () => this.handleFacadeClick(), { once: true });
+    container.appendChild(btn);
+  }
+
+  handleFacadeClick() {
+    if (this.isInitialized || !this.isConnected || !this.getAttribute("data-url")) {
+      return;
+    }
+    const container = this.querySelector(".podlove-player-container");
+    if (!container) return;
+    const btn = container.querySelector(`.${FACADE_BTN_CLASS}`);
+    if (btn) btn.remove();
+    const spinner = document.createElement("div");
+    spinner.className = FACADE_LOADING_CLASS;
+    container.appendChild(spinner);
+    this.initializePlayer();
   }
 
   initializePlayer() {
@@ -669,6 +746,8 @@ class PodlovePlayerElement extends HTMLElement {
           if (currentVersion === this.initVersion) {
             this.isInitialized = false;
             this.clearReservedHeight(container);
+            const spinner = this.querySelector(`.${FACADE_LOADING_CLASS}`);
+            if (spinner) spinner.remove();
           }
           // Intentionally silent: the placeholder remains and avoids console spam.
         });
