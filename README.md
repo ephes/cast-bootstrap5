@@ -72,6 +72,24 @@ cp dist/* ../cast_bootstrap5/static/cast_bootstrap5/vite
 cp dist/.vite/manifest.json ../cast_bootstrap5/static/cast_bootstrap5/vite
 ```
 
+### Purge unused Bootstrap CSS
+
+After upgrading `bootstrap.min.css`, re-run PurgeCSS to strip unused rules:
+
+```shell
+npm run purge:bootstrap
+```
+
+This scans templates and JS from cast-bootstrap5 plus sibling repos to
+determine which Bootstrap classes are actually used. Requirements:
+
+- **Required**: `../django-cast` must be cloned alongside cast-bootstrap5
+- **Optional**: `../homepage` and `../python-podcast` — if missing, a warning
+  is printed (classes only used in those repos may be incorrectly purged)
+
+The purged CSS is written back to
+`cast_bootstrap5/static/cast_bootstrap5/css/bootstrap5/bootstrap.min.css`.
+
 ### Run tests
 
 ```shell
