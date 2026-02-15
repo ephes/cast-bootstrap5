@@ -111,18 +111,24 @@
 // -----------------------------------------------------------------------------
 // Make .btn-primary use our accent color
 .btn-primary {
+  --bs-btn-color: #1c1917;
   --bs-btn-bg: var(--cast-accent);
   --bs-btn-border-color: var(--cast-accent);
+  --bs-btn-hover-color: #fff;
   --bs-btn-hover-bg: var(--cast-accent-hover);
   --bs-btn-hover-border-color: var(--cast-accent-hover);
+  --bs-btn-active-color: #fff;
   --bs-btn-active-bg: var(--cast-accent-hover);
   --bs-btn-active-border-color: var(--cast-accent-hover);
   --bs-btn-focus-shadow-rgb: 217, 119, 6;
+  --bs-btn-disabled-color: #1c1917;
   --bs-btn-disabled-bg: var(--cast-accent);
   --bs-btn-disabled-border-color: var(--cast-accent);
 }
 
 [data-bs-theme="dark"] .btn-primary {
+  --bs-btn-hover-color: #1c1917;
+  --bs-btn-active-color: #1c1917;
   --bs-btn-focus-shadow-rgb: 251, 191, 36;
 }
 
@@ -143,14 +149,15 @@
 
 // Outline primary button
 .btn-outline-primary {
-  --bs-btn-color: var(--cast-accent);
+  --bs-btn-color: var(--cast-link-on-white);
   --bs-btn-border-color: var(--cast-accent);
   --bs-btn-hover-bg: var(--cast-accent);
   --bs-btn-hover-border-color: var(--cast-accent);
-  --bs-btn-hover-color: #fff;
+  --bs-btn-hover-color: #1c1917;
   --bs-btn-active-bg: var(--cast-accent);
   --bs-btn-active-border-color: var(--cast-accent);
-  --bs-btn-active-color: #fff;
+  --bs-btn-active-color: #1c1917;
+  --bs-btn-disabled-color: var(--cast-link-on-white);
   --bs-btn-focus-shadow-rgb: 217, 119, 6;
 }
 
@@ -231,6 +238,12 @@
   --bs-pagination-disabled-color: var(--cast-text-muted);
   --bs-pagination-disabled-bg: var(--cast-bg);
   --bs-pagination-disabled-border-color: var(--cast-border);
+}
+
+// Direct override for disabled pagination links to ensure contrast
+// (bypasses CSS variable chain that may be overridden by Bootstrap defaults)
+.page-item.disabled > .page-link {
+  color: var(--cast-text-muted);
 }
 
 // -----------------------------------------------------------------------------
