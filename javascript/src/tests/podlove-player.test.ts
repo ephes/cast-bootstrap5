@@ -1564,6 +1564,129 @@ describe('PodlovePlayerElement', () => {
       expect(element.style.minHeight).toBe('297px');
     });
 
+    it('should remove facade-inner and reveal iframe on load in facade mode', () => {
+      vi.useFakeTimers();
+      const originalPodlovePlayer = global.podlovePlayer;
+      global.podlovePlayer = vi.fn((playerHost: HTMLDivElement) => {
+        const iframe = document.createElement('iframe');
+        playerHost.appendChild(iframe);
+      });
+
+      try {
+        const element = createFacadeElement({ withCover: true });
+        document.body.appendChild(element);
+
+        const container = element.querySelector('.podlove-player-container') as HTMLElement;
+        // Trigger facade load via hover
+        container.dispatchEvent(new MouseEvent('mouseenter'));
+
+        // Facade-inner should be positioned absolutely as overlay
+        const facadeInner = element.querySelector('.podlove-facade-inner') as HTMLElement;
+        expect(facadeInner).not.toBeNull();
+        expect(facadeInner.style.position).toBe('absolute');
+
+        // Container should lose .podlove-facade class
+        expect(container.classList.contains('podlove-facade')).toBe(false);
+
+        // Iframe should be masked
+        const iframe = element.querySelector('iframe') as HTMLIFrameElement;
+        expect(iframe).not.toBeNull();
+        expect(iframe.style.opacity).toBe('0');
+
+        // Simulate iframe load
+        iframe.dispatchEvent(new Event('load'));
+
+        // Advance past reveal delay (100ms for light mode)
+        vi.advanceTimersByTime(100);
+
+        // Facade-inner should be removed
+        expect(element.querySelector('.podlove-facade-inner')).toBeNull();
+
+        // Iframe should be visible
+        expect(iframe.style.opacity).toBe('1');
+        expect(iframe.style.pointerEvents).toBe('');
+      } finally {
+        global.podlovePlayer = originalPodlovePlayer;
+        vi.useRealTimers();
+      }
+    });
+
+    it('should use dark-mode reveal timings in facade mode', () => {
+      vi.useFakeTimers();
+      const originalPodlovePlayer = global.podlovePlayer;
+      global.podlovePlayer = vi.fn((playerHost: HTMLDivElement) => {
+        const iframe = document.createElement('iframe');
+        playerHost.appendChild(iframe);
+      });
+
+      try {
+        document.documentElement.setAttribute('data-bs-theme', 'dark');
+        const element = createFacadeElement();
+        document.body.appendChild(element);
+
+        const container = element.querySelector('.podlove-player-container') as HTMLElement;
+        container.dispatchEvent(new MouseEvent('mouseenter'));
+
+        const iframe = element.querySelector('iframe') as HTMLIFrameElement;
+        expect(iframe).not.toBeNull();
+        expect(iframe.style.opacity).toBe('0');
+
+        iframe.dispatchEvent(new Event('load'));
+
+        // Light-mode delay (100ms) should NOT reveal in dark facade mode
+        vi.advanceTimersByTime(100);
+        expect(iframe.style.opacity).toBe('0');
+
+        // Dark-mode delay (900ms) should reveal
+        vi.advanceTimersByTime(800);
+        expect(iframe.style.opacity).toBe('1');
+        expect(element.querySelector('.podlove-facade-inner')).toBeNull();
+      } finally {
+        global.podlovePlayer = originalPodlovePlayer;
+        vi.useRealTimers();
+      }
+    });
+
+    it('should remove facade-inner via fallback when container ref misses it', () => {
+      vi.useFakeTimers();
+      const originalPodlovePlayer = global.podlovePlayer;
+      global.podlovePlayer = vi.fn((playerHost: HTMLDivElement) => {
+        const iframe = document.createElement('iframe');
+        playerHost.appendChild(iframe);
+      });
+
+      try {
+        const element = createFacadeElement();
+        document.body.appendChild(element);
+
+        const container = element.querySelector('.podlove-player-container') as HTMLElement;
+        container.dispatchEvent(new MouseEvent('mouseenter'));
+
+        const iframe = element.querySelector('iframe') as HTMLIFrameElement;
+        expect(iframe).not.toBeNull();
+
+        // Move facade-inner out of the container but still inside the custom
+        // element, simulating a DOM restructuring (htmx swap / View Transitions).
+        const facadeInner = element.querySelector('.podlove-facade-inner') as HTMLElement;
+        expect(facadeInner).not.toBeNull();
+        element.appendChild(facadeInner);
+
+        // container.querySelector won't find it, but this.querySelector will
+        expect(container.querySelector('.podlove-facade-inner')).toBeNull();
+        expect(element.querySelector('.podlove-facade-inner')).not.toBeNull();
+
+        iframe.dispatchEvent(new Event('load'));
+        vi.advanceTimersByTime(100);
+
+        // Fallback should have removed it
+        expect(element.querySelector('.podlove-facade-inner')).toBeNull();
+        expect(iframe.style.opacity).toBe('1');
+      } finally {
+        global.podlovePlayer = originalPodlovePlayer;
+        vi.useRealTimers();
+      }
+    });
+
     it('should preserve reserved min-height in injected styles for non-facade containers', () => {
       // Remove any existing style element from previous tests
       document.getElementById('podlove-player-styles')?.remove();

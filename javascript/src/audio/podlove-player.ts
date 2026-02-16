@@ -452,6 +452,9 @@ class PodlovePlayerElement extends HTMLElement {
       }
       // Remove facade overlay now that the iframe is ready
       container.querySelector(".podlove-facade-inner")?.remove();
+      // Fallback: also search the custom element itself in case the container
+      // reference diverged from the live DOM (e.g. htmx swap / View Transitions).
+      this.querySelector(".podlove-facade-inner")?.remove();
       iframe.style.opacity = "1";
       iframe.style.pointerEvents = "";
       iframe.style.removeProperty("transition");
@@ -799,7 +802,16 @@ class PodlovePlayerElement extends HTMLElement {
     if (container instanceof HTMLElement && !this.isFacadeMode()) {
       this.applyReservedHeight(container);
     }
-    this.applyLoadingTheme(container);
+    if (this.isFacadeMode()) {
+      // Facade containers are themed by SCSS — skip inline backgroundColor.
+      // But set colorScheme so that reveal-timing logic (which reads
+      // container.style.colorScheme) uses the correct dark/light delays.
+      if (container instanceof HTMLElement) {
+        container.style.colorScheme = getColorScheme() === "dark" ? "dark" : "light";
+      }
+    } else {
+      this.applyLoadingTheme(container);
+    }
 
     let audioId = this.getAttribute('id');
     if (!audioId) {
@@ -830,7 +842,6 @@ class PodlovePlayerElement extends HTMLElement {
 
     if (typeof podlovePlayer === 'function') {
       // Initialize existing Podlove player
-      this.maskIframeUntilReady(container, currentVersion);
       podlovePlayer(playerHost, url, configUrl);
       this.maskIframeUntilReady(container, currentVersion);
     } else {
@@ -845,7 +856,6 @@ class PodlovePlayerElement extends HTMLElement {
             return; // Stale: a reinitialize or disconnect happened while loading
           }
           if (typeof podlovePlayer === "function") {
-            this.maskIframeUntilReady(container, currentVersion);
             podlovePlayer(playerHost, url, configUrl);
             this.maskIframeUntilReady(container, currentVersion);
             return;
