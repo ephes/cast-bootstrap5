@@ -841,6 +841,103 @@ podlove-player {
   }
 }
 
+// Podlove facade — server-rendered placeholder for listing pages
+.podlove-facade {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--cast-spacer-3);
+  min-height: 297px;
+  background-color: var(--cast-surface);
+  border: 1px solid var(--cast-border);
+  border-radius: var(--cast-border-radius);
+
+  @media (max-width: 768px) {
+    flex-direction: column;
+    text-align: center;
+    min-height: 309px;
+    gap: var(--cast-spacer-3);
+  }
+
+  [data-bs-theme="dark"] & {
+    background-color: var(--cast-surface);
+    border-color: var(--cast-border);
+  }
+}
+
+.podlove-facade-content {
+  display: flex;
+  align-items: center;
+  gap: var(--cast-spacer-3);
+  flex: 1;
+  min-width: 0;
+
+  @media (max-width: 768px) {
+    flex-direction: column;
+  }
+}
+
+.podlove-facade-cover {
+  width: 120px;
+  height: 120px;
+  border-radius: var(--cast-border-radius);
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.podlove-facade-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.podlove-facade-title {
+  font-weight: var(--cast-font-weight-semibold);
+  color: var(--cast-text);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.podlove-facade-duration {
+  color: var(--cast-text-muted);
+  font-size: var(--cast-font-size-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.podlove-facade-play {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 68px;
+  height: 68px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: none;
+  background-color: var(--cast-accent);
+  color: #fff;
+  cursor: pointer;
+  transition: transform var(--cast-transition-fast), background-color var(--cast-transition-fast);
+
+  &:hover {
+    transform: scale(1.1);
+    background-color: var(--cast-accent-hover);
+  }
+
+  &:focus-visible {
+    outline: 3px solid var(--cast-accent);
+    outline-offset: 3px;
+  }
+
+  // Hide play button while loading
+  .is-loading & {
+    display: none;
+  }
+}
+
 // -----------------------------------------------------------------------------
 // Navigation
 // -----------------------------------------------------------------------------

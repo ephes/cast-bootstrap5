@@ -1315,4 +1315,206 @@ describe('PodlovePlayerElement', () => {
       expect(element.querySelector('.podlove-player-facade-loading')).toBeNull();
     });
   });
+
+  describe('server-rendered facade mode', () => {
+    /** Helper: create a podlove-player with server-rendered facade HTML inside. */
+    function createFacadeElement(opts?: { withCover?: boolean }): HTMLElement {
+      const element = document.createElement('podlove-player');
+      element.setAttribute('id', 'audio_facade');
+      element.setAttribute('data-url', '/api/audios/podlove/63/post/75/');
+      element.setAttribute('data-load-mode', 'facade');
+
+      // Simulate server-rendered HTML inside the element
+      const container = document.createElement('div');
+      container.className = 'podlove-player-container podlove-facade';
+
+      const content = document.createElement('div');
+      content.className = 'podlove-facade-content';
+
+      if (opts?.withCover) {
+        const img = document.createElement('img');
+        img.className = 'podlove-facade-cover';
+        img.src = '/media/cover.jpg';
+        img.alt = 'Episode Cover';
+        content.appendChild(img);
+      }
+
+      const info = document.createElement('div');
+      info.className = 'podlove-facade-info';
+      const title = document.createElement('div');
+      title.className = 'podlove-facade-title';
+      title.textContent = 'Episode Title';
+      info.appendChild(title);
+      const duration = document.createElement('div');
+      duration.className = 'podlove-facade-duration';
+      duration.textContent = '1:23:45';
+      info.appendChild(duration);
+      content.appendChild(info);
+      container.appendChild(content);
+
+      const playBtn = document.createElement('button');
+      playBtn.type = 'button';
+      playBtn.className = 'podlove-facade-play';
+      playBtn.setAttribute('aria-label', 'Play');
+      playBtn.innerHTML = '<svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
+      container.appendChild(playBtn);
+
+      element.appendChild(container);
+      return element;
+    }
+
+    it('should skip IntersectionObserver in facade mode', () => {
+      const observeSpy = vi.spyOn(IntersectionObserver.prototype, 'observe');
+      const element = createFacadeElement();
+      document.body.appendChild(element);
+
+      expect(observeSpy).not.toHaveBeenCalled();
+      observeSpy.mockRestore();
+    });
+
+    it('should not create a duplicate container for server-rendered facade', () => {
+      const element = createFacadeElement();
+      document.body.appendChild(element);
+
+      const containers = element.querySelectorAll('.podlove-player-container');
+      expect(containers.length).toBe(1);
+    });
+
+    it('should trigger player load on mouseenter (hover)', () => {
+      const element = createFacadeElement();
+      document.body.appendChild(element);
+
+      expect(global.podlovePlayer).not.toHaveBeenCalled();
+
+      const container = element.querySelector('.podlove-player-container') as HTMLElement;
+      container.dispatchEvent(new MouseEvent('mouseenter'));
+
+      expect(global.podlovePlayer).toHaveBeenCalledTimes(1);
+    });
+
+    it('should trigger player load on touchstart (tap)', () => {
+      const element = createFacadeElement();
+      document.body.appendChild(element);
+
+      expect(global.podlovePlayer).not.toHaveBeenCalled();
+
+      const container = element.querySelector('.podlove-player-container') as HTMLElement;
+      container.dispatchEvent(new TouchEvent('touchstart'));
+
+      expect(global.podlovePlayer).toHaveBeenCalledTimes(1);
+    });
+
+    it('should trigger player load on play button focus (keyboard)', () => {
+      const element = createFacadeElement();
+      document.body.appendChild(element);
+
+      expect(global.podlovePlayer).not.toHaveBeenCalled();
+
+      const playBtn = element.querySelector('.podlove-facade-play') as HTMLButtonElement;
+      playBtn.dispatchEvent(new FocusEvent('focus'));
+
+      expect(global.podlovePlayer).toHaveBeenCalledTimes(1);
+    });
+
+    it('should trigger player load on play button click (fallback)', () => {
+      const element = createFacadeElement();
+      document.body.appendChild(element);
+
+      expect(global.podlovePlayer).not.toHaveBeenCalled();
+
+      const playBtn = element.querySelector('.podlove-facade-play') as HTMLButtonElement;
+      playBtn.click();
+
+      expect(global.podlovePlayer).toHaveBeenCalledTimes(1);
+    });
+
+    it('should only trigger once even if multiple events fire', () => {
+      const element = createFacadeElement();
+      document.body.appendChild(element);
+
+      const container = element.querySelector('.podlove-player-container') as HTMLElement;
+      const playBtn = element.querySelector('.podlove-facade-play') as HTMLButtonElement;
+
+      // Fire multiple events
+      container.dispatchEvent(new MouseEvent('mouseenter'));
+      playBtn.dispatchEvent(new FocusEvent('focus'));
+      playBtn.click();
+
+      expect(global.podlovePlayer).toHaveBeenCalledTimes(1);
+    });
+
+    it('should show spinner and add is-loading class after trigger', () => {
+      const originalPodlovePlayer = global.podlovePlayer;
+      global.podlovePlayer = undefined;
+
+      try {
+        const element = createFacadeElement();
+        document.body.appendChild(element);
+
+        const container = element.querySelector('.podlove-player-container') as HTMLElement;
+        container.dispatchEvent(new MouseEvent('mouseenter'));
+
+        expect(container.classList.contains('is-loading')).toBe(true);
+        expect(element.querySelector('.podlove-player-facade-loading')).not.toBeNull();
+      } finally {
+        global.podlovePlayer = originalPodlovePlayer;
+      }
+    });
+
+    it('should remove facade content when iframe is detected', () => {
+      const originalPodlovePlayer = global.podlovePlayer;
+      global.podlovePlayer = vi.fn((playerHost: HTMLDivElement) => {
+        const iframe = document.createElement('iframe');
+        playerHost.appendChild(iframe);
+      });
+
+      try {
+        const element = createFacadeElement({ withCover: true });
+        document.body.appendChild(element);
+
+        const container = element.querySelector('.podlove-player-container') as HTMLElement;
+        container.dispatchEvent(new MouseEvent('mouseenter'));
+
+        // Facade content should be removed
+        expect(element.querySelector('.podlove-facade-content')).toBeNull();
+        expect(element.querySelector('.podlove-facade-play')).toBeNull();
+        expect(container.classList.contains('podlove-facade')).toBe(false);
+      } finally {
+        global.podlovePlayer = originalPodlovePlayer;
+      }
+    });
+
+    it('should clean up AbortController on disconnect', () => {
+      const element = createFacadeElement();
+      document.body.appendChild(element);
+
+      expect((element as any).facadeAbortController).not.toBeNull();
+
+      document.body.removeChild(element);
+
+      expect((element as any).facadeAbortController).toBeNull();
+    });
+
+    it('should apply reserved height and theme in facade mode', () => {
+      const element = createFacadeElement();
+      document.body.appendChild(element);
+
+      const container = element.querySelector('.podlove-player-container') as HTMLElement;
+      expect(container.style.minHeight).toBe('297px');
+      expect(element.style.minHeight).toBe('297px');
+    });
+
+    it('should inject player styles even when server-rendered container exists', () => {
+      // Remove any existing style element from previous tests
+      document.getElementById('podlove-player-styles')?.remove();
+
+      const element = createFacadeElement();
+      document.body.appendChild(element);
+
+      const styleEl = document.getElementById('podlove-player-styles');
+      expect(styleEl).not.toBeNull();
+      expect(styleEl?.textContent).toContain('podlove-player-facade-loading');
+      expect(styleEl?.textContent).toContain('podlove-player-reveal-shield');
+    });
+  });
 });

@@ -47,9 +47,11 @@
 
     <div id="paging-area" hx-history-elt>
       <div class="post-list">
-        {% for post in posts %}
-          {% include "./post_body.html" with render_detail=False page=post %}
-        {% endfor %}
+        {% with podlove_load_mode="facade" %}
+          {% for post in posts %}
+            {% include "./post_body.html" with render_detail=False page=post %}
+          {% endfor %}
+        {% endwith %}
       </div>
 
       <footer>
