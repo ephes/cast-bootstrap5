@@ -288,7 +288,6 @@ class PodlovePlayerElement extends HTMLElement {
     if (this.isFacadeMode()) {
       const container = this.querySelector(".podlove-player-container");
       if (container instanceof HTMLElement) {
-        this.applyReservedHeight(container);
         this.applyLoadingTheme(container);
       }
       this.setupFacadeInteraction();
@@ -527,15 +526,19 @@ class PodlovePlayerElement extends HTMLElement {
       podlove-player .podlove-player-container {
         width: 100%;
         max-width: 936px;
-        min-height: ${RESERVED_MIN_HEIGHT_DESKTOP_PX}px;
         margin: 0 auto;
         position: relative;
         overflow: hidden;
         background-color: ${LIGHT_LOADING_BG};
       }
+      podlove-player .podlove-player-container:not(.podlove-facade) {
+        min-height: ${RESERVED_MIN_HEIGHT_DESKTOP_PX}px;
+      }
       @media (max-width: 768px) {
         podlove-player .podlove-player-container {
           max-width: 366px;
+        }
+        podlove-player .podlove-player-container:not(.podlove-facade) {
           min-height: ${RESERVED_MIN_HEIGHT_MOBILE_PX}px;
         }
       }
@@ -755,7 +758,7 @@ class PodlovePlayerElement extends HTMLElement {
     if (!container) {
       return;
     }
-    if (container instanceof HTMLElement) {
+    if (container instanceof HTMLElement && !this.isFacadeMode()) {
       this.applyReservedHeight(container);
     }
     this.applyLoadingTheme(container);

@@ -1495,13 +1495,16 @@ describe('PodlovePlayerElement', () => {
       expect((element as any).facadeAbortController).toBeNull();
     });
 
-    it('should apply reserved height and theme in facade mode', () => {
+    it('should apply theme but not reserved height in facade mode', () => {
       const element = createFacadeElement();
       document.body.appendChild(element);
 
       const container = element.querySelector('.podlove-player-container') as HTMLElement;
-      expect(container.style.minHeight).toBe('297px');
-      expect(element.style.minHeight).toBe('297px');
+      // Facade should NOT get the large reserved height — CSS handles sizing
+      expect(container.style.minHeight).toBe('');
+      expect(element.style.minHeight).toBe('');
+      // Theme should still be applied
+      expect(container.style.backgroundColor).toBeTruthy();
     });
 
     it('should inject player styles even when server-rendered container exists', () => {
@@ -1515,6 +1518,33 @@ describe('PodlovePlayerElement', () => {
       expect(styleEl).not.toBeNull();
       expect(styleEl?.textContent).toContain('podlove-player-facade-loading');
       expect(styleEl?.textContent).toContain('podlove-player-reveal-shield');
+    });
+
+    it('should not apply reserved height during initializePlayer for facade mode', () => {
+      const element = createFacadeElement();
+      document.body.appendChild(element);
+
+      const container = element.querySelector('.podlove-player-container') as HTMLElement;
+      // Trigger facade load (hover)
+      container.dispatchEvent(new MouseEvent('mouseenter'));
+
+      // After initializePlayer runs, facade container should still have no forced min-height
+      expect(container.style.minHeight).toBe('');
+      expect(element.style.minHeight).toBe('');
+    });
+
+    it('should preserve reserved min-height in injected styles for non-facade containers', () => {
+      // Remove any existing style element from previous tests
+      document.getElementById('podlove-player-styles')?.remove();
+
+      const element = createFacadeElement();
+      document.body.appendChild(element);
+
+      const styleEl = document.getElementById('podlove-player-styles');
+      expect(styleEl).not.toBeNull();
+      // The :not(.podlove-facade) guard ensures non-facade containers still get reserved height
+      expect(styleEl?.textContent).toContain(':not(.podlove-facade)');
+      expect(styleEl?.textContent).toContain('min-height');
     });
   });
 });
