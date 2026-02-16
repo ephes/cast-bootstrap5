@@ -1495,6 +1495,32 @@ describe('PodlovePlayerElement', () => {
       expect((element as any).facadeAbortController).toBeNull();
     });
 
+    it('should clear expanded and loading state on disconnect for clean reattach', () => {
+      const originalPodlovePlayer = global.podlovePlayer;
+      global.podlovePlayer = undefined;
+
+      try {
+        const element = createFacadeElement();
+        document.body.appendChild(element);
+
+        const container = element.querySelector('.podlove-player-container') as HTMLElement;
+        // Trigger hover to expand and start loading
+        container.dispatchEvent(new MouseEvent('mouseenter'));
+        expect(container.style.minHeight).toBe('297px');
+        expect(container.classList.contains('is-loading')).toBe(true);
+
+        // Disconnect mid-load
+        document.body.removeChild(element);
+
+        // Expanded and loading state should be cleared
+        expect(container.style.minHeight).toBe('');
+        expect(container.classList.contains('is-loading')).toBe(false);
+        expect(element.style.minHeight).toBe('');
+      } finally {
+        global.podlovePlayer = originalPodlovePlayer;
+      }
+    });
+
     it('should apply theme but not reserved height in facade mode', () => {
       const element = createFacadeElement();
       document.body.appendChild(element);
@@ -1520,17 +1546,21 @@ describe('PodlovePlayerElement', () => {
       expect(styleEl?.textContent).toContain('podlove-player-reveal-shield');
     });
 
-    it('should not apply reserved height during initializePlayer for facade mode', () => {
+    it('should apply reserved height at interaction time, not at connect time', () => {
       const element = createFacadeElement();
       document.body.appendChild(element);
 
       const container = element.querySelector('.podlove-player-container') as HTMLElement;
+      // At connect time: no reserved height (facade is compact)
+      expect(container.style.minHeight).toBe('');
+      expect(element.style.minHeight).toBe('');
+
       // Trigger facade load (hover)
       container.dispatchEvent(new MouseEvent('mouseenter'));
 
-      // After initializePlayer runs, facade container should still have no forced min-height
-      expect(container.style.minHeight).toBe('');
-      expect(element.style.minHeight).toBe('');
+      // After interaction: reserved height applied so expansion is immediate
+      expect(container.style.minHeight).toBe('297px');
+      expect(element.style.minHeight).toBe('297px');
     });
 
     it('should preserve reserved min-height in injected styles for non-facade containers', () => {

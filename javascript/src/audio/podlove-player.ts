@@ -314,6 +314,13 @@ class PodlovePlayerElement extends HTMLElement {
     // Remove stale facade elements so they don't persist after reattach
     this.querySelector(`.${FACADE_LOADING_CLASS}`)?.remove();
     this.querySelector(`.${FACADE_BTN_CLASS}`)?.remove();
+    // Clear expanded/loading state so reattach starts compact
+    const container = this.querySelector(".podlove-player-container");
+    if (container instanceof HTMLElement) {
+      container.classList.remove("is-loading");
+      container.style.removeProperty("min-height");
+    }
+    this.style.removeProperty("min-height");
     // Invalidate any in-flight async init and allow re-init on reattach
     this.initVersion += 1;
     this.isInitialized = false;
@@ -710,6 +717,9 @@ class PodlovePlayerElement extends HTMLElement {
     if (!container || !(container instanceof HTMLElement)) {
       return;
     }
+    // Reserve player height now so the expansion happens in the same
+    // interaction frame — no visible layout shift for the user.
+    this.applyReservedHeight(container);
     container.classList.add("is-loading");
     const spinner = document.createElement("div");
     spinner.className = FACADE_LOADING_CLASS;
