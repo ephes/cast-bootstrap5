@@ -13,8 +13,8 @@ const EMBED_SCRIPT_LOADED_ATTR = "data-podlove-embed-loaded";
 const EMBED_SCRIPT_FAILED_ATTR = "data-podlove-embed-failed";
 const PLAYER_STYLE_ID = "podlove-player-styles";
 const COLOR_SCHEME_PARAM = "color_scheme";
-const DARK_LOADING_BG = "#1e293b";
-const LIGHT_LOADING_BG = "#ffffff";
+const DARK_LOADING_BG_FALLBACK = "#292524";
+const LIGHT_LOADING_BG_FALLBACK = "#ffffff";
 const RESERVED_MIN_HEIGHT_DESKTOP_PX = 297;
 const RESERVED_MIN_HEIGHT_MOBILE_PX = 309;
 const IFRAME_REVEAL_DELAY_LIGHT_MS = 100;
@@ -46,6 +46,13 @@ function waitForPageLoad(): Promise<void> {
   }
 
   return pageLoadPromise;
+}
+
+function getLoadingBg(isDark: boolean): string {
+  const varName = isDark ? "--cast-bg-alt" : "--cast-surface";
+  const fallback = isDark ? DARK_LOADING_BG_FALLBACK : LIGHT_LOADING_BG_FALLBACK;
+  const val = getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+  return val || fallback;
 }
 
 const FACADE_BTN_CLASS = "podlove-player-facade-btn";
@@ -286,10 +293,7 @@ class PodlovePlayerElement extends HTMLElement {
     this.renderPlaceholder();
 
     if (this.isFacadeMode()) {
-      const container = this.querySelector(".podlove-player-container");
-      if (container instanceof HTMLElement) {
-        this.applyLoadingTheme(container);
-      }
+      // Facade containers are styled by SCSS — no need for applyLoadingTheme.
       this.setupFacadeInteraction();
       return;
     }
@@ -311,12 +315,23 @@ class PodlovePlayerElement extends HTMLElement {
       this.facadeAbortController = null;
     }
     this.clearIframeMasking();
-    // Remove stale facade elements so they don't persist after reattach
+    // Remove stale facade/loading elements so they don't persist after reattach
     this.querySelector(`.${FACADE_LOADING_CLASS}`)?.remove();
     this.querySelector(`.${FACADE_BTN_CLASS}`)?.remove();
-    // Clear expanded/loading state so reattach starts compact
+    // Reset facade-inner positioning if it was made absolute during loading
+    const facadeInner = this.querySelector(".podlove-facade-inner");
+    if (facadeInner instanceof HTMLElement) {
+      facadeInner.style.removeProperty("position");
+      facadeInner.style.removeProperty("inset");
+      facadeInner.style.removeProperty("z-index");
+      facadeInner.style.removeProperty("padding");
+    }
+    // Restore facade class if this was a facade element, and clear loading state
     const container = this.querySelector(".podlove-player-container");
     if (container instanceof HTMLElement) {
+      if (this.isFacadeMode()) {
+        container.classList.add("podlove-facade");
+      }
       container.classList.remove("is-loading");
       container.style.removeProperty("min-height");
     }
@@ -435,6 +450,8 @@ class PodlovePlayerElement extends HTMLElement {
         );
         return;
       }
+      // Remove facade overlay now that the iframe is ready
+      container.querySelector(".podlove-facade-inner")?.remove();
       iframe.style.opacity = "1";
       iframe.style.pointerEvents = "";
       iframe.style.removeProperty("transition");
@@ -470,9 +487,18 @@ class PodlovePlayerElement extends HTMLElement {
       this.getOrCreateRevealShield(container);
       const facadeSpinner = container.querySelector(`.${FACADE_LOADING_CLASS}`);
       if (facadeSpinner) facadeSpinner.remove();
-      // Clean up server-rendered facade content so reveal shield works correctly
+      // Position facade content absolutely so it overlays without affecting
+      // layout, then remove it when the iframe is revealed.
+      const facadeInner = container.querySelector(".podlove-facade-inner");
+      if (facadeInner instanceof HTMLElement) {
+        facadeInner.style.position = "absolute";
+        facadeInner.style.inset = "0";
+        facadeInner.style.zIndex = "1";
+        facadeInner.style.padding = "inherit";
+      }
+      // Legacy facade cleanup (old template structure)
       container.querySelector(".podlove-facade-content")?.remove();
-      container.querySelector(".podlove-facade-play")?.remove();
+      container.querySelector(".podlove-facade-play:not(.podlove-facade-inner .podlove-facade-play)")?.remove();
       container.classList.remove("podlove-facade");
       iframe.setAttribute(IFRAME_MASKED_ATTR, "true");
       iframe.style.opacity = "0";
@@ -519,7 +545,7 @@ class PodlovePlayerElement extends HTMLElement {
       return;
     }
     const colorScheme = getColorScheme() === "dark" ? "dark" : "light";
-    container.style.backgroundColor = colorScheme === "dark" ? DARK_LOADING_BG : LIGHT_LOADING_BG;
+    container.style.backgroundColor = getLoadingBg(colorScheme === "dark");
     container.style.colorScheme = colorScheme;
   }
 
@@ -529,6 +555,8 @@ class PodlovePlayerElement extends HTMLElement {
     }
     const style = document.createElement('style');
     style.id = PLAYER_STYLE_ID;
+    const darkBg = getLoadingBg(true);
+    const lightBg = getLoadingBg(false);
     style.textContent = `
       podlove-player .podlove-player-container {
         width: 100%;
@@ -536,7 +564,7 @@ class PodlovePlayerElement extends HTMLElement {
         margin: 0 auto;
         position: relative;
         overflow: hidden;
-        background-color: ${LIGHT_LOADING_BG};
+        background-color: var(--cast-surface, ${lightBg});
       }
       podlove-player .podlove-player-container:not(.podlove-facade) {
         min-height: ${RESERVED_MIN_HEIGHT_DESKTOP_PX}px;
@@ -615,10 +643,10 @@ class PodlovePlayerElement extends HTMLElement {
       }
       @media (prefers-color-scheme: dark) {
         podlove-player .podlove-player-container {
-          background-color: ${DARK_LOADING_BG};
+          background-color: var(--cast-bg-alt, ${darkBg});
         }
         podlove-player .podlove-player-container iframe {
-          background-color: ${DARK_LOADING_BG};
+          background-color: var(--cast-bg-alt, ${darkBg});
           color-scheme: dark;
         }
         podlove-player .podlove-player-facade-loading {
@@ -630,7 +658,7 @@ class PodlovePlayerElement extends HTMLElement {
       html[data-theme="dark"] podlove-player .podlove-player-container,
       body[data-bs-theme="dark"] podlove-player .podlove-player-container,
       body[data-theme="dark"] podlove-player .podlove-player-container {
-        background-color: ${DARK_LOADING_BG};
+        background-color: var(--cast-bg-alt, ${darkBg});
       }
       html[data-bs-theme="dark"] podlove-player .podlove-player-facade-loading,
       html[data-theme="dark"] podlove-player .podlove-player-facade-loading,
@@ -643,20 +671,20 @@ class PodlovePlayerElement extends HTMLElement {
       html[data-theme="dark"] podlove-player .podlove-player-container iframe,
       body[data-bs-theme="dark"] podlove-player .podlove-player-container iframe,
       body[data-theme="dark"] podlove-player .podlove-player-container iframe {
-        background-color: ${DARK_LOADING_BG};
+        background-color: var(--cast-bg-alt, ${darkBg});
         color-scheme: dark;
       }
       html[data-bs-theme="light"] podlove-player .podlove-player-container,
       html[data-theme="light"] podlove-player .podlove-player-container,
       body[data-bs-theme="light"] podlove-player .podlove-player-container,
       body[data-theme="light"] podlove-player .podlove-player-container {
-        background-color: ${LIGHT_LOADING_BG};
+        background-color: var(--cast-surface, ${lightBg});
       }
       html[data-bs-theme="light"] podlove-player .podlove-player-container iframe,
       html[data-theme="light"] podlove-player .podlove-player-container iframe,
       body[data-bs-theme="light"] podlove-player .podlove-player-container iframe,
       body[data-theme="light"] podlove-player .podlove-player-container iframe {
-        background-color: ${LIGHT_LOADING_BG};
+        background-color: var(--cast-surface, ${lightBg});
         color-scheme: light;
       }
     `;

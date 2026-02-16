@@ -636,7 +636,7 @@ describe('PodlovePlayerElement', () => {
     const style = document.getElementById('podlove-player-styles');
     expect(style).not.toBeNull();
     expect(style?.textContent).toContain('color-scheme: dark');
-    expect(style?.textContent).toContain('background-color: #1e293b');
+    expect(style?.textContent).toContain('var(--cast-bg-alt');
   });
 
   it('should append the color scheme to the config url when theme is set', () => {
@@ -705,7 +705,7 @@ describe('PodlovePlayerElement', () => {
     const style = document.getElementById('podlove-player-styles');
     expect(style).not.toBeNull();
     expect(style?.textContent).toContain('html[data-bs-theme="light"] podlove-player .podlove-player-container');
-    expect(style?.textContent).toContain('background-color: #ffffff');
+    expect(style?.textContent).toContain('var(--cast-surface');
   });
 
   it('should use the light color scheme when theme is light', () => {
@@ -1328,15 +1328,18 @@ describe('PodlovePlayerElement', () => {
       const container = document.createElement('div');
       container.className = 'podlove-player-container podlove-facade';
 
-      const content = document.createElement('div');
-      content.className = 'podlove-facade-content';
+      const inner = document.createElement('div');
+      inner.className = 'podlove-facade-inner';
+
+      const header = document.createElement('div');
+      header.className = 'podlove-facade-header';
 
       if (opts?.withCover) {
         const img = document.createElement('img');
         img.className = 'podlove-facade-cover';
         img.src = '/media/cover.jpg';
         img.alt = 'Episode Cover';
-        content.appendChild(img);
+        header.appendChild(img);
       }
 
       const info = document.createElement('div');
@@ -1345,20 +1348,17 @@ describe('PodlovePlayerElement', () => {
       title.className = 'podlove-facade-title';
       title.textContent = 'Episode Title';
       info.appendChild(title);
-      const duration = document.createElement('div');
-      duration.className = 'podlove-facade-duration';
-      duration.textContent = '1:23:45';
-      info.appendChild(duration);
-      content.appendChild(info);
-      container.appendChild(content);
+      header.appendChild(info);
+      inner.appendChild(header);
 
       const playBtn = document.createElement('button');
       playBtn.type = 'button';
       playBtn.className = 'podlove-facade-play';
       playBtn.setAttribute('aria-label', 'Play');
-      playBtn.innerHTML = '<svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
-      container.appendChild(playBtn);
+      playBtn.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M8 5v14l11-7z"/></svg><span>Play Episode</span>';
+      inner.appendChild(playBtn);
 
+      container.appendChild(inner);
       element.appendChild(container);
       return element;
     }
@@ -1475,9 +1475,10 @@ describe('PodlovePlayerElement', () => {
         const container = element.querySelector('.podlove-player-container') as HTMLElement;
         container.dispatchEvent(new MouseEvent('mouseenter'));
 
-        // Facade content should be removed
-        expect(element.querySelector('.podlove-facade-content')).toBeNull();
-        expect(element.querySelector('.podlove-facade-play')).toBeNull();
+        // Facade inner should be positioned absolutely (overlay) until reveal
+        const facadeInner = element.querySelector('.podlove-facade-inner') as HTMLElement;
+        expect(facadeInner).not.toBeNull();
+        expect(facadeInner.style.position).toBe('absolute');
         expect(container.classList.contains('podlove-facade')).toBe(false);
       } finally {
         global.podlovePlayer = originalPodlovePlayer;
@@ -1521,7 +1522,7 @@ describe('PodlovePlayerElement', () => {
       }
     });
 
-    it('should apply theme but not reserved height in facade mode', () => {
+    it('should not apply inline theme or reserved height in facade mode', () => {
       const element = createFacadeElement();
       document.body.appendChild(element);
 
@@ -1529,8 +1530,8 @@ describe('PodlovePlayerElement', () => {
       // Facade should NOT get the large reserved height — CSS handles sizing
       expect(container.style.minHeight).toBe('');
       expect(element.style.minHeight).toBe('');
-      // Theme should still be applied
-      expect(container.style.backgroundColor).toBeTruthy();
+      // Facade should NOT get inline background — SCSS handles theming
+      expect(container.style.backgroundColor).toBe('');
     });
 
     it('should inject player styles even when server-rendered container exists', () => {
