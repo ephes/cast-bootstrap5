@@ -755,9 +755,13 @@ class PodlovePlayerElement extends HTMLElement {
     if (!container || !(container instanceof HTMLElement)) {
       return;
     }
-    // Reserve player height now so the expansion happens in the same
-    // interaction frame — no visible layout shift for the user.
-    this.applyReservedHeight(container);
+    // Lock the container at its current height so the facade-to-player
+    // transition doesn't shrink/expand.  The facade may be taller than
+    // the generic reserved height (e.g. 502px stacked cover vs 312px).
+    const currentHeight = container.getBoundingClientRect().height;
+    const reservedHeight = Math.max(currentHeight, getReservedMinHeightPx());
+    container.style.minHeight = `${reservedHeight}px`;
+    this.style.minHeight = `${reservedHeight}px`;
     container.classList.add("is-loading");
     const spinner = document.createElement("div");
     spinner.className = FACADE_LOADING_CLASS;
