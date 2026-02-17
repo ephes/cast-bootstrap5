@@ -407,13 +407,15 @@ class PodlovePlayerElement extends HTMLElement {
       if (this.initVersion !== expectedVersion) {
         return;
       }
+      // Release reserved height and border while the shield is still opaque
+      // so the size/border change is invisible to the user.
+      this.releaseReservedHeight(container);
       shield.style.opacity = "0";
       this.iframeRevealShieldTimeoutId = window.setTimeout(() => {
         if (this.initVersion !== expectedVersion) {
           return;
         }
         shield.remove();
-        this.releaseReservedHeight(container);
         this.iframeRevealShieldTimeoutId = null;
       }, REVEAL_SHIELD_FADE_MS);
     }, holdMs);
@@ -594,6 +596,7 @@ class PodlovePlayerElement extends HTMLElement {
         }
       }
       podlove-player .podlove-player-container iframe {
+        display: block;
         width: 100%;
         height: 100%;
         border: none;
