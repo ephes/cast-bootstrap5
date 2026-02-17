@@ -1014,6 +1014,17 @@ podlove-player {
   color: var(--cast-text-muted);
 }
 
+// While the player iframe is loading (mask active, facade class removed),
+// position facade-inner as an absolute overlay so it doesn't contribute to
+// container height.  This prevents the ~180px layout shift caused by
+// facade-inner and the iframe being in normal flow simultaneously.
+// Pure CSS — immune to JS timing issues with the Podlove embed script.
+.podlove-player-container:not(.podlove-facade)[data-cast-mask-active] > .podlove-facade-inner {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+
 // Safety net: hide leftover facade content once the container is no longer in
 // facade mode and no iframe-masking overlay is active (i.e. the player has
 // been fully revealed).  This prevents the facade and iframe from stacking
