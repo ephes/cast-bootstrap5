@@ -16,7 +16,7 @@ const COLOR_SCHEME_PARAM = "color_scheme";
 const DARK_LOADING_BG_FALLBACK = "#292524";
 const LIGHT_LOADING_BG_FALLBACK = "#ffffff";
 const RESERVED_MIN_HEIGHT_DESKTOP_PX = 297;
-const RESERVED_MIN_HEIGHT_MOBILE_PX = 309;
+const RESERVED_MIN_HEIGHT_MOBILE_PX = 312;
 const IFRAME_REVEAL_DELAY_LIGHT_MS = 100;
 const IFRAME_REVEAL_DELAY_DARK_MS = 900;
 const IFRAME_REVEAL_TIMEOUT_MS = 2500;
@@ -897,11 +897,13 @@ class PodlovePlayerElement extends HTMLElement {
 
   releaseReservedHeight(container: Element) {
     if (container instanceof HTMLElement) {
-      // Keep reserved space while loading, then release it after successful init.
-      container.style.minHeight = "auto";
+      // Remove the inline min-height so the CSS rule (or natural content)
+      // determines height.  Do NOT set "auto" — that would override the
+      // CSS min-height and allow the container to shrink below the reserved
+      // size, causing a layout shift after reveal.
+      container.style.removeProperty("min-height");
     }
-    // Some consumers reserve space on the custom element itself.
-    this.style.minHeight = "auto";
+    this.style.removeProperty("min-height");
   }
 
   clearReservedHeight(container: Element) {

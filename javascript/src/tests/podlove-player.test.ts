@@ -173,8 +173,8 @@ describe('PodlovePlayerElement', () => {
       expect(element.style.minHeight).toBe('297px');
 
       vi.advanceTimersByTime(1);
-      expect(container?.style.minHeight).toBe('auto');
-      expect(element.style.minHeight).toBe('auto');
+      expect(container?.style.minHeight).toBe('');
+      expect(element.style.minHeight).toBe('');
     } finally {
       global.podlovePlayer = originalPodlovePlayer;
       vi.useRealTimers();
@@ -200,8 +200,8 @@ describe('PodlovePlayerElement', () => {
 
       const container = element.querySelector('.podlove-player-container') as HTMLDivElement | null;
       expect(container).not.toBeNull();
-      expect(container?.style.minHeight).toBe('309px');
-      expect(element.style.minHeight).toBe('309px');
+      expect(container?.style.minHeight).toBe('312px');
+      expect(element.style.minHeight).toBe('312px');
     } finally {
       globalThis.matchMedia = originalMatchMedia;
     }
