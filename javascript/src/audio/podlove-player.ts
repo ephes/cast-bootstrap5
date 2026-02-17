@@ -509,6 +509,12 @@ class PodlovePlayerElement extends HTMLElement {
       // Legacy facade cleanup (old template structure)
       container.querySelector(".podlove-facade-content")?.remove();
       container.querySelector(".podlove-facade-play:not(.podlove-facade-inner .podlove-facade-play)")?.remove();
+      // Preserve facade border/radius as inline styles before removing the
+      // class so the 1px border doesn't vanish and cause a layout shift.
+      // Cleaned up later in releaseReservedHeight().
+      const cs = getComputedStyle(container);
+      container.style.border = cs.border;
+      container.style.borderRadius = cs.borderRadius;
       container.classList.remove("podlove-facade");
       iframe.setAttribute(IFRAME_MASKED_ATTR, "true");
       iframe.style.opacity = "0";
@@ -912,6 +918,10 @@ class PodlovePlayerElement extends HTMLElement {
       // the iframe's natural height.  This runs after the iframe is fully
       // visible, so the content itself holds the height.
       container.style.minHeight = "0";
+      // Remove the inline border/border-radius that was preserved from the
+      // facade class during the transition (see setupIframe).
+      container.style.removeProperty("border");
+      container.style.removeProperty("border-radius");
     }
     this.style.minHeight = "0";
   }
@@ -919,6 +929,8 @@ class PodlovePlayerElement extends HTMLElement {
   clearReservedHeight(container: Element) {
     if (container instanceof HTMLElement) {
       container.style.removeProperty("min-height");
+      container.style.removeProperty("border");
+      container.style.removeProperty("border-radius");
     }
     this.style.removeProperty("min-height");
   }
