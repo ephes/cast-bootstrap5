@@ -857,6 +857,14 @@ podlove-player {
     min-height: 312px;
     padding: 1.25rem 1rem;
   }
+
+  // When a Wagtail cover image is available, match the real Podlove player's
+  // stacked mobile layout (~502px with 192px cover above title).
+  &.podlove-facade-has-cover {
+    @media (max-width: 768px) {
+      min-height: 502px;
+    }
+  }
 }
 
 .podlove-facade-inner {
@@ -875,6 +883,12 @@ podlove-player {
     justify-content: center;
     text-align: center;
   }
+
+  .podlove-facade-has-cover & {
+    @media (max-width: 768px) {
+      flex-direction: column;
+    }
+  }
 }
 
 .podlove-facade-cover {
@@ -886,6 +900,14 @@ podlove-player {
 
   @media (max-width: 768px) {
     display: none;
+  }
+
+  .podlove-facade-has-cover & {
+    @media (max-width: 768px) {
+      display: block;
+      width: 192px;
+      height: 192px;
+    }
   }
 }
 
