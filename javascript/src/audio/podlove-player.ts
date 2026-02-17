@@ -284,6 +284,13 @@ class PodlovePlayerElement extends HTMLElement {
       this.playerDiv.remove();
       this.playerDiv = null;
     }
+    // Clear any inline min-height: 0 left by releaseReservedHeight so the
+    // CSS floor rule takes over while content is absent during re-init.
+    const container = this.querySelector(".podlove-player-container");
+    if (container instanceof HTMLElement) {
+      container.style.removeProperty("min-height");
+    }
+    this.style.removeProperty("min-height");
     this.isInitialized = false;
     delete this.dataset.playerInstanceId;
     this.initializePlayer();
