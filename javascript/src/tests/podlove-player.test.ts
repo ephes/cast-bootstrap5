@@ -173,8 +173,8 @@ describe('PodlovePlayerElement', () => {
       expect(element.style.minHeight).toBe('297px');
 
       vi.advanceTimersByTime(1);
-      expect(container?.style.minHeight).toBe('');
-      expect(element.style.minHeight).toBe('');
+      expect(container?.style.minHeight).toBe('0');
+      expect(element.style.minHeight).toBe('0');
     } finally {
       global.podlovePlayer = originalPodlovePlayer;
       vi.useRealTimers();

@@ -897,13 +897,12 @@ class PodlovePlayerElement extends HTMLElement {
 
   releaseReservedHeight(container: Element) {
     if (container instanceof HTMLElement) {
-      // Remove the inline min-height so the CSS rule (or natural content)
-      // determines height.  Do NOT set "auto" — that would override the
-      // CSS min-height and allow the container to shrink below the reserved
-      // size, causing a layout shift after reveal.
-      container.style.removeProperty("min-height");
+      // Override the CSS min-height rule with 0 so the container matches
+      // the iframe's natural height.  This runs after the iframe is fully
+      // visible, so the content itself holds the height.
+      container.style.minHeight = "0";
     }
-    this.style.removeProperty("min-height");
+    this.style.minHeight = "0";
   }
 
   clearReservedHeight(container: Element) {
