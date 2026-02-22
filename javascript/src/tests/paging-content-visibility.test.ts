@@ -48,7 +48,7 @@ describe("paging-content-visibility", () => {
     expect(pagingArea.classList.contains("vt-active")).toBe(false);
   });
 
-  it("skips transition when already far down the page", () => {
+  it("scrolls to top and activates transition even when far down the page", () => {
     const pagingArea = document.querySelector("#paging-area") as HTMLElement;
     Object.defineProperty(window, "scrollY", { configurable: true, value: 500 });
     initPagingContentVisibility();
@@ -59,9 +59,9 @@ describe("paging-content-visibility", () => {
     });
     document.dispatchEvent(event);
 
-    expect(event.defaultPrevented).toBe(true);
-    expect(window.scrollTo).not.toHaveBeenCalled();
-    expect(pagingArea.classList.contains("vt-active")).toBe(false);
+    expect(event.defaultPrevented).toBe(false);
+    expect(window.scrollTo).toHaveBeenCalledWith(0, 0);
+    expect(pagingArea.classList.contains("vt-active")).toBe(true);
   });
 
   it("skips transition when paging area contains podlove players", () => {

@@ -515,6 +515,24 @@ video {
   }
 }
 
+// Disable the default root (full-page) transition so only named elements
+// animate.  Without this the browser's top-layer snapshot overlay covers
+// the sticky navbar during the paging-area crossfade.
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+}
+
+// Keep the navbar static and above the paging-area crossfade.
+::view-transition-group(cast-navbar) {
+  z-index: 1;
+}
+
+::view-transition-old(cast-navbar),
+::view-transition-new(cast-navbar) {
+  animation: none;
+}
+
 ::view-transition-old(paging-area) {
   animation: 350ms ease-out both cast-fade-out;
 }
@@ -536,6 +554,8 @@ video {
 @media (prefers-reduced-motion: reduce) {
   ::view-transition-old(root),
   ::view-transition-new(root),
+  ::view-transition-old(cast-navbar),
+  ::view-transition-new(cast-navbar),
   ::view-transition-old(paging-area),
   ::view-transition-new(paging-area) {
     animation-duration: 0s !important;
@@ -1129,6 +1149,9 @@ podlove-player {
   backdrop-filter: blur(8px);
   background-color: var(--cast-surface);
   background-color: color-mix(in srgb, var(--cast-surface) 90%, transparent);
+  // Give the navbar its own view-transition layer so it stays above the
+  // paging-area crossfade (which renders in the browser's top-layer overlay).
+  view-transition-name: cast-navbar;
 }
 
 // Add spacing below sticky navbar for main content

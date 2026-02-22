@@ -1,6 +1,5 @@
 const PAGING_AREA_SELECTOR = "#paging-area";
 const VT_ACTIVE_CLASS = "vt-active";
-const MAX_SCROLL_Y_FOR_TRANSITION = 120;
 const PAGING_MASK_ACTIVE_ATTR = "data-cast-paging-mask-active";
 const PAGING_HAS_PODLOVE_ATTR = "data-cast-podlove-present";
 const PAGING_MASK_SETTLE_DELAY_MS = 300;
@@ -158,10 +157,6 @@ export function initPagingContentVisibility(): void {
         return;
       }
       syncPagingAreaPodlovePresence();
-      if (window.scrollY > MAX_SCROLL_Y_FOR_TRANSITION) {
-        event.preventDefault();
-        return;
-      }
       if (pagingAreaContainsPodlovePlayer()) {
         event.preventDefault();
         activatePagingMask();
