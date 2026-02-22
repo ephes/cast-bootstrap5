@@ -167,8 +167,13 @@ describe('PodlovePlayerElement', () => {
       expect(container?.style.minHeight).toBe('297px');
       expect(element.style.minHeight).toBe('297px');
 
-      // Reveal starts at 100ms but shield hold/fade keeps reserved height.
-      vi.advanceTimersByTime(200);
+      // Reveal starts at 100ms but reserved height is released after the
+      // shield hold window (80ms in light mode), while the shield is opaque.
+      vi.advanceTimersByTime(1);
+      expect(container?.style.minHeight).toBe('297px');
+      expect(element.style.minHeight).toBe('297px');
+
+      vi.advanceTimersByTime(79);
       expect(container?.style.minHeight).toBe('297px');
       expect(element.style.minHeight).toBe('297px');
 
