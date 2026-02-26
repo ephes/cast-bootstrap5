@@ -66,6 +66,52 @@ section.block-heading {
   }
 }
 
+// -----------------------------------------------------------------------------
+// Structure-Aware Spacing
+// -----------------------------------------------------------------------------
+// Tight: heading → its following content (they belong together)
+// Wide:  end of section → next heading (separate topics)
+// Normal: paragraph → paragraph (default flow)
+
+// StreamField section structure
+.post-content,
+.content-body,
+.post-body,
+article .block-overview,
+article .block-detail {
+  // Tight: heading section followed by any section
+  > section.block-heading + section {
+    margin-top: var(--s-1);
+  }
+
+  // Wide: any non-heading section followed by a heading section
+  > section:not(.block-heading) + section.block-heading {
+    margin-top: var(--s3);
+  }
+}
+
+// Inline rich text (inside block-paragraph or content-body)
+section.block-paragraph,
+.content-body,
+.post-content {
+  // Tight: heading → following content
+  h1 + p, h2 + p, h3 + p, h4 + p, h5 + p, h6 + p,
+  h1 + ul, h2 + ul, h3 + ul, h4 + ul, h5 + ul, h6 + ul,
+  h1 + ol, h2 + ol, h3 + ol, h4 + ol, h5 + ol, h6 + ol,
+  h1 + pre, h2 + pre, h3 + pre, h4 + pre, h5 + pre, h6 + pre {
+    margin-top: var(--s-1);
+  }
+
+  // Wide: content → next heading (new topic)
+  p + h2, p + h3, p + h4, p + h5, p + h6,
+  ul + h2, ul + h3, ul + h4, ul + h5, ul + h6,
+  ol + h2, ol + h3, ol + h4, ol + h5, ol + h6,
+  pre + h2, pre + h3, pre + h4, pre + h5, pre + h6,
+  blockquote + h2, blockquote + h3, blockquote + h4, blockquote + h5, blockquote + h6 {
+    margin-top: var(--s3);
+  }
+}
+
 // Comment section spacing
 .comments-section,
 #comments {
@@ -463,6 +509,47 @@ video {
     padding: 0.35rem 0.75rem;
     font-size: 0.8125rem;
   }
+}
+
+// -----------------------------------------------------------------------------
+// Hero Section (full-width, canvas-ready)
+// -----------------------------------------------------------------------------
+.cast-hero {
+  position: relative;
+  overflow: hidden;
+  margin-top: -3rem;
+  padding: calc(var(--s4) + 3rem) var(--s1) var(--s3);
+  text-align: center;
+  background-color: var(--cast-bg-alt);
+  min-height: 280px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+  }
+
+  &::after {
+    content: "";
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 80px;
+    background: linear-gradient(to bottom, transparent, var(--cast-bg));
+    z-index: 2;
+  }
+}
+
+.cast-hero-content {
+  position: relative;
+  z-index: 2;
+  max-width: var(--cast-measure);
 }
 
 #paging-area {
@@ -1146,9 +1233,9 @@ podlove-player {
   position: sticky;
   top: 0;
   z-index: 1030;
-  backdrop-filter: blur(8px);
-  background-color: var(--cast-surface);
-  background-color: color-mix(in srgb, var(--cast-surface) 90%, transparent);
+  backdrop-filter: blur(4px);
+  background: color-mix(in srgb, var(--cast-surface) 60%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--cast-border) 30%, transparent);
   // Give the navbar its own view-transition layer so it stays above the
   // paging-area crossfade (which renders in the browser's top-layer overlay).
   view-transition-name: cast-navbar;

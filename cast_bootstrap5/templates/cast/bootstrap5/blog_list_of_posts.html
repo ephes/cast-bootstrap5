@@ -18,16 +18,19 @@
   {% endif %}
 {% endblock %}
 
+{% block before_main %}
+  <header class="cast-hero">
+    {% block hero_canvas %}{% endblock hero_canvas %}
+    <div class="cast-hero-content">
+      <h1 class="blog-title">{% block hero_title %}{{ page.title }}{% endblock hero_title %}</h1>
+      <div class="intro lead">{% block hero_tagline %}{{ page.description|richtext }}{% endblock hero_tagline %}</div>
+    </div>
+  </header>
+{% endblock before_main %}
+
 {% block content %}
   <div class="cast-reading">
-    <div class="cast-post-list-header cast-post-list-header--hero">
-      <div>
-        <h1 class="blog-title">{{ page.title }}</h1>
-        <div class="intro lead">{{ page.description|richtext }}</div>
-      </div>
-
-      {% block feeds %}{% endblock feeds %}
-    </div>
+    {% block feeds %}{% endblock feeds %}
 
     {% block filters %}
       {% include "./_active_filters.html" with page=page filterset=filterset active_facets=active_facets %}

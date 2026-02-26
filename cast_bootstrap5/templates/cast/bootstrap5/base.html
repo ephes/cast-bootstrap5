@@ -131,6 +131,7 @@
         {% endif %}
       {% endwith %}
     {% endblock navigation %}
+    {% block before_main %}{% endblock before_main %}
     <main id="main-content" class="container">
       {% block messages %}
         {% if messages %}
