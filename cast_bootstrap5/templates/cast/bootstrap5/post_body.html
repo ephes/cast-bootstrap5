@@ -15,6 +15,11 @@
       <span class="author">{{ page.owner.username | title}}</span>
     </div>
   </header>
+  {% block episode_contributors %}
+    {% if render_detail and not render_for_feed and episode_contributors %}
+      {% include "cast/contributors.html" %}
+    {% endif %}
+  {% endblock episode_contributors %}
   <div class="{% if render_detail %}post-body{% else %}post-card-excerpt{% endif %}">
     {% for block in page.body %}
       {# this is either an overview or detail block #}

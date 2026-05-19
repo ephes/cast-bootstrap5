@@ -775,9 +775,123 @@ video {
   padding-top: var(--space-article-top);
 }
 
+.episode-contributors {
+  margin: var(--space-flow) 0;
+  padding: var(--space-inner-lg) 0;
+  border-top: 1px solid var(--cast-border);
+  border-bottom: 1px solid var(--cast-border);
+}
+
+.episode-contributors__heading {
+  margin: 0 0 var(--space-inner);
+  color: var(--cast-text-muted);
+  font-size: var(--cast-font-size-sm);
+  font-weight: var(--cast-font-weight-bold);
+  line-height: var(--cast-line-height-headings);
+}
+
+.episode-contributors__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-inner) var(--space-inner-lg);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.episode-contributors__item {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: var(--space-inner);
+  max-width: 100%;
+  min-width: 0;
+  padding: 0.35rem var(--space-inner);
+  border: 1px solid var(--cast-border);
+  border-radius: var(--cast-border-radius);
+  background: var(--cast-bg-alt);
+}
+
+.episode-contributors__identity {
+  display: inline-flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: var(--space-inner);
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+}
+
+.episode-contributors__identity--link {
+  color: var(--cast-link-on-white);
+
+  &:hover,
+  &:focus {
+    color: var(--cast-accent-hover);
+    text-decoration: none;
+  }
+
+  &:focus {
+    border-radius: var(--cast-border-radius);
+    outline: 2px solid var(--bs-focus-ring-color);
+    outline-offset: 3px;
+  }
+
+  &:hover .episode-contributors__name,
+  &:focus .episode-contributors__name {
+    text-decoration: underline;
+  }
+}
+
+.episode-contributors__avatar {
+  display: inline-flex;
+  flex: 0 0 2.5rem;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  background: var(--cast-surface);
+  color: var(--cast-text-muted);
+  font-size: 1rem;
+  font-weight: var(--cast-font-weight-bold);
+  object-fit: cover;
+  text-transform: uppercase;
+}
+
+.episode-contributors__name {
+  min-width: 0;
+  font-weight: var(--cast-font-weight-semibold);
+  line-height: var(--cast-line-height-headings);
+  overflow-wrap: anywhere;
+}
+
+.episode-contributors__role {
+  flex: 0 0 auto;
+  padding: 0.2rem 0.4rem;
+  border: 1px solid var(--cast-border);
+  border-radius: var(--cast-border-radius-sm);
+  background: var(--cast-surface);
+  color: var(--cast-text-muted);
+  font-size: 0.75rem;
+  font-weight: var(--cast-font-weight-semibold);
+  line-height: var(--cast-line-height-headings);
+  white-space: nowrap;
+}
+
 .cast-reading > * + *,
 .post-detail > * + * {
   margin-top: var(--space-flow);
+}
+
+@media (max-width: 575.98px) {
+  .episode-contributors__list {
+    flex-direction: column;
+  }
+
+  .episode-contributors__item {
+    width: 100%;
+  }
 }
 
 // -----------------------------------------------------------------------------
