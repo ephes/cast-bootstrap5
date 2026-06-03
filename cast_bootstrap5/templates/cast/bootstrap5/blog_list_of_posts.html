@@ -13,7 +13,7 @@
     <meta name="robots" content="noindex">
   {% endif %}
   <link rel="canonical" href="{{ canonical_url }}">
-  {% if use_audio_player %}
+  {% if use_podlove_player %}
     <link rel="preconnect" href="https://cdn.podlove.org" />
   {% endif %}
 {% endblock %}
@@ -73,7 +73,7 @@
   {% vite_asset 'src/filters/filter-enhancements-bootstrap.ts' app="cast-bootstrap5" %}
   {% vite_asset 'src/content/post-content-enhancements.ts' app="cast-bootstrap5" %}
   {% vite_asset 'src/gallery/image-gallery-bs5.ts' app="cast-bootstrap5" %}
-  {% if use_audio_player %}
+  {% if use_podlove_player %}
     {% vite_asset 'src/audio/podlove-player.ts' app="cast-bootstrap5" %}
   {% endif %}
 {% endblock javascript %}

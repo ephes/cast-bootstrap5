@@ -44,6 +44,16 @@
   --cast-gallery-body-bg: rgba(255, 255, 255, 0.8);
   --cast-gallery-header-bg: rgba(255, 255, 255, 1);
   --cast-gallery-footer-bg: rgba(255, 255, 255, 1);
+
+  // Custom audio player (django-cast) — map its tokens to the theme's tokens.
+  // The amber accent is light, so accent fills use dark text for contrast.
+  --cast-player-bg: var(--cast-surface);
+  --cast-player-fg: var(--cast-text);
+  --cast-player-muted: var(--cast-text-muted);
+  --cast-player-accent: var(--cast-accent);
+  --cast-player-on-accent: #1c1917;
+  --cast-player-progress-track: var(--cast-border-strong);
+  --cast-player-focus: var(--cast-accent);
 }
 
 // -----------------------------------------------------------------------------
@@ -80,6 +90,15 @@
   --cast-gallery-body-bg: rgba(28, 25, 23, 0.9);
   --cast-gallery-header-bg: rgba(41, 37, 36, 1);
   --cast-gallery-footer-bg: rgba(41, 37, 36, 1);
+
+  // Custom audio player (django-cast) — dark-mode token mapping.
+  --cast-player-bg: var(--cast-surface);
+  --cast-player-fg: var(--cast-text);
+  --cast-player-muted: var(--cast-text-muted);
+  --cast-player-accent: var(--cast-accent);
+  --cast-player-on-accent: #1c1917;
+  --cast-player-progress-track: var(--cast-border-strong);
+  --cast-player-focus: var(--cast-accent);
 }
 
 // -----------------------------------------------------------------------------
