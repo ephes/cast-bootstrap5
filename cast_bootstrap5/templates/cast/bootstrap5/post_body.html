@@ -3,12 +3,22 @@
 
 <article class="{% if render_detail %}post-detail{% else %}post-card{% endif %}">
   <header>
-    <h2 class="{% if render_detail %}post-title{% else %}post-card-title{% endif %}">
-      <a href="{{ page.page_url }}"{% if not render_detail %} data-cast-prefetch{% endif %}>{{ page.title }}</a>
+    {% comment %}
+      On the detail page the post title is the page's single h1 (the list/card
+      layout keeps an h2, so overview pages don't emit multiple h1s).
+    {% endcomment %}
+    {% if render_detail %}
+    <h1 class="post-title">
+      <a href="{{ page.page_url }}">{{ page.title }}</a>
       {% if render_for_feed and comments_are_enabled %}
         {% translate "(click here to comment)" %}
       {% endif %}
+    </h1>
+    {% else %}
+    <h2 class="post-card-title">
+      <a href="{{ page.page_url }}" data-cast-prefetch>{{ page.title }}</a>
     </h2>
+    {% endif %}
     <!-- link is on one line to avoid underlined whitespace -->
     <div class="post-card-meta">
       <a href="{{ page.page_url }}"{% if not render_detail %} data-cast-prefetch{% endif %}><time datetime="{{ page.visible_date|date:"c" }}">{{ page.visible_date|date }}</time>,</a>
