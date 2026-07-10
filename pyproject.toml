@@ -6,6 +6,7 @@ build-backend = "uv_build"
 name = "cast-bootstrap5"
 version = "0.0.77"
 description = "Bootstrap5 theme for django-cast"
+readme = "README.md"
 authors = [
     { name = "Jochen Wersdörfer", email = "jochen-castbootstrap5@wersdoerfer.de" },
 ]
