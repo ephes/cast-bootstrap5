@@ -4,34 +4,33 @@ build-backend = "uv_build"
 
 [project]
 name = "cast-bootstrap5"
-version = "0.0.76"
+version = "0.0.77"
 description = "Bootstrap5 theme for django-cast"
 authors = [
     { name = "Jochen Wersdörfer", email = "jochen-castbootstrap5@wersdoerfer.de" },
 ]
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 keywords = ["blog", "podcast", "video", "audio"]
 classifiers = [
     "Environment :: Web Environment",
     "Framework :: Django",
-    "Framework :: Django :: 4.1",
     "Framework :: Django :: 4.2",
-    "Framework :: Django :: 5.0",
+    "Framework :: Django :: 5.2",
+    "Framework :: Django :: 6.0",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: BSD License",
     "Topic :: Internet",
     "Development Status :: 3 - Alpha",
-    "Environment :: Web Environment",
-    "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3 :: Only",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: Internet :: WWW/HTTP",
     "Topic :: Internet :: WWW/HTTP :: Dynamic Content",
 ]
 
-dependencies = ["django-cast", "crispy-bootstrap5"]
+dependencies = ["django-cast>=0.2.62", "crispy-bootstrap5"]
 
 [project.optional-dependencies]
 test = ["pytest >= 6", "pytest-cov >= 3", "pytest-django", "pytest-mock"]
@@ -51,8 +50,8 @@ dev = [
 ]
 
 [project.urls]
-Documentation = "https://cast-vue.readthedocs.io/en/latest/"
-Source = "https://github.com/ephes/cast-vue"
+Documentation = "https://github.com/ephes/cast-bootstrap5#readme"
+Source = "https://github.com/ephes/cast-bootstrap5"
 
 
 [tool.uv.build-backend]
@@ -66,13 +65,7 @@ profile = "black"
 line-length = 119
 
 [tool.pytest.ini_options]
-DJANGO_SETTINGS_MODULE = "tests.settings"
 minversion = "6.0"
 testpaths = ["tests"]
-filterwarnings = [
-    "ignore::django.utils.deprecation.RemovedInDjango50Warning",
-    # "ignore::django.utils.deprecation.RemovedInDjango51Warning",
-    "ignore::wagtail.utils.deprecation.RemovedInWagtail60Warning",
-    "ignore::DeprecationWarning",
-]
-addopts = ["-ra", "--reuse-db", "--no-migrations", "--randomly-seed=1234"]
+filterwarnings = ["ignore::DeprecationWarning"]
+addopts = ["-ra"]

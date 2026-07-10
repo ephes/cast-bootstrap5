@@ -42,6 +42,10 @@ complete site or just one blog.
 That's it! You have successfully installed and set up the Bootstrap5 theme
 for [`django-cast`](https://github.com/ephes/django-cast).
 
+The metadata-sharing template contract requires django-cast 0.2.62 or newer.
+Release and deploy django-cast before upgrading cast-bootstrap5; older versions
+do not ship `cast/includes/post_social_meta.html`.
+
 ## Development
 ### Install javascript dependencies
 
@@ -93,9 +97,16 @@ The purged CSS is written back to
 ### Run tests
 
 ```shell
-npx vitest run  # run tests once
-npx vitest watch  # run tests on file changes
+uv run --extra test pytest  # Python/template contract tests after django-cast 0.2.62 is released
+# While testing both sibling worktrees before that release:
+PYTHONPATH=../django-cast/src uv run --no-sync pytest
+npx vitest run              # JavaScript tests once
+npx vitest watch            # JavaScript tests in watch mode
 ```
+
+Rendered metadata behavior and JSON-LD parsing are covered by django-cast's
+post and episode detail tests; this theme's tests guard the shared-template and
+minimum-version contract.
 
 ### Run development server
 
