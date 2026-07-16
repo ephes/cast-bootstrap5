@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import CastSearchModal, { buildOrderingPills } from "@/search/cast-search-modal";
+import CastSearchModal, { buildOrderingPills, FACET_DEBOUNCE_MS } from "@/search/cast-search-modal";
 
 function markVisible(element: HTMLElement): void {
   Object.defineProperty(element, "offsetParent", {
@@ -13,12 +13,16 @@ function markVisible(element: HTMLElement): void {
 
 type MarkupOptions = {
   dynamic?: boolean;
+  suggestions?: boolean;
   valuedGroups?: boolean;
 };
 
 function buildModalMarkup(options: MarkupOptions = {}): string {
-  const { dynamic = false, valuedGroups = true } = options;
+  const { dynamic = false, suggestions = false, valuedGroups = true } = options;
   const dynamicAttribute = dynamic ? ' data-cast-dynamic-facets-url="/api/facet_counts/1/"' : "";
+  const suggestionsAttribute = suggestions
+    ? ' data-cast-search-suggestions-url="/api/search-suggestions/1/"'
+    : "";
   const tagGroupAttr = valuedGroups ? 'data-cast-facet-group="tag_facets"' : "data-cast-facet-group";
   const dateGroupAttr = valuedGroups ? 'data-cast-facet-group="date_facets"' : "data-cast-facet-group";
   const categoryGroupAttr = valuedGroups
@@ -27,12 +31,15 @@ function buildModalMarkup(options: MarkupOptions = {}): string {
 
   return `
     <button type="button" data-cast-search-trigger>Open</button>
-    <cast-search-modal data-trigger="[data-cast-search-trigger]"${dynamicAttribute}>
+    <cast-search-modal data-trigger="[data-cast-search-trigger]"${dynamicAttribute}${suggestionsAttribute}>
       <div class="cast-search-overlay" data-cast-search-overlay hidden>
         <div class="cast-search-modal">
           <form action="/blog/" method="get" class="cast-search-modal-form" data-cast-search-form>
             <input type="text" name="search" value="">
             <button type="button" data-cast-search-close>Close</button>
+            <ul id="suggestions" data-cast-search-suggestions hidden></ul>
+            <div data-cast-suggestion-status></div>
+            <div data-cast-suggestion-loading hidden></div>
 
             <div class="cast-search-modal-body">
               <div data-cast-facet-loading hidden>Loading</div>
@@ -324,7 +331,7 @@ describe("cast-search-modal", () => {
     linkA.click();
     linkB.click();
 
-    await vi.advanceTimersByTimeAsync(149);
+    await vi.advanceTimersByTimeAsync(FACET_DEBOUNCE_MS - 1);
     expect(fetchMock).not.toHaveBeenCalled();
 
     await vi.advanceTimersByTimeAsync(1);
@@ -351,7 +358,7 @@ describe("cast-search-modal", () => {
     const clearEvent = new MouseEvent("click", { bubbles: true, cancelable: true });
     clearLink.dispatchEvent(clearEvent);
 
-    await vi.advanceTimersByTimeAsync(160);
+    await vi.advanceTimersByTimeAsync(FACET_DEBOUNCE_MS + 10);
     await Promise.resolve();
 
     expect(clearEvent.defaultPrevented).toBe(true);
@@ -377,7 +384,7 @@ describe("cast-search-modal", () => {
 
     searchInput.value = "django";
     searchInput.dispatchEvent(new Event("input", { bubbles: true }));
-    await vi.advanceTimersByTimeAsync(160);
+    await vi.advanceTimersByTimeAsync(FACET_DEBOUNCE_MS + 10);
     await Promise.resolve();
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -387,7 +394,7 @@ describe("cast-search-modal", () => {
 
     searchInput.value = "";
     searchInput.dispatchEvent(new Event("search", { bubbles: true }));
-    await vi.advanceTimersByTimeAsync(160);
+    await vi.advanceTimersByTimeAsync(FACET_DEBOUNCE_MS + 10);
     await Promise.resolve();
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
@@ -429,7 +436,7 @@ describe("cast-search-modal", () => {
 
     const legacyLink = document.querySelector('a[href="/blog/?tag_facets=legacy"]') as HTMLAnchorElement;
     legacyLink.click();
-    await vi.advanceTimersByTimeAsync(160);
+    await vi.advanceTimersByTimeAsync(FACET_DEBOUNCE_MS + 10);
     await Promise.resolve();
 
     const status = document.querySelector("[data-cast-facet-status]") as HTMLElement;
@@ -440,7 +447,7 @@ describe("cast-search-modal", () => {
       '[data-cast-facet-group="tag_facets"] a[href*="tag_facets=legacy"]'
     ) as HTMLAnchorElement;
     legacyLinkAgain.click();
-    await vi.advanceTimersByTimeAsync(160);
+    await vi.advanceTimersByTimeAsync(FACET_DEBOUNCE_MS + 10);
     await Promise.resolve();
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -460,7 +467,7 @@ describe("cast-search-modal", () => {
     const legacyLink = document.querySelector('a[href="/blog/?tag_facets=legacy"]') as HTMLAnchorElement;
     legacyLink.click();
 
-    await vi.advanceTimersByTimeAsync(160);
+    await vi.advanceTimersByTimeAsync(FACET_DEBOUNCE_MS + 10);
     await Promise.resolve();
 
     const group = document.querySelector('[data-cast-facet-group="tag_facets"]') as HTMLElement;
@@ -525,7 +532,7 @@ describe("cast-search-modal", () => {
     const legacyLink = document.querySelector('a[href="/blog/?tag_facets=legacy"]') as HTMLAnchorElement;
     legacyLink.click();
 
-    await vi.advanceTimersByTimeAsync(160);
+    await vi.advanceTimersByTimeAsync(FACET_DEBOUNCE_MS + 10);
     await Promise.resolve();
 
     const group = document.querySelector('[data-cast-facet-group="tag_facets"]') as HTMLElement;
@@ -538,7 +545,7 @@ describe("cast-search-modal", () => {
     expect(hiddenZero).toBeNull();
   });
 
-  it("shows no-results state and disables submit when result_count is zero", async () => {
+  it("shows no-results state without disabling ordinary search submission", async () => {
     vi.useFakeTimers();
     document.body.innerHTML = buildModalMarkup({ dynamic: true });
 
@@ -548,7 +555,7 @@ describe("cast-search-modal", () => {
     const tagLink = document.querySelector('a[href="/blog/?tag_facets=legacy"]') as HTMLAnchorElement;
     tagLink.click();
 
-    await vi.advanceTimersByTimeAsync(160);
+    await vi.advanceTimersByTimeAsync(FACET_DEBOUNCE_MS + 10);
     await Promise.resolve();
     await Promise.resolve();
 
@@ -556,7 +563,114 @@ describe("cast-search-modal", () => {
     const submitButton = document.querySelector('button[type="submit"]') as HTMLButtonElement;
 
     expect(noResults.hidden).toBe(false);
-    expect(submitButton.disabled).toBe(true);
+    expect(submitButton.disabled).toBe(false);
+  });
+
+  it("suppresses the full-text no-results message while title suggestions are open", async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn().mockImplementation((url: RequestInfo | URL) => {
+      if (String(url).includes("search-suggestions")) {
+        return jsonResponse({
+          query: "py",
+          suggestions: [
+            {
+              id: 1,
+              title: "Python destination",
+              url: "/blog/python-destination/",
+              visible_date: "2026-07-16T10:00:00Z",
+            },
+          ],
+        });
+      }
+      const facetPayload = modalResponse({ result_count: 0 }) as {
+        groups: {
+          tag_facets: { selected: string };
+          category_facets: { selected: string };
+        };
+      };
+      facetPayload.groups.tag_facets.selected = "python";
+      facetPayload.groups.category_facets.selected = "";
+      return jsonResponse(facetPayload);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    document.body.innerHTML = buildModalMarkup({ dynamic: true, suggestions: true });
+
+    const trigger = document.querySelector("[data-cast-search-trigger]") as HTMLButtonElement;
+    const input = document.querySelector('input[name="search"]') as HTMLInputElement;
+    const listbox = document.querySelector("[data-cast-search-suggestions]") as HTMLElement;
+    const noResults = document.querySelector("[data-cast-no-results]") as HTMLElement;
+    trigger.click();
+    expect(document.activeElement).toBe(input);
+    expect(input.getAttribute("role")).toBe("combobox");
+    input.value = "py";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+
+    await vi.advanceTimersByTimeAsync(FACET_DEBOUNCE_MS);
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(fetchMock.mock.calls.map(([url]) => String(url))).toEqual([
+      expect.stringContaining("search-suggestions"),
+      expect.stringContaining("facet_counts"),
+    ]);
+    expect(document.activeElement).toBe(input);
+    expect(document.querySelector("[data-cast-suggestion-status]")?.textContent).toBe("1 suggestion available.");
+    expect(listbox.hidden).toBe(false);
+    expect(noResults.hidden).toBe(true);
+
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+
+    expect(listbox.hidden).toBe(true);
+    expect(noResults.hidden).toBe(false);
+  });
+
+  it("does not restore a stale no-results count after a facet refresh fails", async () => {
+    vi.useFakeTimers();
+    let facetRequests = 0;
+    const fetchMock = vi.fn().mockImplementation((url: RequestInfo | URL) => {
+      if (String(url).includes("search-suggestions")) {
+        return jsonResponse({
+          query: "py",
+          suggestions: [{ id: 1, title: "Python destination", url: "/blog/python-destination/" }],
+        });
+      }
+      facetRequests += 1;
+      if (facetRequests === 1) {
+        return jsonResponse(modalResponse({ result_count: 0 }));
+      }
+      return Promise.resolve({ ok: false, status: 500 } as Response);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    document.body.innerHTML = buildModalMarkup({ dynamic: true, suggestions: true });
+
+    const noResults = document.querySelector("[data-cast-no-results]") as HTMLElement;
+    const legacyLink = document.querySelector('a[href="/blog/?tag_facets=legacy"]') as HTMLAnchorElement;
+    legacyLink.click();
+    await vi.advanceTimersByTimeAsync(FACET_DEBOUNCE_MS + 10);
+    await Promise.resolve();
+    expect(noResults.hidden).toBe(false);
+
+    const pythonLink = document.querySelector('a[href*="tag_facets=python"]') as HTMLAnchorElement;
+    pythonLink.click();
+    await vi.advanceTimersByTimeAsync(FACET_DEBOUNCE_MS + 10);
+    await Promise.resolve();
+    expect(noResults.hidden).toBe(true);
+
+    const trigger = document.querySelector("[data-cast-search-trigger]") as HTMLButtonElement;
+    const input = document.querySelector('input[name="search"]') as HTMLInputElement;
+    trigger.click();
+    input.value = "py";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    await vi.advanceTimersByTimeAsync(225);
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+    expect(noResults.hidden).toBe(true);
   });
 
   it("handles non-ok responses by preserving usability and announcing fallback status", async () => {
@@ -574,13 +688,12 @@ describe("cast-search-modal", () => {
     const status = document.querySelector("[data-cast-facet-status]") as HTMLElement;
     const loading = document.querySelector("[data-cast-facet-loading]") as HTMLElement;
 
-    submitButton.disabled = true;
     noResults.hidden = false;
 
     const tagLink = document.querySelector('a[href="/blog/?tag_facets=legacy"]') as HTMLAnchorElement;
     tagLink.click();
 
-    await vi.advanceTimersByTimeAsync(160);
+    await vi.advanceTimersByTimeAsync(FACET_DEBOUNCE_MS + 10);
     await Promise.resolve();
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -604,11 +717,57 @@ describe("cast-search-modal", () => {
     const tagLink = document.querySelector('a[href="/blog/?tag_facets=legacy"]') as HTMLAnchorElement;
     tagLink.click();
 
-    await vi.advanceTimersByTimeAsync(160);
+    await vi.advanceTimersByTimeAsync(FACET_DEBOUNCE_MS + 10);
     await Promise.resolve();
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(status.textContent).toBe("Could not refresh filters. You can still search.");
+  });
+
+  it("ignores a stale facet response that resolves during the next debounce", async () => {
+    vi.useFakeTimers();
+    document.body.innerHTML = buildModalMarkup({ dynamic: true });
+
+    let firstSignal: AbortSignal | null = null;
+    let resolveFirst: ((response: Response) => void) | undefined;
+    const stalePayload = modalResponse() as { groups: { tag_facets: { selected: string } } };
+    stalePayload.groups.tag_facets.selected = "legacy";
+    const currentPayload = modalResponse() as { groups: { tag_facets: { selected: string } } };
+    currentPayload.groups.tag_facets.selected = "python";
+    const fetchMock = vi
+      .fn()
+      .mockImplementationOnce((_: string, init?: RequestInit) => {
+        firstSignal = init?.signal as AbortSignal;
+        return new Promise<Response>((resolve) => {
+          resolveFirst = resolve;
+        });
+      })
+      .mockImplementationOnce(() => jsonResponse(currentPayload));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const legacyLink = document.querySelector('a[href="/blog/?tag_facets=legacy"]') as HTMLAnchorElement;
+    const pythonLink = document.querySelector('a[href="/blog/?tag_facets=python"]') as HTMLAnchorElement;
+    legacyLink.click();
+    await vi.advanceTimersByTimeAsync(FACET_DEBOUNCE_MS);
+
+    pythonLink.click();
+    expect(firstSignal?.aborted).toBe(true);
+    resolveFirst?.({ ok: true, json: async () => stalePayload } as Response);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    const form = document.querySelector("form") as HTMLFormElement;
+    const selectedHidden = form.querySelector('input[name="tag_facets"]') as HTMLInputElement;
+    expect(selectedHidden.value).toBe("python");
+
+    await vi.advanceTimersByTimeAsync(FACET_DEBOUNCE_MS);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const currentRequest = new URL(fetchMock.mock.calls[1][0] as string, "http://testserver");
+    expect(currentRequest.searchParams.get("tag_facets")).toBe("python");
+    expect(selectedHidden.value).toBe("python");
   });
 
   it("aborts stale in-flight requests and applies only the newest response", async () => {
@@ -642,10 +801,10 @@ describe("cast-search-modal", () => {
     ) as HTMLAnchorElement;
 
     legacyLink.click();
-    await vi.advanceTimersByTimeAsync(160);
+    await vi.advanceTimersByTimeAsync(FACET_DEBOUNCE_MS + 10);
 
     dateLink.click();
-    await vi.advanceTimersByTimeAsync(160);
+    await vi.advanceTimersByTimeAsync(FACET_DEBOUNCE_MS + 10);
 
     expect(firstSignal?.aborted).toBe(true);
 
@@ -707,20 +866,20 @@ describe("cast-search-modal", () => {
 
     const tagLegacyLink = document.querySelector('a[href="/blog/?tag_facets=legacy"]') as HTMLAnchorElement;
     tagLegacyLink.click();
-    await vi.advanceTimersByTimeAsync(160);
+    await vi.advanceTimersByTimeAsync(FACET_DEBOUNCE_MS + 10);
     await Promise.resolve();
 
     const dateLink = document.querySelector(
       '[data-cast-facet-group="date_facets"] a[href*="date_facets=2026-01"]'
     ) as HTMLAnchorElement;
     dateLink.click();
-    await vi.advanceTimersByTimeAsync(160);
+    await vi.advanceTimersByTimeAsync(FACET_DEBOUNCE_MS + 10);
 
     const dateAllLink = document.querySelector(
       '[data-cast-facet-group="date_facets"] a.cast-facet-all-option'
     ) as HTMLAnchorElement;
     dateAllLink.click();
-    await vi.advanceTimersByTimeAsync(160);
+    await vi.advanceTimersByTimeAsync(FACET_DEBOUNCE_MS + 10);
     await Promise.resolve();
 
     expect(inFlightSignal?.aborted).toBe(true);
@@ -760,7 +919,7 @@ describe("cast-search-modal", () => {
     const activeLink = document.querySelector('a[href="/blog/?tag_facets=legacy"]') as HTMLAnchorElement;
 
     activeLink.click();
-    await vi.advanceTimersByTimeAsync(160);
+    await vi.advanceTimersByTimeAsync(FACET_DEBOUNCE_MS + 10);
     expect(fetchMock).toHaveBeenCalledTimes(1);
 
     activeModal.remove();

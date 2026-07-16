@@ -1,8 +1,9 @@
 import { createFocusTrap, type FocusTrapController } from "@/utils/focus-trap";
+import CastSearchTypeahead from "@/search/cast-search-typeahead";
 
 const DEFAULT_TRIGGER_SELECTOR = "[data-cast-search-trigger]";
 const ORDERING_DEFAULT = "-visible_date";
-const FACET_DEBOUNCE_MS = 150;
+export const FACET_DEBOUNCE_MS = 300;
 const FACET_CACHE_MAX_ENTRIES = 50;
 const FACET_GROUP_NAMES = ["date_facets", "tag_facets", "category_facets"] as const;
 const ALL_FACETS_LABEL = "All";
@@ -35,7 +36,6 @@ type ModalState = {
   ordering: string;
   inFlight: AbortController | null;
   requestSeq: number;
-  appliedSeq: number;
   debounceTimer: ReturnType<typeof setTimeout> | null;
   loadingTimer: ReturnType<typeof setTimeout> | null;
   cache: Map<string, ModalFacetResponse>;
@@ -282,8 +282,10 @@ export default class CastSearchModal extends HTMLElement {
   private loadingElement: HTMLElement | null;
   private statusElement: HTMLElement | null;
   private noResultsElement: HTMLElement | null;
-  private submitButton: HTMLButtonElement | null;
   private dynamicFacetsUrl: string | null;
+  private typeahead: CastSearchTypeahead | null;
+  private suggestionsOpen: boolean;
+  private latestResultCount: number | null;
   private focusTrap: FocusTrapController | null;
   private listenersBound: boolean;
   private readonly state: ModalState;
@@ -306,8 +308,10 @@ export default class CastSearchModal extends HTMLElement {
     this.loadingElement = null;
     this.statusElement = null;
     this.noResultsElement = null;
-    this.submitButton = null;
     this.dynamicFacetsUrl = null;
+    this.typeahead = null;
+    this.suggestionsOpen = false;
+    this.latestResultCount = null;
     this.focusTrap = null;
     this.listenersBound = false;
     this.state = {
@@ -316,7 +320,6 @@ export default class CastSearchModal extends HTMLElement {
       ordering: "",
       inFlight: null,
       requestSeq: 0,
-      appliedSeq: 0,
       debounceTimer: null,
       loadingTimer: null,
       cache: new Map<string, ModalFacetResponse>(),
@@ -354,6 +357,7 @@ export default class CastSearchModal extends HTMLElement {
     this.markAllFacetLinks();
     this.expandActivePanels();
     this.bindListeners();
+    this.typeahead?.connect();
   }
 
   disconnectedCallback(): void {
@@ -363,7 +367,9 @@ export default class CastSearchModal extends HTMLElement {
     }
     this.clearDebounceTimer();
     this.clearLoadingTimer();
+    this.state.requestSeq += 1;
     this.abortInFlightRequest();
+    this.typeahead?.disconnect();
     this.setLoading(false);
     this.unbindListeners();
     this.focusTrap?.deactivate();
@@ -377,6 +383,7 @@ export default class CastSearchModal extends HTMLElement {
 
     this.overlay.hidden = false;
     document.body.style.overflow = "hidden";
+    this.typeahead?.resume();
     this.focusTrap?.activate();
     this.searchInput?.focus();
   }
@@ -407,8 +414,37 @@ export default class CastSearchModal extends HTMLElement {
     this.loadingElement = this.overlay?.querySelector<HTMLElement>("[data-cast-facet-loading]") ?? null;
     this.statusElement = this.overlay?.querySelector<HTMLElement>("[data-cast-facet-status]") ?? null;
     this.noResultsElement = this.overlay?.querySelector<HTMLElement>("[data-cast-no-results]") ?? null;
-    this.submitButton = this.form?.querySelector<HTMLButtonElement>('button[type="submit"]') ?? null;
     this.dynamicFacetsUrl = this.getAttribute("data-cast-dynamic-facets-url");
+    const suggestionsUrl = this.getAttribute("data-cast-search-suggestions-url");
+    const suggestionsList = this.overlay?.querySelector<HTMLElement>("[data-cast-search-suggestions]") ?? null;
+    const suggestionsStatus = this.overlay?.querySelector<HTMLElement>("[data-cast-suggestion-status]") ?? null;
+    const suggestionsLoading = this.overlay?.querySelector<HTMLElement>("[data-cast-suggestion-loading]") ?? null;
+    this.typeahead?.disconnect();
+    this.typeahead = null;
+    if (suggestionsUrl && this.searchInput && this.form && suggestionsList && suggestionsStatus) {
+      this.typeahead = new CastSearchTypeahead(
+        suggestionsUrl,
+        {
+          input: this.searchInput,
+          form: this.form,
+          listbox: suggestionsList,
+          status: suggestionsStatus,
+          loading: suggestionsLoading,
+        },
+        {
+          onOpenChange: (open) => this.handleSuggestionsOpenChange(open),
+          messages: {
+            noSuggestions: this.getAttribute("data-cast-suggestion-none") ?? undefined,
+            unavailable: this.getAttribute("data-cast-suggestion-unavailable") ?? undefined,
+            oneAvailable: this.getAttribute("data-cast-suggestion-one") ?? undefined,
+            manyAvailable: this.getAttribute("data-cast-suggestion-many") ?? undefined,
+          },
+        }
+      );
+      if (this.isConnected) {
+        this.typeahead.connect();
+      }
+    }
   }
 
   private bindListeners(): void {
@@ -537,6 +573,7 @@ export default class CastSearchModal extends HTMLElement {
     this.state.ordering = this.getOrderingValue();
 
     this.scheduleFacetRecalculation();
+    this.typeahead?.facetStateChanged();
   }
 
   private clearAllFilters(): void {
@@ -584,6 +621,7 @@ export default class CastSearchModal extends HTMLElement {
     this.expandActivePanels();
     this.announceStatus("Filters cleared.");
     this.scheduleFacetRecalculation();
+    this.typeahead?.facetStateChanged();
   }
 
   private syncOrderingPills(orderingValue: string): void {
@@ -633,8 +671,11 @@ export default class CastSearchModal extends HTMLElement {
     }
 
     this.clearDebounceTimer();
+    this.abortInFlightRequest();
+    const sequence = ++this.state.requestSeq;
+    const requestKey = this.buildRequestKey();
     this.state.debounceTimer = setTimeout(() => {
-      void this.refreshDynamicFacets();
+      void this.refreshDynamicFacets(sequence, requestKey);
     }, FACET_DEBOUNCE_MS);
   }
 
@@ -657,21 +698,20 @@ export default class CastSearchModal extends HTMLElement {
   private abortInFlightRequest(): void {
     this.state.inFlight?.abort();
     this.state.inFlight = null;
+    this.setLoading(false);
   }
 
-  private async refreshDynamicFacets(): Promise<void> {
+  private async refreshDynamicFacets(sequence: number, requestKey: string): Promise<void> {
     if (!this.dynamicFacetsUrl) {
       return;
     }
 
-    const sequence = ++this.state.requestSeq;
-    const requestKey = this.buildRequestKey();
-
-    this.abortInFlightRequest();
+    if (sequence !== this.state.requestSeq || requestKey !== this.buildRequestKey()) {
+      return;
+    }
 
     const cached = this.state.cache.get(requestKey);
     if (cached) {
-      this.state.appliedSeq = sequence;
       this.setLoading(false);
       this.applyFacetResponse(cached);
       this.announceStatus("Filters updated.");
@@ -698,23 +738,22 @@ export default class CastSearchModal extends HTMLElement {
         throw new Error("Invalid modal facet response");
       }
 
-      this.setCacheEntry(requestKey, payload);
-
-      if (sequence < this.state.appliedSeq) {
+      if (sequence !== this.state.requestSeq || requestKey !== this.buildRequestKey()) {
         return;
       }
 
-      this.state.appliedSeq = sequence;
+      this.setCacheEntry(requestKey, payload);
       this.applyFacetResponse(payload);
       this.announceStatus("Filters updated.");
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") {
         return;
       }
-      this.setSubmitEnabled(true);
-      if (this.noResultsElement) {
-        this.noResultsElement.hidden = true;
+      if (sequence !== this.state.requestSeq || requestKey !== this.buildRequestKey()) {
+        return;
       }
+      this.latestResultCount = null;
+      this.updateNoResultsVisibility();
       this.announceStatus("Could not refresh filters. You can still search.");
     } finally {
       if (this.state.inFlight === controller) {
@@ -1018,18 +1057,20 @@ export default class CastSearchModal extends HTMLElement {
   }
 
   private applyNoResultsState(resultCount: number): void {
-    const hasResults = resultCount > 0;
-    if (this.noResultsElement) {
-      this.noResultsElement.hidden = hasResults;
-    }
-    this.setSubmitEnabled(hasResults);
+    this.latestResultCount = resultCount;
+    this.updateNoResultsVisibility();
   }
 
-  private setSubmitEnabled(enabled: boolean): void {
-    if (!this.submitButton) {
-      return;
+  private handleSuggestionsOpenChange(open: boolean): void {
+    this.suggestionsOpen = open;
+    this.updateNoResultsVisibility();
+  }
+
+  private updateNoResultsVisibility(): void {
+    if (this.noResultsElement) {
+      this.noResultsElement.hidden =
+        this.suggestionsOpen || this.latestResultCount === null || this.latestResultCount > 0;
     }
-    this.submitButton.disabled = !enabled;
   }
 
   private setLoading(isLoading: boolean): void {

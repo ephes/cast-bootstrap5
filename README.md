@@ -46,6 +46,15 @@ The metadata-sharing template contract requires django-cast 0.2.62 or newer.
 Release and deploy django-cast before upgrading cast-bootstrap5; older versions
 do not ship `cast/includes/post_social_meta.html`.
 
+With django-cast 0.2.64 or newer, the search modal progressively enhances the
+existing GET search form with recent-first title suggestions. The destination
+list supports pointer, touch, and keyboard navigation and leaves ordinary form
+submission available when JavaScript or the suggestion endpoint fails, or when
+the current filter combination has no matching posts. While destinations are
+visible, they take visual priority over the live full-text no-results message.
+With an older django-cast version the endpoint URL is absent and the modal
+keeps its submit-only search behavior.
+
 ## Development
 ### Install javascript dependencies
 

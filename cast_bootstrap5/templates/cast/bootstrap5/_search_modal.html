@@ -5,6 +5,11 @@
   <cast-search-modal
     data-trigger="[data-cast-search-trigger]"
     data-cast-dynamic-facets-url="{{ page.facet_counts_api_url }}"
+    data-cast-search-suggestions-url="{{ page.search_suggestions_api_url }}"
+    data-cast-suggestion-none="{% translate 'No suggestions.' %}"
+    data-cast-suggestion-unavailable="{% translate 'Suggestions unavailable. You can still search.' %}"
+    data-cast-suggestion-one="{% translate '1 suggestion available.' %}"
+    data-cast-suggestion-many="{% translate '{count} suggestions available.' %}"
   >
   <!-- Modal backdrop -->
     <div class="cast-search-overlay" data-cast-search-overlay hidden>
@@ -18,10 +23,22 @@
             <svg class="cast-follow-icon" aria-hidden="true" width="20" height="20" viewBox="0 0 16 16" fill="currentColor">
               <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85zm-5.242.656a5 5 0 1 1 0-10 5 5 0 0 1 0 10z"/>
             </svg>
-            {{ filterset.form.search|as_crispy_field }}
+            <div class="cast-search-input-area">
+              {{ filterset.form.search|as_crispy_field }}
+              <div data-cast-suggestion-loading class="cast-suggestion-loading" hidden>
+                <span class="visually-hidden">{% translate "Finding posts…" %}</span>
+              </div>
+              <div data-cast-suggestion-status class="visually-hidden" aria-live="polite" aria-atomic="true"></div>
+            </div>
             <button type="button" class="cast-search-modal-close" aria-label="{% translate 'Close' %}" data-cast-search-close>
               <kbd>Esc</kbd>
             </button>
+            <ul id="cast-search-suggestions-{{ page.pk }}"
+                class="cast-search-suggestions"
+                role="listbox"
+                aria-label="{% translate 'Matching posts' %}"
+                data-cast-search-suggestions
+                hidden></ul>
           </div>
 
         <!-- Filter panels (collapsed by default, auto-expanded if active) -->

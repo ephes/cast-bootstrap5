@@ -23,6 +23,15 @@ def test_django_cast_dependency_includes_shared_metadata_partial_release():
     assert "django-cast>=0.2.62" in project["project"]["dependencies"]
 
 
+def test_search_modal_progressively_uses_core_suggestion_url():
+    template = (TEMPLATE_DIR / "_search_modal.html").read_text()
+
+    assert 'data-cast-search-suggestions-url="{{ page.search_suggestions_api_url }}"' in template
+    assert 'role="listbox"' in template
+    assert 'data-cast-suggestion-status class="visually-hidden" aria-live="polite"' in template
+    assert "data-cast-suggestion-many=\"{% translate '{count} suggestions available.' %}\"" in template
+
+
 def test_post_delegates_social_metadata_to_django_cast():
     template = (TEMPLATE_DIR / "post.html").read_text()
 
