@@ -85,6 +85,8 @@ export default class CastSearchTypeahead {
   private connected = false;
   private consecutiveFailures = 0;
   private disabled = false;
+  private retainedSuggestionsBusy = false;
+  private loading = false;
 
   constructor(url: string, elements: TypeaheadElements, actions: TypeaheadActions = {}) {
     this.url = url;
@@ -143,6 +145,7 @@ export default class CastSearchTypeahead {
     this.clearTimers();
     this.abortRequest();
     this.close();
+    this.setBusy(false);
   }
 
   facetStateChanged(): void {
@@ -156,9 +159,21 @@ export default class CastSearchTypeahead {
   }
 
   private readonly handleInput = (): void => {
-    this.invalidateSuggestions();
+    this.suspendSuggestions();
     this.schedule();
   };
+
+  private suspendSuggestions(): void {
+    this.clearDebounce();
+    this.abortRequest();
+    this.suggestions = [];
+    this.clearActive();
+    this.elements.listbox.querySelectorAll<HTMLElement>("[role=option]").forEach((option) => {
+      option.setAttribute("aria-disabled", "true");
+    });
+    this.setBusy(this.isOpen());
+    this.announce("");
+  }
 
   private invalidateSuggestions(): void {
     this.clearDebounce();
@@ -166,6 +181,7 @@ export default class CastSearchTypeahead {
     this.suggestions = [];
     this.render();
     this.close();
+    this.setBusy(false);
     this.announce("");
   }
 
@@ -232,7 +248,7 @@ export default class CastSearchTypeahead {
   private readonly handlePointerMove = (event: PointerEvent): void => {
     const option = (event.target as Element | null)?.closest<HTMLElement>("[role=option]");
     const index = option ? Number(option.dataset.suggestionIndex) : Number.NaN;
-    if (Number.isInteger(index) && index !== this.activeIndex) {
+    if (this.suggestions[index] && index !== this.activeIndex) {
       this.setActive(index);
     }
   };
@@ -252,6 +268,9 @@ export default class CastSearchTypeahead {
 
   private schedule(): void {
     if (this.disabled) {
+      this.render();
+      this.close();
+      this.setBusy(false);
       return;
     }
     this.clearDebounce();
@@ -259,7 +278,9 @@ export default class CastSearchTypeahead {
     if (query.length < TYPEAHEAD_MIN_QUERY_LENGTH) {
       this.abortRequest();
       this.suggestions = [];
+      this.render();
       this.close();
+      this.setBusy(false);
       this.announce("");
       return;
     }
@@ -309,6 +330,7 @@ export default class CastSearchTypeahead {
       this.suggestions = [];
       this.render();
       this.close();
+      this.setBusy(false);
       this.announceWhileFocused(this.messages.unavailable);
       if (this.consecutiveFailures >= 2) {
         this.disabled = true;
@@ -325,8 +347,9 @@ export default class CastSearchTypeahead {
     if (key !== this.buildKey()) {
       return;
     }
+    this.setBusy(false);
+    this.clearActive();
     this.suggestions = payload.suggestions;
-    this.activeIndex = -1;
     this.render();
     if (this.suggestions.length === 0) {
       this.close();
@@ -459,10 +482,20 @@ export default class CastSearchTypeahead {
 
   private setLoading(loading: boolean): void {
     this.clearLoadingTimer();
-    this.elements.listbox.setAttribute("aria-busy", loading ? "true" : "false");
+    this.loading = loading;
+    this.updateBusyState();
     if (this.elements.loading) {
       this.elements.loading.hidden = !loading;
     }
+  }
+
+  private setBusy(busy: boolean): void {
+    this.retainedSuggestionsBusy = busy;
+    this.updateBusyState();
+  }
+
+  private updateBusyState(): void {
+    this.elements.listbox.setAttribute("aria-busy", this.retainedSuggestionsBusy || this.loading ? "true" : "false");
   }
 
   private clearDebounce(): void {

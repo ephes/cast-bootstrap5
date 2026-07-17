@@ -52,6 +52,8 @@ list supports pointer, touch, and keyboard navigation and leaves ordinary form
 submission available when JavaScript or the suggestion endpoint fails, or when
 the current filter combination has no matching posts. While destinations are
 visible, they take visual priority over the live full-text no-results message.
+When a longer query refreshes an open list, the settled destinations remain
+visible but temporarily non-selectable until the matching response arrives.
 With an older django-cast version the endpoint URL is absent and the modal
 keeps its submit-only search behavior.
 

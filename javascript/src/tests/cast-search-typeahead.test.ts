@@ -120,6 +120,36 @@ describe("CastSearchTypeahead", () => {
     expect(options[0].querySelector("time")).toBeNull();
   });
 
+  it("announces a slow initial request as busy after the loading delay", async () => {
+    let resolveRequest: ((value: Response) => void) | undefined;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(
+        () =>
+          new Promise<Response>((resolve) => {
+            resolveRequest = resolve;
+          })
+      )
+    );
+    const { input, listbox, loading } = setup();
+
+    input.value = "py";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    await vi.advanceTimersByTimeAsync(524);
+    expect(listbox.getAttribute("aria-busy")).toBe("false");
+    expect(loading.hidden).toBe(true);
+
+    await vi.advanceTimersByTimeAsync(1);
+    expect(listbox.getAttribute("aria-busy")).toBe("true");
+    expect(loading.hidden).toBe(false);
+
+    resolveRequest?.((await response("py", pythonSuggestions)) as Response);
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(listbox.getAttribute("aria-busy")).toBe("false");
+    expect(loading.hidden).toBe(true);
+  });
+
   it("uses manual arrow selection and preserves native Enter without a selection", async () => {
     const navigate = vi.fn();
     vi.stubGlobal("fetch", vi.fn().mockImplementation(() => response("py", pythonSuggestions)));
@@ -341,9 +371,19 @@ describe("CastSearchTypeahead", () => {
     expect(fetchMock).toHaveBeenCalledTimes(4);
   });
 
-  it("clears an active destination immediately when the query changes", async () => {
+  it("keeps settled destinations visible but inert while the next query loads", async () => {
     const navigate = vi.fn();
-    vi.stubGlobal("fetch", vi.fn().mockImplementation(() => response("py", pythonSuggestions)));
+    let resolveRefresh: ((value: Response) => void) | undefined;
+    const fetchMock = vi
+      .fn()
+      .mockImplementationOnce(() => response("py", pythonSuggestions))
+      .mockImplementationOnce(
+        () =>
+          new Promise<Response>((resolve) => {
+            resolveRefresh = resolve;
+          })
+      );
+    vi.stubGlobal("fetch", fetchMock);
     const { input, listbox } = setup({ navigate });
 
     input.value = "py";
@@ -356,13 +396,34 @@ describe("CastSearchTypeahead", () => {
     input.value = "pyt";
     input.dispatchEvent(new Event("input", { bubbles: true }));
 
-    expect(listbox.hidden).toBe(true);
+    expect(listbox.hidden).toBe(false);
+    expect(listbox.getAttribute("aria-busy")).toBe("true");
+    expect(listbox.querySelectorAll("[role=option]")).toHaveLength(2);
+    expect(listbox.querySelectorAll('[role=option][aria-disabled="true"]')).toHaveLength(2);
     expect(input.hasAttribute("aria-activedescendant")).toBe(false);
     expect(listbox.querySelector('[aria-selected="true"]')).toBeNull();
+
+    const retainedOption = listbox.querySelector("[role=option]") as HTMLElement;
+    retainedOption.dispatchEvent(new Event("pointermove", { bubbles: true }));
+    expect(input.hasAttribute("aria-activedescendant")).toBe(false);
+    expect(retainedOption.getAttribute("aria-selected")).toBe("false");
+    retainedOption.click();
     const enter = new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true });
     input.dispatchEvent(enter);
     expect(enter.defaultPrevented).toBe(false);
     expect(navigate).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(225);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(listbox.hidden).toBe(false);
+
+    resolveRefresh?.((await response("pyt", [pythonSuggestions[0]])) as Response);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(listbox.getAttribute("aria-busy")).toBe("false");
+    expect(listbox.querySelectorAll("[role=option]")).toHaveLength(1);
+    expect(listbox.querySelector("[role=option]")?.hasAttribute("aria-disabled")).toBe(false);
   });
 
   it("does not expose stale destinations after a failed request", async () => {
