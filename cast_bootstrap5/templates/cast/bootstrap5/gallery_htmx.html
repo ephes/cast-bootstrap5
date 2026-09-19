@@ -1,46 +1,10 @@
 <div class="cast-gallery-container">
-  {% for image in images %}
-    <a
-      href="{{ image.modal.src.jpeg }}"
-      data-hx-get="{% url 'cast:gallery-modal' template_base_dir=template_base_dir %}?image_pks={{ image_pks }}&current_image_index={{ forloop.counter0 }}&block_id={{ block.id }}"
-      data-hx-trigger="click"
-      data-hx-target="#imageGalleryModal-{{ block.id }}"
-      class="cast-image-gallery-thumbnail"
-      aria-label="{% if image.default_alt_text %}Open image: {{ image.default_alt_text }}{% else %}Open image{% endif %}"
-      data-full="{{ image.modal.src.jpeg }}"
-      data-bs-toggle="modal"
-      data-bs-target="#imageGalleryModal-{{ block.id }}"
-    >
-      <picture>
-        <source
-          srcset="{{ image.thumbnail.srcset.avif }}"
-          type="image/avif"
-          sizes="{{ image.thumbnail.sizes }}"
-          data-modal-src="{{ image.modal.src.avif }}"
-          data-modal-srcset="{{ image.modal.srcset.avif }}"
-          data-modal-sizes="{{ image.modal.sizes }}"
-        >
-        <img
-          id="img-{{ block.id }}-{{ forloop.counter0 }}"
-          class="cast-gallery-thumbnail"
-          alt="{{ image.default_alt_text }}"
-          src="{{ image.thumbnail.src.jpeg }}"
-          srcset="{{ image.thumbnail.srcset.jpeg }}"
-          sizes="{{ image.thumbnail.sizes }}"
-          width="{{ image.thumbnail.width }}"
-          height="{{ image.thumbnail.height }}"
-          data-modal-src="{{ image.modal.src.jpeg }}"
-          data-modal-srcset="{{ image.modal.srcset.jpeg }}"
-          data-modal-sizes="{{ image.modal.sizes }}"
-          data-modal-width="{{ image.modal.width }}"
-          data-modal-height="{{ image.modal.height }}"
-          data-prev="{% if forloop.first %}false{% else %}img-{{ block.id }}-{{ forloop.counter0|add:"-1" }}{% endif %}"
-          data-next="{% if forloop.last %}false{% else %}img-{{ block.id }}-{{ forloop.counter0|add:"1" }}{% endif %}"
-          loading="lazy"
-          decoding="async"
-        />
-      </picture>
-    </a>
+  {% for entry in gallery_entries|default:images %}
+    {% if gallery_entries %}
+      {% include "cast/bootstrap5/gallery_thumbnail.html" with image=entry.image caption=entry.caption use_htmx=True %}
+    {% else %}
+      {% include "cast/bootstrap5/gallery_thumbnail.html" with image=entry caption="" use_htmx=True %}
+    {% endif %}
   {% endfor %}
   <!-- Modal -->
   <div class="modal modal-blur fade" id="imageGalleryModal-{{ block.id }}" tabindex="-1" role="dialog"

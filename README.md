@@ -57,6 +57,18 @@ visible but temporarily non-selectable until the matching response arrives.
 With an older django-cast version the endpoint URL is absent and the modal
 keeps its submit-only search behavior.
 
+## Gallery captions
+
+Gallery thumbnails display an optional plain-text caption for each gallery entry,
+using semantic `figure`/`figcaption` markup with HTML escaping. Both the JavaScript
+and HTMX gallery templates accept django-cast’s `gallery_entries` context
+(`image` and `caption` per entry), while continuing to render the legacy `images`
+context without captions. The core must supply `gallery_entries`, `images`, and
+`image_pks` in the same order and length, retaining duplicate occurrences; HTMX
+uses each entry’s position to select its modal image. Repeated uses of one image can have different captions;
+the shared image itself is unchanged. Captions appear below thumbnails, not in
+the enlarged-image modal.
+
 ## Development
 ### Install javascript dependencies
 

@@ -108,6 +108,34 @@ describe("image gallery test", () => {
         expect(gallery.querySelector("#img-2")).toBeTruthy();
     });
 
+    test("captioned thumbnail opens the full-size link through its figure wrapper", () => {
+        const gallery = new ImageGalleryBs5();
+        gallery.innerHTML = `
+            <div class="cast-gallery-container">
+                <a class="cast-image-gallery-thumbnail" data-bs-target="#caption-modal" data-full="full-caption.jpg">
+                    <figure>
+                        <picture>
+                            <source data-modal-srcset="test.avif" />
+                            <img id="caption-img" data-modal-src="modal.jpg" data-prev="false" data-next="false" alt="Image" />
+                        </picture>
+                        <figcaption>Entry caption</figcaption>
+                    </figure>
+                </a>
+            </div>
+            <div id="caption-modal" class="modal">
+                <div class="modal-body"><a><picture><source /><img /></picture></a></div>
+                <div class="modal-footer"></div>
+            </div>
+        `;
+        document.body.appendChild(gallery);
+        // The full-size URL belongs to the data-bearing anchor, independent of styling.
+        gallery.querySelector("a[data-full]")?.removeAttribute("class");
+        const caption = gallery.querySelector("figcaption") as HTMLElement;
+        caption.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true, cancelable: true }));
+        expect(gallery.currentImage?.id).toBe("caption-img");
+        expect(document.querySelector("#caption-modal .modal-body a")?.getAttribute("href")).toBe("full-caption.jpg");
+    });
+
     test("gallery navigation buttons disabled correctly at boundaries", () => {
         // Create gallery instance and set its content
         const gallery = new ImageGalleryBs5();

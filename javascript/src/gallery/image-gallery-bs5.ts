@@ -240,11 +240,7 @@ export default class ImageGalleryBs5 extends HTMLElement {
             return;
         }
         const thumbnailPicture = img.parentNode;
-        if (!thumbnailPicture.parentNode) {
-            console.error("No parent node for thumbnail picture: ", thumbnailPicture);
-            return;
-        }
-        const fullUrl = (thumbnailPicture.parentNode as Element).getAttribute("data-full") ?? "";
+        const fullUrl = img.closest("a[data-full]")?.getAttribute("data-full") ?? "";
         const thumbnailSource = thumbnailPicture.querySelector("source");
         if (!thumbnailSource) {
             console.error("No thumbnail source for picture: ", thumbnailPicture);
