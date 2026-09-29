@@ -17,10 +17,35 @@ TEMPLATE_DIR = ROOT / "cast_bootstrap5" / "templates" / "cast" / "bootstrap5"
 DJANGO_CAST_TEMPLATE_DIR = Path(cast.__file__).parent / "templates"
 
 
-def test_django_cast_dependency_includes_shared_metadata_partial_release():
+def test_django_cast_dependency_includes_post_view_transition_release():
     project = tomllib.loads((ROOT / "pyproject.toml").read_text())
 
-    assert "django-cast>=0.2.62" in project["project"]["dependencies"]
+    assert "django-cast>=0.2.67" in project["project"]["dependencies"]
+
+
+def test_base_loads_core_post_view_transition_script_in_head():
+    template = (TEMPLATE_DIR / "base.html").read_text()
+    script = "<script src=\"{% static 'cast/js/post-view-transition.js' %}\"></script>"
+    head = template[: template.index("</head>")]
+
+    # Synchronous and outside any block, so pagereveal is registered before the
+    # first render and templates extending base.html inherit it.
+    assert script in head
+    assert head.index("{% endblock css %}") < head.index(script) < head.index("{% block headerscript %}")
+    assert (Path(cast.__file__).parent / "static" / "cast" / "js" / "post-view-transition.js").is_file()
+
+
+def test_cross_document_transitions_use_core_cast_page_type():
+    scss = (ROOT / "cast_bootstrap5" / "static" / "cast_bootstrap5" / "scss" / "_components.scss").read_text()
+    opt_in = re.search(r"@media \(prefers-reduced-motion: no-preference\) \{\s*@view-transition \{([^}]*)\}", scss)
+
+    assert opt_in is not None
+    assert "navigation: auto;" in opt_in.group(1)
+    assert "types: cast-page;" in opt_in.group(1)
+    assert scss.count("@view-transition") == 1
+    assert "html:active-view-transition-type(cast-page)::view-transition-group(cast-post-title)" in scss
+    # The post list must render on the first frame so a post can morph back into it.
+    assert "html:active-view-transition-type(cast-page) & {\n    content-visibility: visible;" in scss
 
 
 def test_search_modal_progressively_uses_core_suggestion_url():

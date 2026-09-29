@@ -31,7 +31,7 @@ classifiers = [
     "Topic :: Internet :: WWW/HTTP :: Dynamic Content",
 ]
 
-dependencies = ["django-cast>=0.2.62", "crispy-bootstrap5"]
+dependencies = ["django-cast>=0.2.67", "crispy-bootstrap5"]
 
 [project.optional-dependencies]
 test = ["pytest >= 6", "pytest-cov >= 3", "pytest-django", "pytest-mock"]

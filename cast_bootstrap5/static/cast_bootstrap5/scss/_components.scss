@@ -585,6 +585,13 @@ video {
     view-transition-name: paging-area;
   }
 
+  // A cross-document transition captures the new page on its first frame,
+  // before content-visibility: auto has rendered the post list. Render it
+  // during cast-page transitions so a post returning to the list can morph.
+  html:active-view-transition-type(cast-page) & {
+    content-visibility: visible;
+  }
+
   &[data-cast-paging-mask-active="true"] {
     // Force subtree rendering so the ::after overlay is never skipped by
     // the content-visibility: auto optimisation during HTMX swaps.
@@ -602,9 +609,14 @@ video {
   }
 }
 
-@supports (view-transition-name: root) {
+// Opt in to cross-document transitions only without a reduced-motion
+// preference. The cast-page type, shared with django-cast's built-in themes
+// and its post-view-transition.js, keeps page-load rules apart from htmx
+// pagination swaps, which carry no type.
+@media (prefers-reduced-motion: no-preference) {
   @view-transition {
     navigation: auto;
+    types: cast-page;
   }
 }
 
@@ -614,6 +626,27 @@ video {
 ::view-transition-old(root),
 ::view-transition-new(root) {
   animation: none;
+}
+
+// Ordinary page loads crossfade the page; the named navbar stays static above.
+html:active-view-transition-type(cast-page)::view-transition-old(root) {
+  animation: 200ms ease-out both cast-fade-out;
+}
+
+html:active-view-transition-type(cast-page)::view-transition-new(root) {
+  animation: 250ms ease-in both cast-fade-in;
+}
+
+// Shared post title and first overview image, named by django-cast's
+// post-view-transition.js only for the post that is being opened or left.
+html:active-view-transition-type(cast-page)::view-transition-group(cast-post-title),
+html:active-view-transition-type(cast-page)::view-transition-group(cast-post-image),
+html:active-view-transition-type(cast-page)::view-transition-old(cast-post-title),
+html:active-view-transition-type(cast-page)::view-transition-new(cast-post-title),
+html:active-view-transition-type(cast-page)::view-transition-old(cast-post-image),
+html:active-view-transition-type(cast-page)::view-transition-new(cast-post-image) {
+  animation-duration: 300ms;
+  animation-timing-function: ease-in-out;
 }
 
 // Keep the navbar static and above the paging-area crossfade.

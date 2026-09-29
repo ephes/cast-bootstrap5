@@ -69,6 +69,25 @@ uses each entry’s position to select its modal image. Repeated uses of one ima
 the shared image itself is unchanged. Captions appear below thumbnails, not in
 the enlarged-image modal.
 
+## Page transitions
+
+With django-cast 0.2.67 or newer (the minimum this theme requires), ordinary
+same-origin page loads use cross-document view transitions of the `cast-page`
+type shared with django-cast's built-in themes. The page crossfades while the
+sticky navbar stays in place, and a post's title and first overview image morph
+between the post list and its detail page in both directions. The theme loads
+django-cast's `cast/js/post-view-transition.js` in the `<head>` of `base.html`
+for the morph; audio player cover art is never used as the post image. The post
+list is rendered during these transitions so a post can morph back into it
+despite `content-visibility: auto`.
+
+Readers who prefer reduced motion, and browsers without cross-document view
+transitions, get plain page loads. HTMX pagination keeps its own fade. Sites
+that override `post_body.html` keep the morph as long as each post is an
+`<article>` whose direct `<header>` contains a heading and a link to the post,
+and whose overview section has the `block-overview` class; see django-cast's
+frontend documentation for the full contract.
+
 ## Development
 ### Install javascript dependencies
 
