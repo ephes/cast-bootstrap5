@@ -65,7 +65,9 @@ and HTMX gallery templates accept django-cast’s `gallery_entries` context
 (`image` and `caption` per entry), while continuing to render the legacy `images`
 context without captions. The core must supply `gallery_entries`, `images`, and
 `image_pks` in the same order and length, retaining duplicate occurrences; HTMX
-uses each entry’s position to select its modal image. Repeated uses of one image can have different captions;
+uses each entry’s position to select its modal image, and passes django-cast’s
+signed `gallery_token` with every modal request (required since django-cast
+0.2.61; the modal endpoint answers 400 without it). Repeated uses of one image can have different captions;
 the shared image itself is unchanged. Captions appear below thumbnails, not in
 the enlarged-image modal.
 

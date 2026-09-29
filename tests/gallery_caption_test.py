@@ -12,6 +12,8 @@ if not settings.configured:
     settings.configure(USE_I18N=False, USE_TZ=True)
 
 TEMPLATES = Path(__file__).parents[1] / "cast_bootstrap5" / "templates"
+# Signed tokens can contain characters that must be URL-encoded.
+GALLERY_TOKEN = "7,3:abc+/="
 
 
 def render_gallery(template_name, *, captions=None, string_if_invalid=""):
@@ -20,7 +22,12 @@ def render_gallery(template_name, *, captions=None, string_if_invalid=""):
     image = SimpleNamespace(pk=7, default_alt_text="Alt text", modal=rendition, thumbnail=rendition)
     other = SimpleNamespace(pk=3, default_alt_text="Other image", modal=rendition, thumbnail=rendition)
     images = [image if pk == 7 else other for pk in image_pks]
-    context = {"images": images, "block": {"id": "example"}, "image_pks": ",".join(map(str, image_pks))}
+    context = {
+        "images": images,
+        "block": {"id": "example"},
+        "image_pks": ",".join(map(str, image_pks)),
+        "gallery_token": GALLERY_TOKEN,
+    }
     if captions is not None:
         context["gallery_entries"] = [{"image": current, "caption": caption} for current, caption in zip(images, captions)]
     image.caption = "Global caption must not leak"
@@ -69,5 +76,33 @@ def test_htmx_indices_select_matching_image_pks_including_duplicates():
         ids = query["image_pks"][0].split(",")
         assert ids == ["7", "3", "7"]
         assert int(query["current_image_index"][0]) == index
+        assert query["gallery_token"] == [GALLERY_TOKEN]
         selected_pk = int(ids[int(query["current_image_index"][0])])
         assert link.img["alt"] == ("Other image" if selected_pk == 3 else "Alt text")
+
+
+def test_modal_navigation_carries_the_signed_gallery_token():
+    rendition = {"src": {"jpeg": "/full.jpg"}, "srcset": {}, "width": 200, "height": 100}
+    image = SimpleNamespace(pk=7, default_alt_text="Alt text", modal=rendition, gallery_index=1)
+    neighbour = SimpleNamespace(pk=3, default_alt_text="Other", modal=rendition, gallery_index=0)
+    context = {
+        "current_image": image,
+        "prev_image": neighbour,
+        "next_image": SimpleNamespace(pk=5, default_alt_text="Next", modal=rendition, gallery_index=2),
+        "image_pks": "3,7,5",
+        "block_id": "example",
+        "gallery_token": GALLERY_TOKEN,
+    }
+    engine = Engine(dirs=[TEMPLATES])
+    with patch("django.urls.reverse", return_value="/gallery/modal/"):
+        rendered = engine.get_template("cast/bootstrap5/gallery_modal.html").render(Context(context))
+    soup = BeautifulSoup(rendered, "html.parser")
+
+    for button_id, index in [("data-prev", "0"), ("data-next", "2")]:
+        query = parse_qs(urlsplit(soup.find(id=button_id)["data-hx-get"]).query)
+        assert query == {
+            "image_pks": ["3,7,5"],
+            "current_image_index": [index],
+            "block_id": ["example"],
+            "gallery_token": [GALLERY_TOKEN],
+        }
