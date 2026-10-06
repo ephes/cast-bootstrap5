@@ -20,7 +20,7 @@ js-build-sync:
     just js-build
     rm -f javascript/dist/manifest.json
     sh -c 'test -f javascript/dist/.vite/manifest.json && mv javascript/dist/.vite/manifest.json javascript/dist/manifest.json || true'
-    python -c "from pathlib import Path; p=Path('javascript/dist/manifest.json'); txt=p.read_text() if p.exists() else None; (p.write_text(txt.rstrip('\\n')+'\\n') if txt is not None else None)"
+    python3 -c "from pathlib import Path; p=Path('javascript/dist/manifest.json'); txt=p.read_text() if p.exists() else None; (p.write_text(txt.rstrip('\\n')+'\\n') if txt is not None else None)"
     rm -rf javascript/dist/.vite
     rm -f cast_bootstrap5/static/cast_bootstrap5/vite/*
     cp javascript/dist/* cast_bootstrap5/static/cast_bootstrap5/vite/
@@ -44,3 +44,15 @@ scss-watch:
 # Compile SCSS with source maps (for development)
 scss-dev:
     cd javascript && npm run scss:dev
+
+# Run Python template tests
+py-test:
+    uv run --extra test pytest
+
+# Run all tests (JavaScript and Python)
+test: js-test py-test
+
+# Rebuild committed assets and fail if they differ from the sources (as CI does)
+check-assets: js-build-sync scss
+    git diff --exit-code -- cast_bootstrap5/static/cast_bootstrap5/vite cast_bootstrap5/static/cast_bootstrap5/css
+    test -z "$(git status --porcelain -- cast_bootstrap5/static/cast_bootstrap5/vite cast_bootstrap5/static/cast_bootstrap5/css)"

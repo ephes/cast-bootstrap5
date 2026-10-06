@@ -141,12 +141,21 @@ The purged CSS is written back to
 ### Run tests
 
 ```shell
-uv run --extra test pytest  # Python/template contract tests after django-cast 0.2.62 is released
-# While testing both sibling worktrees before that release:
-PYTHONPATH=../django-cast/src uv run --no-sync pytest
+just test                   # JavaScript and Python/template tests
+uv run --extra test pytest  # Python/template contract tests only
 npx vitest run              # JavaScript tests once
 npx vitest watch            # JavaScript tests in watch mode
+just check-assets           # rebuild Vite bundle and cast.css, fail on drift
+# Testing against a sibling django-cast worktree instead of the pinned commit:
+PYTHONPATH=../django-cast/src uv run --extra test pytest
 ```
+
+django-cast 0.2.67 is not on PyPI yet, so `[tool.uv.sources]` in
+`pyproject.toml` pins a django-cast `develop` commit for uv. Remove that block
+once 0.2.67 is released.
+
+CI (`.github/workflows/ci.yml`) runs `just js-test`, `just check-assets`, and
+the pytest suite on every push and pull request.
 
 Rendered metadata behavior and JSON-LD parsing are covered by django-cast's
 post and episode detail tests; this theme's tests guard the shared-template and
