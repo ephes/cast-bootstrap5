@@ -228,3 +228,18 @@ submission and emit one bubbling `input` followed by `change` when the selection
 changes. External changes dispatched through `input` or `change`, and form
 resets, synchronize the displayed label and active option. Initialization is
 idempotent.
+
+## Enlarged gallery images
+
+The enlarged image copies the selected thumbnail's full-size image metadata,
+including empty alternative text. Attributes absent from the selected image are
+removed from the shared modal, so navigation cannot reuse another image's
+alternative text or responsive sources. Image loading and aspect-ratio sizing
+continue to follow the selected thumbnail.
+
+Removing a gallery (including an HTMX swap) closes its owned Bootstrap modal
+through the public hide lifecycle, waits for an opening or closing transition
+to finish, then disposes the instance and removes the modal. Its backdrop and
+focus trap are released and Bootstrap restores scrolling. Without Bootstrap,
+the gallery removes its fallback modal and clears the body lock when no other
+modal is active. Teardown preserves an active modal's body lock.

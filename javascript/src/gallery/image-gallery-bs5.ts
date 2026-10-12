@@ -7,6 +7,12 @@ export default class ImageGalleryBs5 extends HTMLElement {
     private pendingModalImage: HTMLImageElement | null;
     private pendingFinalize: (() => void) | null;
     private loadingSequence: number;
+    private showingModal: HTMLElement | null = null;
+    private closingModal: HTMLElement | null = null;
+    private boundModalHide = (event: Event) => { this.closingModal = event.currentTarget as HTMLElement; };
+    private boundModalHidden = (event: Event) => {
+        if (this.closingModal === event.currentTarget) this.closingModal = null;
+    };
 	constructor () {
 		super();
         this.currentImage = null;
@@ -58,7 +64,22 @@ export default class ImageGalleryBs5 extends HTMLElement {
         const modalApi = bootstrap?.Modal;
         if (modalApi) {
             const instance = modalApi.getOrCreateInstance(modal);
+            const opening = { event: null as Event | null };
+            const markOpening = (event: Event) => {
+                opening.event = event;
+                this.showingModal = modal;
+            };
+            const markShown = () => {
+                if (this.showingModal === modal) this.showingModal = null;
+            };
+            modal.addEventListener("show.bs.modal", markOpening, { once: true });
+            modal.addEventListener("shown.bs.modal", markShown, { once: true });
             instance.show();
+            modal.removeEventListener("show.bs.modal", markOpening);
+            if (!opening.event || opening.event.defaultPrevented) {
+                modal.removeEventListener("shown.bs.modal", markShown);
+                if (opening.event?.defaultPrevented) markShown();
+            }
             return;
         }
 
@@ -192,6 +213,10 @@ export default class ImageGalleryBs5 extends HTMLElement {
     }
 
     private bindModalEvents(modal: HTMLElement): void {
+        modal.removeEventListener("hide.bs.modal", this.boundModalHide);
+        modal.addEventListener("hide.bs.modal", this.boundModalHide);
+        modal.removeEventListener("hidden.bs.modal", this.boundModalHidden);
+        modal.addEventListener("hidden.bs.modal", this.boundModalHidden);
         const modalFooter = modal.querySelector(".modal-footer");
         if (modalFooter) {
             modalFooter.removeEventListener("click", this.boundFooterClick);
@@ -203,6 +228,8 @@ export default class ImageGalleryBs5 extends HTMLElement {
     }
 
     private unbindModalEvents(modal: HTMLElement): void {
+        modal.removeEventListener("hide.bs.modal", this.boundModalHide);
+        modal.removeEventListener("hidden.bs.modal", this.boundModalHidden);
         const modalFooter = modal.querySelector(".modal-footer");
         if (modalFooter) {
             modalFooter.removeEventListener("click", this.boundFooterClick);
@@ -228,7 +255,39 @@ export default class ImageGalleryBs5 extends HTMLElement {
         const modal = selector ? document.querySelector<HTMLElement>(selector) : this.currentModal;
         if (modal && modal.parentElement === document.body) {
             this.unbindModalEvents(modal);
-            modal.remove();
+            const modalApi = (window as unknown as { bootstrap?: any }).bootstrap?.Modal;
+            const instance = modalApi?.getInstance(modal);
+            const otherModalIsActive = () => Array.from(document.querySelectorAll<HTMLElement>(".modal"))
+                .some(other => other !== modal && (other.classList.contains("show") || other.getAttribute("aria-modal") === "true"));
+            if (instance) {
+                const overflow = document.body.style.overflow;
+                const paddingRight = document.body.style.paddingRight;
+                const dispose = () => {
+                    modal.removeEventListener("shown.bs.modal", hide);
+                    if (this.closingModal === modal) this.closingModal = null;
+                    instance.dispose();
+                    modal.remove();
+                    // Bootstrap resets global body state even if a second modal is open.
+                    if (otherModalIsActive()) {
+                        document.body.classList.add("modal-open");
+                        document.body.style.overflow = overflow;
+                        document.body.style.paddingRight = paddingRight;
+                    }
+                };
+                const hide = () => instance.hide();
+                if (this.closingModal === modal || this.showingModal === modal || modal.classList.contains("show") || modal.style.display === "block") {
+                    modal.addEventListener("hidden.bs.modal", dispose, { once: true });
+                    // hide() is ignored during Bootstrap's opening transition.
+                    modal.addEventListener("shown.bs.modal", hide, { once: true });
+                    hide();
+                } else {
+                    dispose();
+                }
+            } else {
+                const wasOpen = modal.classList.contains("show");
+                modal.remove();
+                if (wasOpen && !otherModalIsActive()) document.body.classList.remove("modal-open");
+            }
         }
         this.currentModal = null;
     }
@@ -278,8 +337,10 @@ export default class ImageGalleryBs5 extends HTMLElement {
         }
         for (const { attr, prop } of sourceAttributes) {
             const value = thumbnailSource.getAttribute(attr);
-            if (value) {
+            if (value !== null) {
                 modalSource.setAttribute(prop, value);
+            } else {
+                modalSource.removeAttribute(prop);
             }
         }
 
@@ -302,8 +363,10 @@ export default class ImageGalleryBs5 extends HTMLElement {
         (modalImage.parentNode?.parentNode as Element).setAttribute("href", fullUrl);
         for (const { attr, prop } of imgAttributes) {
             const value = img.getAttribute(attr);
-            if (value) {
+            if (value !== null) {
                 modalImage.setAttribute(prop, value);
+            } else {
+                modalImage.removeAttribute(prop);
             }
         }
         if (!img.hasAttribute("data-modal-width")) {
