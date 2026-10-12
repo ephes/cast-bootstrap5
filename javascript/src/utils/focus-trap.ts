@@ -2,11 +2,16 @@ const FOCUSABLE_SELECTOR = [
   "input:not([disabled]):not([type=\"hidden\"])",
   "button:not([disabled])",
   "select:not([disabled])",
+  "textarea:not([disabled])",
   "a[href]",
   "details > summary",
   "[tabindex]:not([tabindex=\"-1\"])",
 ].join(", ");
 
+// Controls the trap treats as tab stops, in document order: enabled inputs
+// (except hidden ones), buttons, selects and textareas, links with an href,
+// summary elements and anything with a non-negative tabindex. Hidden elements
+// are skipped at keypress time.
 function isVisible(element: HTMLElement): boolean {
   return element.offsetParent !== null;
 }
