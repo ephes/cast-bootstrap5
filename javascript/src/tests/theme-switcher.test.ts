@@ -106,6 +106,72 @@ describe("theme-switcher", () => {
     vi.restoreAllMocks();
   });
 
+  it.each([false, true])("retains a session choice when storage writes fail (reads denied: %s)", async (denyReads) => {
+    storageMock.setItem('cast-theme', 'light');
+    const write = vi.spyOn(storageMock, 'setItem').mockImplementation(() => { throw new Error('denied'); });
+    if (denyReads) vi.spyOn(storageMock, 'getItem').mockImplementation(() => { throw new Error('denied'); });
+    document.body.innerHTML = createSwitcherMarkup('a');
+    const module = await loadModule();
+    (document.querySelector('[data-cast-theme-value="mode:dark"]') as HTMLButtonElement).click();
+    expect(write).toHaveBeenCalledTimes(1);
+    expect(document.querySelector('[data-cast-theme-label]')?.textContent).toBe('Dark');
+    matchMediaMock.dispatch(false);
+    expect(document.documentElement.getAttribute('data-bs-theme')).toBe('dark');
+    const target = document.createElement('div');
+    target.innerHTML = createSwitcherMarkup('b');
+    document.body.append(target);
+    document.body.dispatchEvent(new CustomEvent('htmx:afterSwap', { detail: { target } }));
+    module.initThemeSwitcher(target);
+    for (const label of document.querySelectorAll('[data-cast-theme-label]')) expect(label.textContent).toBe('Dark');
+    expect(document.documentElement.getAttribute('data-bs-theme')).toBe('dark');
+  });
+
+  it("accepts cross-tab modes and clearing, ignores unrelated/invalid storage events", async () => {
+    document.body.innerHTML = createSwitcherMarkup('a');
+    await loadModule();
+    const dispatch = (key: string | null, newValue: string | null) => {
+      if (key === null) storageMock.clear();
+      else if (newValue === null) storageMock.removeItem(key);
+      else storageMock.setItem(key, newValue);
+      window.dispatchEvent(new StorageEvent('storage', { key, newValue }));
+    };
+    dispatch('cast-theme', 'dark');
+    expect(document.querySelector('[data-cast-theme-label]')?.textContent).toBe('Dark');
+    dispatch('other', 'light');
+    dispatch('cast-theme', 'invalid');
+    matchMediaMock.dispatch(false);
+    expect(document.documentElement.getAttribute('data-bs-theme')).toBe('dark');
+    dispatch('cast-theme', null);
+    expect(document.querySelector('[data-cast-theme-label]')?.textContent).toBe('System');
+    matchMediaMock.dispatch(true);
+    expect(document.documentElement.getAttribute('data-bs-theme')).toBe('dark');
+    dispatch('cast-theme', 'light');
+    dispatch(null, null);
+    expect(document.querySelector('[data-cast-theme-label]')?.textContent).toBe('System');
+  });
+
+  it("filters storage areas and removes the storage listener on destroy", async () => {
+    document.body.innerHTML = createSwitcherMarkup('a');
+    const module = await loadModule();
+    const dispatch = (area: StorageMock) => {
+      const event = new StorageEvent('storage', { key: 'cast-theme', newValue: 'dark' });
+      Object.defineProperty(event, 'storageArea', { value: area });
+      window.dispatchEvent(event);
+    };
+    dispatch(createStorageMock());
+    expect(document.documentElement.getAttribute('data-bs-theme')).toBe('light');
+    expect(document.querySelector('[data-cast-theme-label]')?.textContent).toBe('System');
+    storageMock.setItem('cast-theme', 'dark');
+    dispatch(storageMock);
+    expect(document.querySelector('[data-cast-theme-label]')?.textContent).toBe('Dark');
+    expect(document.documentElement.getAttribute('data-bs-theme')).toBe('dark');
+    module.destroyThemeSwitcher();
+    storageMock.setItem('cast-theme', 'light');
+    dispatch(storageMock);
+    expect(document.querySelector('[data-cast-theme-label]')?.textContent).toBe('Dark');
+    expect(document.documentElement.getAttribute('data-bs-theme')).toBe('dark');
+  });
+
   it("syncs document and switcher state from stored theme", async () => {
     window.localStorage.setItem("cast-theme", "dark");
     document.body.innerHTML = createSwitcherMarkup("a");

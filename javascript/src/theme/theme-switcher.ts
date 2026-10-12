@@ -10,6 +10,9 @@ type HtmxAfterSwapDetail = {
   target?: Element;
 };
 
+let currentMode: ThemeMode | null = null;
+let persistenceFailed = false;
+let storageHandler: ((event: StorageEvent) => void) | null = null;
 let listenersBound = false;
 let mediaQueryList: MediaQueryList | null = null;
 let bodyClickHandler: ((event: Event) => void) | null = null;
@@ -42,7 +45,22 @@ export function getStoredTheme(): ThemeMode | null {
   }
 }
 
+function getCurrentMode(): ThemeMode {
+  if (!persistenceFailed) {
+    try {
+      const value = getWindow()?.localStorage.getItem(THEME_STORAGE_KEY) ?? null;
+      if (isThemeMode(value)) currentMode = value;
+      else if (value === null) currentMode = "auto";
+    } catch {
+      // Keep the last known mode when storage becomes unreadable.
+    }
+  }
+  return currentMode ?? "auto";
+}
+
 export function setStoredTheme(theme: ThemeMode): void {
+  currentMode = theme;
+  persistenceFailed = true;
   const win = getWindow();
   if (!win) {
     return;
@@ -50,6 +68,7 @@ export function setStoredTheme(theme: ThemeMode): void {
 
   try {
     win.localStorage.setItem(THEME_STORAGE_KEY, theme);
+    persistenceFailed = win.localStorage.getItem(THEME_STORAGE_KEY) !== theme;
   } catch {
     // Intentionally ignored to keep the switcher functional in private/restricted contexts.
   }
@@ -140,7 +159,7 @@ export function syncThemeSwitchers(root: ParentNode | Element = getDocument() as
     return;
   }
 
-  const mode = getStoredTheme() ?? "auto";
+  const mode = getCurrentMode();
   findSwitchers(root).forEach((switcher) => {
     syncThemeSwitcher(switcher, mode);
   });
@@ -232,14 +251,28 @@ function bindListeners(): void {
   if (typeof win.matchMedia === "function") {
     mediaQueryList = win.matchMedia(MEDIA_QUERY);
     mediaChangeHandler = () => {
-      const stored = getStoredTheme();
-      if (!stored || stored === "auto") {
+      if (getCurrentMode() === "auto") {
         applyTheme("auto");
         syncThemeSwitchers(doc);
       }
     };
   }
 
+  storageHandler = (event: StorageEvent) => {
+    if (event.key !== THEME_STORAGE_KEY && event.key !== null) return;
+    // Only localStorage updates are relevant; synthetic events may omit storageArea.
+    try {
+      if (event.storageArea && event.storageArea !== win.localStorage) return;
+    } catch {
+      return;
+    }
+    if (event.newValue !== null && !isThemeMode(event.newValue)) return;
+    currentMode = event.newValue ?? "auto";
+    persistenceFailed = false;
+    applyTheme(getCurrentMode());
+    syncThemeSwitchers(doc);
+  };
+  win.addEventListener("storage", storageHandler);
   doc.body.addEventListener("click", bodyClickHandler);
   doc.body.addEventListener("htmx:afterSwap", afterSwapHandler);
   if (mediaQueryList && mediaChangeHandler) {
@@ -253,13 +286,17 @@ export function initThemeSwitcher(root: ParentNode | Element = getDocument() as 
     return;
   }
 
-  const mode = getStoredTheme() ?? "auto";
+  const mode = getCurrentMode();
   applyTheme(mode);
   syncThemeSwitchers(root);
   bindListeners();
 }
 
 export function destroyThemeSwitcher(): void {
+  if (storageHandler) getWindow()?.removeEventListener("storage", storageHandler);
+  storageHandler = null;
+  currentMode = null;
+  persistenceFailed = false;
   const doc = getDocument();
   if (!doc || !listenersBound) {
     listenersBound = false;

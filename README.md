@@ -180,3 +180,12 @@ minimum-version contract.
 ```shell
 npx vite
 ```
+
+## Theme preference
+
+The color mode (Auto, Light, or Dark) is persisted in localStorage when available.
+If storage is denied, the choice remains active for this page session, including
+system color-scheme changes and HTMX swaps; a full page load may lose it.
+Auto follows the system color scheme. Cross-tab localStorage updates for
+`cast-theme` apply valid modes immediately; removing the preference or clearing
+storage restores Auto. Invalid modes and unrelated storage events are ignored.
