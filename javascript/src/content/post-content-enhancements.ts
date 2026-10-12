@@ -1,5 +1,6 @@
 const LINE_CLASS = "cast-blockquote-line";
 let afterSwapBound = false;
+let pendingInitialize: (() => void) | null = null;
 let afterSwapHandler: ((event: Event) => void) | null = null;
 
 function ensureLineWrapper(blockquote: HTMLElement): void {
@@ -35,6 +36,22 @@ function isBlockquote(element: Element | null): element is HTMLElement {
   return element !== null && element.tagName.toLowerCase() === "blockquote";
 }
 
+// Editor bookkeeping and our own marker do not carry quote semantics.
+function isPlainBlockquote(blockquote: HTMLElement): boolean {
+  return Array.from(blockquote.attributes).every((attribute) =>
+    attribute.name === "data-block-key" || attribute.name === "data-cast-blockquote-merged"
+  );
+}
+
+function nextPlainBlockquote(blockquote: HTMLElement): HTMLElement | null {
+  let next = blockquote.nextSibling;
+  while (next?.nodeType === Node.TEXT_NODE && /^[\t\n\f\r ]*$/.test(next.textContent ?? "")) {
+    next = next.nextSibling;
+  }
+  return next instanceof Element && isBlockquote(next) && isPlainBlockquote(next)
+    ? next : null;
+}
+
 function findBlockquotes(root: ParentNode | Element): HTMLElement[] {
   const blockquotes: HTMLElement[] = [];
   if (root instanceof Element && isBlockquote(root)) {
@@ -49,11 +66,11 @@ export function mergeConsecutiveBlockquotes(root: ParentNode | Element = documen
   const blockquotes = findBlockquotes(root);
 
   blockquotes.forEach((blockquote) => {
-    if (blockquote.dataset.castBlockquoteMerged === "true") {
+    if (!isPlainBlockquote(blockquote)) {
       return;
     }
 
-    let next = blockquote.nextElementSibling;
+    let next = nextPlainBlockquote(blockquote);
     if (!isBlockquote(next)) {
       return;
     }
@@ -69,7 +86,7 @@ export function mergeConsecutiveBlockquotes(root: ParentNode | Element = documen
       });
 
       const toRemove = next;
-      next = next.nextElementSibling;
+      next = nextPlainBlockquote(next);
       toRemove.remove();
     }
 
@@ -95,16 +112,18 @@ function bindAfterSwapHandler(): void {
 }
 
 export function initPostContentEnhancements(): void {
-  if (typeof document === "undefined") {
+  if (typeof document === "undefined" || afterSwapBound || pendingInitialize) {
     return;
   }
 
   const initialize = (): void => {
+    pendingInitialize = null;
     mergeConsecutiveBlockquotes();
     bindAfterSwapHandler();
   };
 
   if (document.readyState === "loading") {
+    pendingInitialize = initialize;
     document.addEventListener("DOMContentLoaded", initialize, { once: true });
     return;
   }
@@ -113,6 +132,10 @@ export function initPostContentEnhancements(): void {
 }
 
 export function destroyPostContentEnhancements(): void {
+  if (pendingInitialize && typeof document !== "undefined") {
+    document.removeEventListener("DOMContentLoaded", pendingInitialize);
+  }
+  pendingInitialize = null;
   if (!afterSwapBound || typeof document === "undefined") {
     afterSwapBound = false;
     afterSwapHandler = null;

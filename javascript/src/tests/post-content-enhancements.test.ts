@@ -1,11 +1,88 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   destroyPostContentEnhancements,
   mergeConsecutiveBlockquotes,
+  initPostContentEnhancements,
 } from "@/content/post-content-enhancements";
 
 describe("post-content-enhancements", () => {
+  beforeEach(() => destroyPostContentEnhancements());
+  afterEach(() => { destroyPostContentEnhancements(); vi.restoreAllMocks(); });
+
+  it.each([
+    '<blockquote>A</blockquote> prose <blockquote>B</blockquote>',
+    '<blockquote>A</blockquote><!-- boundary --><blockquote>B</blockquote>',
+    '<blockquote cite="/a">A</blockquote><blockquote cite="/b">B</blockquote>',
+    '<blockquote cite="/a">A</blockquote><blockquote cite="/a">B</blockquote>',
+    '<blockquote id="a">A</blockquote><blockquote id="b">B</blockquote>',
+    '<blockquote>A</blockquote><blockquote id="b">B</blockquote>',
+    '<blockquote>A</blockquote><blockquote lang="de">B</blockquote>',
+  ])("preserves semantic boundaries: %s", (html) => {
+    document.body.innerHTML = html;
+    mergeConsecutiveBlockquotes();
+    expect(document.body.innerHTML).toBe(html);
+  });
+
+  it("cancels pending initialization and reinitializes once", () => {
+    vi.spyOn(document, "readyState", "get").mockReturnValue("loading");
+    document.body.innerHTML = '<div id="target"><blockquote>A</blockquote><blockquote>B</blockquote></div>';
+    const add = vi.spyOn(document.body, "addEventListener");
+    initPostContentEnhancements();
+    initPostContentEnhancements();
+    destroyPostContentEnhancements();
+    destroyPostContentEnhancements();
+    document.dispatchEvent(new Event("DOMContentLoaded"));
+    expect(document.querySelectorAll("blockquote")).toHaveLength(2);
+    expect(add).not.toHaveBeenCalled();
+    const target = document.getElementById("target")!;
+    document.body.dispatchEvent(new CustomEvent("htmx:afterSwap", { detail: { target } }));
+    expect(target.querySelectorAll("blockquote")).toHaveLength(2);
+    initPostContentEnhancements();
+    initPostContentEnhancements();
+    document.dispatchEvent(new Event("DOMContentLoaded"));
+    document.dispatchEvent(new Event("DOMContentLoaded"));
+    expect(target.querySelectorAll("blockquote")).toHaveLength(1);
+    expect(add.mock.calls.filter(([name]) => name === "htmx:afterSwap")).toHaveLength(1);
+  });
+
+  it("initializes once when loaded and removes its listener", () => {
+    vi.spyOn(document, "readyState", "get").mockReturnValue("complete");
+    document.body.innerHTML = '<div id="target"></div>';
+    const add = vi.spyOn(document.body, "addEventListener");
+    initPostContentEnhancements();
+    initPostContentEnhancements();
+    expect(add.mock.calls.filter(([name]) => name === "htmx:afterSwap")).toHaveLength(1);
+    const target = document.getElementById("target")!;
+    target.innerHTML = '<blockquote>A</blockquote><blockquote>B</blockquote>';
+    document.body.dispatchEvent(new CustomEvent("htmx:afterSwap", { detail: { target } }));
+    expect(target.querySelectorAll("blockquote")).toHaveLength(1);
+    destroyPostContentEnhancements();
+    target.innerHTML = '<blockquote>C</blockquote><blockquote>D</blockquote>';
+    document.body.dispatchEvent(new CustomEvent("htmx:afterSwap", { detail: { target } }));
+    expect(target.querySelectorAll("blockquote")).toHaveLength(2);
+  });
+  it("merges editor bookkeeping quotes through all HTML whitespace", () => {
+    document.body.innerHTML = '<blockquote data-block-key="a">A</blockquote>\t\n\f\r <blockquote data-block-key="b">B</blockquote>';
+    mergeConsecutiveBlockquotes();
+    expect(document.querySelectorAll("blockquote")).toHaveLength(1);
+    expect(Array.from(document.querySelectorAll(".cast-blockquote-line"), (line) => line.textContent)).toEqual(["A", "B"]);
+  });
+
+  it.each(["before", "after"])("merges a plain quote inserted %s merged output", (position) => {
+    document.body.innerHTML = '<blockquote>A</blockquote><blockquote>B</blockquote>';
+    mergeConsecutiveBlockquotes();
+    const quote = document.createElement("blockquote");
+    quote.textContent = "C";
+    if (position === "before") document.body.prepend(quote);
+    else document.body.append(quote);
+    mergeConsecutiveBlockquotes();
+    mergeConsecutiveBlockquotes();
+    expect(document.querySelectorAll("blockquote")).toHaveLength(1);
+    expect(Array.from(document.querySelectorAll(".cast-blockquote-line"), (line) => line.textContent))
+      .toEqual(position === "before" ? ["C", "A", "B"] : ["A", "B", "C"]);
+  });
+
   it("merges consecutive blockquotes into one", () => {
     document.body.innerHTML = `
       <article>
