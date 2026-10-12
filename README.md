@@ -243,3 +243,17 @@ to finish, then disposes the instance and removes the modal. Its backdrop and
 focus trap are released and Bootstrap restores scrolling. Without Bootstrap,
 the gallery removes its fallback modal and clears the body lock when no other
 modal is active. Teardown preserves an active modal's body lock.
+
+## Post content enhancements
+
+Consecutive plain blockquotes merge into one quote with lines in their original
+order. Only blockquotes without semantic attributes, separated by ASCII HTML whitespace,
+are eligible. The editor’s `data-block-key` and the enhancement’s own
+`data-cast-blockquote-merged` marker are allowed; intervening prose, comments, and other quote attributes (including cite,
+id, class, and language) keep quotes separate and preserve attribution and anchors.
+
+`initPostContentEnhancements()` initializes once, waiting for DOMContentLoaded
+when necessary, and enhances HTMX swap targets. Repeated calls are idempotent.
+`destroyPostContentEnhancements()` cancels pending initialization and removes the
+swap listener; it leaves already rendered content in place. Initialization can
+be called again after teardown.
