@@ -21,7 +21,7 @@ export function enhanceOrderingDropdown(container: HTMLElement): void {
   }
 
   const select = container.querySelector<HTMLSelectElement>('select[name="o"]');
-  if (!select) {
+  if (!select || select.matches(":disabled")) {
     return;
   }
 
@@ -46,50 +46,62 @@ export function enhanceOrderingDropdown(container: HTMLElement): void {
   menu.className = "dropdown-menu w-100";
 
   const options = Array.from(select.options);
+  const itemButtons: HTMLButtonElement[] = [];
+  const isDisabled = (option: HTMLOptionElement): boolean =>
+    select.matches(":disabled") || option.disabled ||
+    (option.parentElement instanceof HTMLOptGroupElement && option.parentElement.disabled);
   options.forEach((option) => {
     const item = document.createElement("li");
     const itemButton = document.createElement("button");
     itemButton.type = "button";
+    itemButton.disabled = isDisabled(option);
+    itemButtons.push(itemButton);
     itemButton.className = "dropdown-item";
     itemButton.textContent = option.textContent;
     itemButton.setAttribute("data-order-value", option.value);
-
-    if (option.selected) {
-      itemButton.classList.add("active");
-      button.textContent = option.textContent;
-    }
 
     item.appendChild(itemButton);
     menu.appendChild(item);
   });
 
-  if (!button.textContent) {
-    button.textContent = options.length > 0 ? options[0].textContent : "Ordering";
-  }
-
   dropdown.appendChild(button);
   dropdown.appendChild(menu);
   select.parentNode?.insertBefore(dropdown, select);
 
-  menu.addEventListener("click", (event) => {
-    const target = event.target;
-    if (!(target instanceof Element)) {
-      return;
-    }
-
-    const buttonTarget = target.closest<HTMLElement>("[data-order-value]");
-    if (!buttonTarget) {
-      return;
-    }
-
-    const value = buttonTarget.getAttribute("data-order-value") ?? "";
-    select.value = value;
-    button.textContent = buttonTarget.textContent;
-
-    menu.querySelectorAll<HTMLElement>(".dropdown-item").forEach((itemButton) => {
-      itemButton.classList.toggle("active", itemButton === buttonTarget);
+  const sync = (): void => {
+    button.textContent = select.options[select.selectedIndex]?.textContent ?? "Ordering";
+    button.disabled = select.matches(":disabled");
+    itemButtons.forEach((itemButton, index) => {
+      itemButton.classList.toggle("active", options[index].selected);
+      itemButton.disabled = isDisabled(options[index]);
     });
+  };
+
+  menu.addEventListener("click", (event) => {
+    if (!(event.target instanceof Element)) return;
+    const target = event.target.closest<HTMLButtonElement>("[data-order-value]");
+    const index = target ? itemButtons.indexOf(target) : -1;
+    if (index < 0 || isDisabled(options[index])) return;
+    const nativeIndex = Array.from(select.options).indexOf(options[index]);
+    if (nativeIndex < 0 || select.selectedIndex === nativeIndex) return;
+    select.selectedIndex = nativeIndex;
+    sync();
+    select.dispatchEvent(new Event("input", { bubbles: true }));
+    select.dispatchEvent(new Event("change", { bubbles: true }));
   });
+  select.addEventListener("change", sync);
+  select.addEventListener("input", sync);
+  const form = select.form;
+  const onReset = (): void => {
+    if (!select.isConnected) {
+      form?.removeEventListener("reset", onReset);
+      return;
+    }
+    // Reset fires before the browser restores the native default selection.
+    setTimeout(sync, 0);
+  };
+  form?.addEventListener("reset", onReset);
+  sync();
 
   select.setAttribute("tabindex", "-1");
   select.setAttribute("aria-hidden", "true");

@@ -180,3 +180,19 @@ minimum-version contract.
 ```shell
 npx vite
 ```
+
+## Ordering dropdown outside the search modal
+
+Outside the search modal, the enhanced ordering dropdown preserves the native select's disabled options
+and disabled optgroups. Disabled selects (including those in disabled fieldsets)
+remain visible as native controls when disabled at initialization. The option list
+and disabled attributes should be established before enhancement; later attribute
+changes on an enhanced select require a native `input` or `change` event to refresh
+the dropdown state. A select disabled at initialization stays native until
+enhancement is run again.
+Search-modal ordering pills use a separate implementation and are outside this
+dropdown contract. Enabled selections retain ordinary form
+submission and emit one bubbling `input` followed by `change` when the selection
+changes. External changes dispatched through `input` or `change`, and form
+resets, synchronize the displayed label and active option. Initialization is
+idempotent.

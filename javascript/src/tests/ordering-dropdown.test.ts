@@ -16,6 +16,80 @@ function buildOrderingMarkup(withLabelId = false): string {
 }
 
 describe("ordering-dropdown", () => {
+  it("leaves disabled native controls visible, including disabled fieldsets", () => {
+    for (const markup of [buildOrderingMarkup().replace('<select ', '<select disabled '),
+      `<fieldset disabled>${buildOrderingMarkup()}</fieldset>`]) {
+      document.body.innerHTML = markup;
+      initOrderingDropdowns();
+      expect(document.querySelector('.dropdown')).toBeNull();
+      expect(document.querySelector('select')?.getAttribute('aria-hidden')).toBeNull();
+    }
+  });
+
+  it("refuses disabled options and optgroups, including synthetic clicks", () => {
+    document.body.innerHTML = buildOrderingMarkup().replace(
+      '<option value="visible_date">Date asc</option>',
+      '<option value="visible_date" disabled>Date asc</option><optgroup disabled><option value="group">Group</option></optgroup>');
+    initOrderingDropdowns();
+    const select = document.querySelector('select') as HTMLSelectElement;
+    for (const value of ['visible_date', 'group']) {
+      const item = document.querySelector(`[data-order-value="${value}"]`) as HTMLButtonElement;
+      expect(item.disabled).toBe(true);
+      item.click();
+      item.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      expect(select.value).toBe('-visible_date');
+    }
+  });
+
+  it("emits bubbling input/change once only for real changes and preserves submission", () => {
+    document.body.innerHTML = `<form>${buildOrderingMarkup()}</form>`;
+    initOrderingDropdowns();
+    initOrderingDropdowns();
+    const form = document.querySelector('form')!;
+    const events: string[] = [];
+    for (const type of ['input', 'change']) form.addEventListener(type, () => events.push(type));
+    const item = document.querySelector('[data-order-value="visible_date"]') as HTMLButtonElement;
+    item.click();
+    item.click();
+    expect(events).toEqual(['input', 'change']);
+    expect(new FormData(form).get('o')).toBe('visible_date');
+  });
+
+  it("syncs external changes and resets after the native reset completes", async () => {
+    document.body.innerHTML = `<form>${buildOrderingMarkup()}</form>`;
+    initOrderingDropdowns();
+    const select = document.querySelector('select') as HTMLSelectElement;
+    select.value = 'visible_date';
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(document.querySelector('.dropdown-toggle')?.textContent).toBe('Date asc');
+    expect(document.querySelector('.active')?.getAttribute('data-order-value')).toBe('visible_date');
+    const form = document.querySelector('form')!;
+    form.reset();
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(select.value).toBe('-visible_date');
+    expect(document.querySelector('.dropdown-toggle')?.textContent).toBe('Date desc');
+    expect(document.querySelector('.active')?.getAttribute('data-order-value')).toBe('-visible_date');
+    select.value = 'visible_date';
+    select.dispatchEvent(new Event('change'));
+    form.addEventListener('reset', event => event.preventDefault());
+    form.reset();
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(document.querySelector('.dropdown-toggle')?.textContent).toBe('Date asc');
+  });
+  it("refreshes disabled attributes on native change and guards clicks immediately", () => {
+    document.body.innerHTML = buildOrderingMarkup();
+    initOrderingDropdowns();
+    const select = document.querySelector('select') as HTMLSelectElement;
+    select.disabled = true;
+    (document.querySelector('[data-order-value="visible_date"]') as HTMLButtonElement).click();
+    expect(select.value).toBe('-visible_date');
+    select.dispatchEvent(new Event('change'));
+    expect((document.querySelector('.dropdown-toggle') as HTMLButtonElement).disabled).toBe(true);
+    select.disabled = false;
+    select.dispatchEvent(new Event('change'));
+    expect((document.querySelector('.dropdown-toggle') as HTMLButtonElement).disabled).toBe(false);
+  });
+
   it("is a no-op when markup is missing", () => {
     document.body.innerHTML = "<div>No ordering</div>";
     expect(() => initOrderingDropdowns()).not.toThrow();
