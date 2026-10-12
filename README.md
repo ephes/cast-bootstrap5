@@ -116,9 +116,10 @@ While the search modal is open, Tab and Shift+Tab stay inside it and wrap
 between its first and last control. The controls that count are the visible,
 enabled `input` (except `type="hidden"`), `button`, `select` and `textarea`
 elements, links with an `href`, `summary` elements and elements with a
-non-negative `tabindex`. Disabled and hidden controls are skipped, so a
-template override may end the modal with any of these controls, including a
-textarea.
+non-negative `tabindex`. Hidden controls, disabled controls (including those
+inside a disabled `fieldset`) and controls with a negative `tabindex` are
+skipped, as in the browser's own tab order. A template override may therefore
+end the modal with any of these controls, including a textarea.
 
 ## Development
 ### Install javascript dependencies
