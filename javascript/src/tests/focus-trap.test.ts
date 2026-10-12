@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { createFocusTrap } from "@/utils/focus-trap";
 
@@ -99,6 +99,125 @@ describe("focus-trap", () => {
 
     expect(preventedSpy).toHaveBeenCalled();
     expect(document.activeElement).toBe(first);
+  });
+
+  function pressTab(target: HTMLElement, shiftKey = false): boolean {
+    const event = new KeyboardEvent("keydown", { key: "Tab", shiftKey, bubbles: true, cancelable: true });
+    target.dispatchEvent(event);
+    return event.defaultPrevented;
+  }
+
+  it("wraps at a textarea that is the last control", () => {
+    document.body.innerHTML = `
+      <div id="modal">
+        <button id="first" type="button">First</button>
+        <textarea id="comment"></textarea>
+      </div>
+    `;
+    const modal = document.getElementById("modal") as HTMLElement;
+    const first = document.getElementById("first") as HTMLButtonElement;
+    const comment = document.getElementById("comment") as HTMLTextAreaElement;
+    markVisible(first);
+    markVisible(comment);
+    const trap = createFocusTrap(modal);
+    trap.activate();
+
+    comment.focus();
+    expect(pressTab(comment)).toBe(true);
+    expect(document.activeElement).toBe(first);
+
+    expect(pressTab(first, true)).toBe(true);
+    expect(document.activeElement).toBe(comment);
+
+    // Leaving the first control forwards is ordinary browser tabbing.
+    first.focus();
+    expect(pressTab(first)).toBe(false);
+    expect(document.activeElement).toBe(first);
+  });
+
+  it("skips controls outside the tab order: disabled, in a disabled fieldset, hidden, negative tabindex", () => {
+    document.body.innerHTML = `
+      <div id="modal">
+        <button id="first" type="button">First</button>
+        <button id="last" type="button">Last</button>
+        <textarea id="disabled" disabled></textarea>
+        <textarea id="hidden"></textarea>
+        <fieldset disabled>
+          <textarea id="in-disabled-fieldset"></textarea>
+          <button id="button-in-disabled-fieldset" type="button">Off</button>
+        </fieldset>
+        <textarea id="negative-tabindex" tabindex="-1"></textarea>
+        <input id="negative-input" tabindex="-2">
+      </div>
+    `;
+    const modal = document.getElementById("modal") as HTMLElement;
+    const first = document.getElementById("first") as HTMLButtonElement;
+    const last = document.getElementById("last") as HTMLButtonElement;
+    markVisible(first);
+    markVisible(last);
+    for (const id of [
+      "disabled",
+      "in-disabled-fieldset",
+      "button-in-disabled-fieldset",
+      "negative-tabindex",
+      "negative-input",
+    ]) {
+      markVisible(document.getElementById(id) as HTMLElement);
+    }
+    createFocusTrap(modal).activate();
+
+    last.focus();
+    expect(pressTab(last)).toBe(true);
+    expect(document.activeElement).toBe(first);
+
+    expect(pressTab(first, true)).toBe(true);
+    expect(document.activeElement).toBe(last);
+  });
+
+  it("keeps a textarea with a non-negative tabindex as the last control", () => {
+    document.body.innerHTML = `
+      <div id="modal">
+        <button id="first" type="button">First</button>
+        <textarea id="comment" tabindex="0"></textarea>
+      </div>
+    `;
+    const modal = document.getElementById("modal") as HTMLElement;
+    const first = document.getElementById("first") as HTMLButtonElement;
+    const comment = document.getElementById("comment") as HTMLTextAreaElement;
+    markVisible(first);
+    markVisible(comment);
+    createFocusTrap(modal).activate();
+
+    comment.focus();
+    expect(pressTab(comment)).toBe(true);
+    expect(document.activeElement).toBe(first);
+  });
+
+  it("registers one listener however often it is activated", () => {
+    document.body.innerHTML = `
+      <div id="modal">
+        <button id="first" type="button">First</button>
+        <textarea id="comment"></textarea>
+      </div>
+    `;
+    const modal = document.getElementById("modal") as HTMLElement;
+    const comment = document.getElementById("comment") as HTMLTextAreaElement;
+    markVisible(document.getElementById("first") as HTMLElement);
+    markVisible(comment);
+    const addSpy = vi.spyOn(modal, "addEventListener");
+    const removeSpy = vi.spyOn(modal, "removeEventListener");
+    const trap = createFocusTrap(modal);
+
+    trap.activate();
+    trap.activate();
+    trap.deactivate();
+    trap.deactivate();
+
+    expect(addSpy).toHaveBeenCalledTimes(1);
+    expect(removeSpy).toHaveBeenCalledTimes(1);
+    comment.focus();
+    expect(pressTab(comment)).toBe(false);
+    expect(document.activeElement).toBe(comment);
   });
 
   it("stops trapping when deactivated", () => {

@@ -97,6 +97,30 @@ that override `post_body.html` keep the morph as long as each post is an
 and whose overview section has the `block-overview` class; see django-cast's
 frontend documentation for the full contract.
 
+## HTMX pagination with Podlove players
+
+While an HTMX pagination request for `#paging-area` is running, a list that
+contains Podlove players is masked so the players do not flash during the swap.
+The mask and the fade state are removed again when the new content has settled.
+
+If the request does not complete, the current content is restored at once: the
+mask, the fade state and the pending unmask timer are cleared for an HTTP error
+response, a network failure (`htmx:sendError`), a timeout (`htmx:timeout`), an
+aborted request and a failed swap. The reader keeps the page they were on and
+can try again. Failures of HTMX requests that target other elements leave the
+paging state alone.
+
+## Keyboard focus in the search modal
+
+While the search modal is open, Tab and Shift+Tab stay inside it and wrap
+between its first and last control. The controls that count are the visible,
+enabled `input` (except `type="hidden"`), `button`, `select` and `textarea`
+elements, links with an `href`, `summary` elements and elements with a
+non-negative `tabindex`. Hidden controls, disabled controls (including those
+inside a disabled `fieldset`) and controls with a negative `tabindex` are
+skipped, as in the browser's own tab order. A template override may therefore
+end the modal with any of these controls, including a textarea.
+
 ## Development
 ### Install javascript dependencies
 

@@ -177,6 +177,79 @@ describe("paging-content-visibility", () => {
     expect(pagingArea.getAttribute("data-cast-paging-mask-active")).toBeNull();
   });
 
+  it.each(["htmx:sendError", "htmx:timeout"])(
+    "restores the current content when the request fails with %s",
+    (failureEvent) => {
+      vi.useFakeTimers();
+      const pagingArea = document.querySelector("#paging-area") as HTMLElement;
+      pagingArea.innerHTML = "<podlove-player></podlove-player>";
+      initPagingContentVisibility();
+
+      // A masked request that fails in transport: no response, no settle.
+      document.dispatchEvent(new CustomEvent("htmx:beforeRequest", { detail: { target: pagingArea } }));
+      expect(pagingArea.getAttribute("data-cast-paging-mask-active")).toBe("true");
+      document.dispatchEvent(new CustomEvent(failureEvent, { detail: { target: pagingArea } }));
+
+      expect(pagingArea.getAttribute("data-cast-paging-mask-active")).toBeNull();
+      expect(pagingArea.classList.contains("vt-active")).toBe(false);
+      expect(pagingArea.getAttribute("data-cast-podlove-present")).toBe("true");
+      expect(pagingArea.querySelector("podlove-player")).not.toBeNull();
+
+      // A settle of an earlier request must not leave a timer that unmasks the next request early.
+      document.dispatchEvent(new CustomEvent("htmx:beforeRequest", { detail: { target: pagingArea } }));
+      document.dispatchEvent(new CustomEvent("htmx:afterSettle", { detail: { target: pagingArea } }));
+      document.dispatchEvent(new CustomEvent("htmx:beforeRequest", { detail: { target: pagingArea } }));
+      document.dispatchEvent(new CustomEvent(failureEvent, { detail: { target: pagingArea } }));
+      expect(pagingArea.getAttribute("data-cast-paging-mask-active")).toBeNull();
+      expect(vi.getTimerCount()).toBe(0);
+
+      document.dispatchEvent(new CustomEvent("htmx:beforeRequest", { detail: { target: pagingArea } }));
+      vi.advanceTimersByTime(1000);
+      expect(pagingArea.getAttribute("data-cast-paging-mask-active")).toBe("true");
+    }
+  );
+
+  it.each(["htmx:sendError", "htmx:timeout"])("removes vt-active when the request fails with %s", (failureEvent) => {
+    const pagingArea = document.querySelector("#paging-area") as HTMLElement;
+    initPagingContentVisibility();
+
+    document.dispatchEvent(new CustomEvent("htmx:beforeTransition", { detail: { target: pagingArea } }));
+    expect(pagingArea.classList.contains("vt-active")).toBe(true);
+
+    document.dispatchEvent(new CustomEvent(failureEvent, { detail: { elt: pagingArea } }));
+    expect(pagingArea.classList.contains("vt-active")).toBe(false);
+  });
+
+  it.each(["htmx:sendError", "htmx:timeout"])(
+    "keeps the paging state when an unrelated request fails with %s",
+    (failureEvent) => {
+      const pagingArea = document.querySelector("#paging-area") as HTMLElement;
+      const otherArea = document.querySelector("#other-area") as HTMLElement;
+      pagingArea.innerHTML = "<podlove-player></podlove-player>";
+      initPagingContentVisibility();
+
+      document.dispatchEvent(new CustomEvent("htmx:beforeRequest", { detail: { target: pagingArea } }));
+      document.dispatchEvent(new CustomEvent(failureEvent, { detail: { target: otherArea } }));
+
+      expect(pagingArea.getAttribute("data-cast-paging-mask-active")).toBe("true");
+    }
+  );
+
+  it("stops reacting to failed requests after destroy", () => {
+    const removeEventListenerSpy = vi.spyOn(document, "removeEventListener");
+    const pagingArea = document.querySelector("#paging-area") as HTMLElement;
+    initPagingContentVisibility();
+
+    destroyPagingContentVisibility();
+
+    for (const name of ["htmx:responseError", "htmx:sendError", "htmx:timeout", "htmx:sendAbort", "htmx:swapError"]) {
+      expect(removeEventListenerSpy.mock.calls.filter(([removed]) => removed === name)).toHaveLength(1);
+    }
+    pagingArea.classList.add("vt-active");
+    document.dispatchEvent(new CustomEvent("htmx:sendError", { detail: { target: pagingArea } }));
+    expect(pagingArea.classList.contains("vt-active")).toBe(true);
+  });
+
   it("ignores cleanup events from unrelated htmx requests", () => {
     const pagingArea = document.querySelector("#paging-area") as HTMLElement;
     const otherArea = document.querySelector("#other-area") as HTMLElement;
@@ -247,6 +320,8 @@ describe("paging-content-visibility", () => {
     const responseErrorCalls = addEventListenerSpy.mock.calls.filter(([name]) => name === "htmx:responseError");
     const sendAbortCalls = addEventListenerSpy.mock.calls.filter(([name]) => name === "htmx:sendAbort");
     const swapErrorCalls = addEventListenerSpy.mock.calls.filter(([name]) => name === "htmx:swapError");
+    const sendErrorCalls = addEventListenerSpy.mock.calls.filter(([name]) => name === "htmx:sendError");
+    const timeoutCalls = addEventListenerSpy.mock.calls.filter(([name]) => name === "htmx:timeout");
 
     expect(beforeTransitionCalls).toHaveLength(1);
     expect(beforeRequestCalls).toHaveLength(1);
@@ -255,6 +330,8 @@ describe("paging-content-visibility", () => {
     expect(responseErrorCalls).toHaveLength(1);
     expect(sendAbortCalls).toHaveLength(1);
     expect(swapErrorCalls).toHaveLength(1);
+    expect(sendErrorCalls).toHaveLength(1);
+    expect(timeoutCalls).toHaveLength(1);
   });
 
   it("is a no-op when #paging-area is absent", () => {

@@ -129,6 +129,17 @@ function schedulePagingMaskDeactivation(delayMs: number): void {
   }, delayMs);
 }
 
+// Every way an htmx request can end without htmx:afterSettle. A network
+// failure (htmx:sendError) or a timeout (htmx:timeout) never produces a
+// response, so neither htmx:responseError nor the settle cleanup follows.
+const FAILED_REQUEST_EVENTS = [
+  "htmx:responseError",
+  "htmx:sendError",
+  "htmx:timeout",
+  "htmx:sendAbort",
+  "htmx:swapError",
+] as const;
+
 export function initPagingContentVisibility(): void {
   const doc = getDocument();
   if (!doc) {
@@ -205,9 +216,9 @@ export function initPagingContentVisibility(): void {
       deactivatePagingMask();
       syncPagingAreaPodlovePresence();
     };
-    doc.addEventListener("htmx:responseError", cleanupHandler);
-    doc.addEventListener("htmx:sendAbort", cleanupHandler);
-    doc.addEventListener("htmx:swapError", cleanupHandler);
+    for (const eventName of FAILED_REQUEST_EVENTS) {
+      doc.addEventListener(eventName, cleanupHandler);
+    }
   }
 }
 
@@ -230,9 +241,9 @@ export function destroyPagingContentVisibility(): void {
     doc.removeEventListener("htmx:historyRestore", historyRestoreHandler);
   }
   if (cleanupHandler) {
-    doc.removeEventListener("htmx:responseError", cleanupHandler);
-    doc.removeEventListener("htmx:sendAbort", cleanupHandler);
-    doc.removeEventListener("htmx:swapError", cleanupHandler);
+    for (const eventName of FAILED_REQUEST_EVENTS) {
+      doc.removeEventListener(eventName, cleanupHandler);
+    }
   }
 
   clearPagingMaskTimeout();
