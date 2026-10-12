@@ -197,6 +197,29 @@ describe("cast-search-modal", () => {
     expect(document.activeElement).toBe(trigger);
   });
 
+  it.each([
+    ["composition flag", { isComposing: true }, false, true],
+    ["Safari commit key", { keyCode: 229 }, false, true],
+    ["active composition session", {}, true, true],
+    ["composition flag without typeahead", { isComposing: true }, false, false],
+    ["Safari commit key without typeahead", { keyCode: 229 }, false, false],
+  ])("keeps composing Escape inside the modal: %s", (_label, init, session, suggestions) => {
+    document.body.innerHTML = buildModalMarkup({ suggestions });
+    const trigger = document.querySelector("[data-cast-search-trigger]") as HTMLButtonElement;
+    const overlay = document.querySelector("[data-cast-search-overlay]") as HTMLElement;
+    const input = document.querySelector('input[name="search"]') as HTMLInputElement;
+    trigger.click();
+    if (session) input.dispatchEvent(new CompositionEvent("compositionstart"));
+    const escape = new KeyboardEvent("keydown", { ...init, key: "Escape", bubbles: true, cancelable: true });
+    input.dispatchEvent(escape);
+    expect(escape.defaultPrevented).toBe(false);
+    expect(overlay.hidden).toBe(false);
+    expect(document.activeElement).toBe(input);
+    if (session) input.dispatchEvent(new CompositionEvent("compositionend"));
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    expect(overlay.hidden).toBe(true);
+  });
+
   it("supports Cmd/Ctrl+K shortcut and ignores typing targets", () => {
     const overlay = document.querySelector("[data-cast-search-overlay]") as HTMLElement;
     const trigger = document.querySelector("[data-cast-search-trigger]") as HTMLButtonElement;

@@ -26,6 +26,7 @@ type TypeaheadElements = {
 type TypeaheadActions = {
   navigate?: (url: string) => void;
   openInNewTab?: (url: string) => void;
+  openInNewWindow?: (url: string) => void;
   onOpenChange?: (open: boolean) => void;
   messages?: Partial<TypeaheadMessages>;
 };
@@ -73,6 +74,7 @@ export default class CastSearchTypeahead {
   private readonly elements: TypeaheadElements;
   private readonly navigate: (url: string) => void;
   private readonly openInNewTab: (url: string) => void;
+  private readonly openInNewWindow: (url: string) => void;
   private readonly onOpenChange: (open: boolean) => void;
   private readonly messages: TypeaheadMessages;
   private readonly cache = new Map<string, SearchSuggestionsResponse>();
@@ -83,6 +85,7 @@ export default class CastSearchTypeahead {
   private inFlight: AbortController | null = null;
   private requestSequence = 0;
   private connected = false;
+  private composing = false;
   private consecutiveFailures = 0;
   private disabled = false;
   private retainedSuggestionsBusy = false;
@@ -94,6 +97,8 @@ export default class CastSearchTypeahead {
     this.navigate = actions.navigate ?? ((destination) => window.location.assign(destination));
     this.openInNewTab =
       actions.openInNewTab ?? ((destination) => window.open(destination, "_blank", "noopener,noreferrer"));
+    this.openInNewWindow =
+      actions.openInNewWindow ?? ((destination) => window.open(destination, "_blank", "noopener,noreferrer,popup"));
     this.onOpenChange = actions.onOpenChange ?? (() => undefined);
     this.messages = {
       noSuggestions: actions.messages?.noSuggestions ?? DEFAULT_MESSAGES.noSuggestions,
@@ -120,6 +125,8 @@ export default class CastSearchTypeahead {
 
     input.addEventListener("input", this.handleInput);
     input.addEventListener("search", this.handleInput);
+    input.addEventListener("compositionstart", this.handleCompositionStart);
+    input.addEventListener("compositionend", this.handleCompositionEnd);
     input.addEventListener("keydown", this.handleKeydown);
     input.addEventListener("blur", this.handleBlur);
     listbox.addEventListener("pointerdown", this.handlePointerDown);
@@ -133,9 +140,12 @@ export default class CastSearchTypeahead {
       return;
     }
     this.connected = false;
+    this.composing = false;
     const { input, listbox } = this.elements;
     input.removeEventListener("input", this.handleInput);
     input.removeEventListener("search", this.handleInput);
+    input.removeEventListener("compositionstart", this.handleCompositionStart);
+    input.removeEventListener("compositionend", this.handleCompositionEnd);
     input.removeEventListener("keydown", this.handleKeydown);
     input.removeEventListener("blur", this.handleBlur);
     listbox.removeEventListener("pointerdown", this.handlePointerDown);
@@ -158,9 +168,21 @@ export default class CastSearchTypeahead {
     this.consecutiveFailures = 0;
   }
 
-  private readonly handleInput = (): void => {
+  private readonly handleCompositionStart = (): void => {
+    this.composing = true;
     this.suspendSuggestions();
-    this.schedule();
+  };
+
+  private readonly handleCompositionEnd = (): void => {
+    this.composing = false;
+    this.handleInput();
+  };
+
+  private readonly handleInput = (event?: Event): void => {
+    this.suspendSuggestions();
+    if (!this.composing && !(event instanceof InputEvent && event.isComposing)) {
+      this.schedule();
+    }
   };
 
   private suspendSuggestions(): void {
@@ -186,6 +208,11 @@ export default class CastSearchTypeahead {
   }
 
   private readonly handleKeydown = (event: KeyboardEvent): void => {
+    if (this.composing || event.isComposing || event.keyCode === 229) {
+      event.stopPropagation();
+      return;
+    }
+
     if (event.key === "Escape" && this.isOpen()) {
       event.preventDefault();
       event.stopPropagation();
@@ -237,11 +264,21 @@ export default class CastSearchTypeahead {
   };
 
   private readonly handleClick = (event: MouseEvent): void => {
+    if (event.button !== 0) {
+      return;
+    }
     const option = (event.target as Element | null)?.closest<HTMLElement>("[role=option]");
     const index = option ? Number(option.dataset.suggestionIndex) : Number.NaN;
     const suggestion = this.suggestions[index];
     if (suggestion) {
-      this.navigate(suggestion.url);
+      event.preventDefault();
+      if (event.metaKey || event.ctrlKey) {
+        this.openInNewTab(suggestion.url);
+      } else if (event.shiftKey) {
+        this.openInNewWindow(suggestion.url);
+      } else {
+        this.navigate(suggestion.url);
+      }
     }
   };
 
@@ -267,6 +304,9 @@ export default class CastSearchTypeahead {
   };
 
   private schedule(): void {
+    if (this.composing) {
+      return;
+    }
     if (this.disabled) {
       this.render();
       this.close();
