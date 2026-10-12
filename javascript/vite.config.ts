@@ -1,8 +1,8 @@
 import { resolve } from "path";
-import { defineConfig } from "vite";
-import type { UserConfig as VitestUserConfigInterface } from "vitest/config"
+import { defineConfig } from "vitest/config";
+import type { ViteUserConfig } from "vitest/config"
 
-const vitestConfig: VitestUserConfigInterface = {
+const vitestConfig: ViteUserConfig = {
   test: {
     globals: true,
     environment: "jsdom",
@@ -21,7 +21,6 @@ export default defineConfig({
     cors: true,
     watch: {
       usePolling: true,
-      disableGlobbing: false,
     },
   },
   resolve: {

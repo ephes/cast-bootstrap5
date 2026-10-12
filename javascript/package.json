@@ -11,14 +11,19 @@
     "scss": "sass ../cast_bootstrap5/static/cast_bootstrap5/scss/main.scss:../cast_bootstrap5/static/cast_bootstrap5/css/bootstrap5/cast.css --style=compressed --no-source-map --no-charset",
     "scss:watch": "sass --watch ../cast_bootstrap5/static/cast_bootstrap5/scss/main.scss:../cast_bootstrap5/static/cast_bootstrap5/css/bootstrap5/cast.css",
     "scss:dev": "sass ../cast_bootstrap5/static/cast_bootstrap5/scss/main.scss:../cast_bootstrap5/static/cast_bootstrap5/css/bootstrap5/cast.css --source-map",
-    "purge:bootstrap": "node purge-bootstrap.mjs"
+    "purge:bootstrap": "node purge-bootstrap.mjs",
+    "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.9.1",
+    "@types/aria-query": "5.0.4",
+    "@types/jsdom": "30.0.0",
+    "@types/node": "24.19.2",
     "@vue/test-utils": "^2.4.6",
-    "jsdom": "^27.4.0",
+    "jsdom": "^30.1.2",
     "purgecss": "^8.0.0",
     "sass": "^1.83.0",
+    "typescript": "7.0.2",
     "vitest": "^4.0.18"
   }
 }

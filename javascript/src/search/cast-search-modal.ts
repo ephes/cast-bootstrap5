@@ -644,6 +644,7 @@ export default class CastSearchModal extends HTMLElement {
       return;
     }
 
+    const form = this.form;
     this.modal.querySelectorAll<HTMLElement>("[data-cast-facet-group]").forEach((group) => {
       const groupName = getFacetGroupName(group);
       if (!groupName) {
@@ -653,13 +654,13 @@ export default class CastSearchModal extends HTMLElement {
       const selectedLink = group.querySelector<HTMLAnchorElement>("a.selected[href]");
       if (!selectedLink) {
         this.state.selected[groupName] = "";
-        syncFacetHiddenInput(this.form as HTMLFormElement, groupName, "");
+        syncFacetHiddenInput(form, groupName, "");
         return;
       }
 
       const value = getFacetValueFromLink(selectedLink, groupName);
       this.state.selected[groupName] = value;
-      syncFacetHiddenInput(this.form, groupName, value);
+      syncFacetHiddenInput(form, groupName, value);
     });
   }
 

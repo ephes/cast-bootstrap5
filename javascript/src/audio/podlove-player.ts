@@ -1,7 +1,16 @@
 // podlove-player.ts
-declare const podlovePlayer:
-  | ((playerTarget: HTMLElement | string, url: string, configUrl: string) => void)
-  | undefined;
+type PodlovePlayer = (playerTarget: HTMLElement | string, url: string, configUrl: string) => void;
+
+declare global {
+  // Registered asynchronously by the external Podlove embed script.
+  var podlovePlayer: PodlovePlayer | undefined;
+
+  interface HTMLElementTagNameMap {
+    "podlove-player": PodlovePlayerElement;
+  }
+}
+
+export {};
 
 let embedScriptPromise: Promise<void> | null = null;
 let playerInstanceCounter = 0;

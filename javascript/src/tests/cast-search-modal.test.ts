@@ -223,7 +223,8 @@ describe("cast-search-modal", () => {
   it("supports Cmd/Ctrl+K shortcut and ignores typing targets", () => {
     const overlay = document.querySelector("[data-cast-search-overlay]") as HTMLElement;
     const trigger = document.querySelector("[data-cast-search-trigger]") as HTMLButtonElement;
-    const searchInput = document.querySelector('input[name="search"]') as HTMLInputElement;
+    const typingInput = document.createElement("input");
+    document.body.appendChild(typingInput);
 
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true, bubbles: true }));
     expect(overlay.hidden).toBe(false);
@@ -235,7 +236,8 @@ describe("cast-search-modal", () => {
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true, bubbles: true }));
     expect(overlay.hidden).toBe(true);
 
-    searchInput.focus();
+    typingInput.focus();
+    expect(document.activeElement).toBe(typingInput);
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true, bubbles: true }));
     expect(overlay.hidden).toBe(true);
   });
@@ -751,7 +753,7 @@ describe("cast-search-modal", () => {
     vi.useFakeTimers();
     document.body.innerHTML = buildModalMarkup({ dynamic: true });
 
-    let firstSignal: AbortSignal | null = null;
+    const firstSignalState: { value: AbortSignal | null } = { value: null };
     let resolveFirst: ((response: Response) => void) | undefined;
     const stalePayload = modalResponse() as { groups: { tag_facets: { selected: string } } };
     stalePayload.groups.tag_facets.selected = "legacy";
@@ -760,7 +762,7 @@ describe("cast-search-modal", () => {
     const fetchMock = vi
       .fn()
       .mockImplementationOnce((_: string, init?: RequestInit) => {
-        firstSignal = init?.signal as AbortSignal;
+        firstSignalState.value = init?.signal as AbortSignal;
         return new Promise<Response>((resolve) => {
           resolveFirst = resolve;
         });
@@ -774,7 +776,7 @@ describe("cast-search-modal", () => {
     await vi.advanceTimersByTimeAsync(FACET_DEBOUNCE_MS);
 
     pythonLink.click();
-    expect(firstSignal?.aborted).toBe(true);
+    expect(firstSignalState.value?.aborted).toBe(true);
     resolveFirst?.({ ok: true, json: async () => stalePayload } as Response);
     await Promise.resolve();
     await Promise.resolve();
@@ -797,13 +799,13 @@ describe("cast-search-modal", () => {
     vi.useFakeTimers();
     document.body.innerHTML = buildModalMarkup({ dynamic: true });
 
-    let firstSignal: AbortSignal | null = null;
-    let resolveSecond: ((value: Response) => void) | null = null;
+    const firstSignalState: { value: AbortSignal | null } = { value: null };
+    const resolveSecondState: { value: ((value: Response) => void) | null } = { value: null };
 
     const fetchMock = vi
       .fn()
       .mockImplementationOnce((_: string, init?: RequestInit) => {
-        firstSignal = init?.signal as AbortSignal;
+        firstSignalState.value = init?.signal as AbortSignal;
         return new Promise<Response>((_resolve, reject) => {
           (init?.signal as AbortSignal).addEventListener("abort", () => {
             reject(new DOMException("Aborted", "AbortError"));
@@ -812,7 +814,7 @@ describe("cast-search-modal", () => {
       })
       .mockImplementationOnce(() => {
         return new Promise<Response>((resolve) => {
-          resolveSecond = resolve;
+          resolveSecondState.value = resolve;
         });
       });
 
@@ -829,9 +831,9 @@ describe("cast-search-modal", () => {
     dateLink.click();
     await vi.advanceTimersByTimeAsync(FACET_DEBOUNCE_MS + 10);
 
-    expect(firstSignal?.aborted).toBe(true);
+    expect(firstSignalState.value?.aborted).toBe(true);
 
-    resolveSecond?.({
+    resolveSecondState.value?.({
       ok: true,
       json: async () => modalResponse(),
     } as Response);
@@ -873,12 +875,12 @@ describe("cast-search-modal", () => {
       },
     };
 
-    let inFlightSignal: AbortSignal | null = null;
+    const inFlightSignalState: { value: AbortSignal | null } = { value: null };
     const fetchMock = vi
       .fn()
       .mockImplementationOnce(() => jsonResponse(cachedPayload))
       .mockImplementationOnce((_: string, init?: RequestInit) => {
-        inFlightSignal = init?.signal as AbortSignal;
+        inFlightSignalState.value = init?.signal as AbortSignal;
         return new Promise<Response>((_resolve, reject) => {
           (init?.signal as AbortSignal).addEventListener("abort", () => {
             reject(new DOMException("Aborted", "AbortError"));
@@ -905,7 +907,7 @@ describe("cast-search-modal", () => {
     await vi.advanceTimersByTimeAsync(FACET_DEBOUNCE_MS + 10);
     await Promise.resolve();
 
-    expect(inFlightSignal?.aborted).toBe(true);
+    expect(inFlightSignalState.value?.aborted).toBe(true);
     expect(fetchMock).toHaveBeenCalledTimes(2);
 
     const form = document.querySelector("form") as HTMLFormElement;
@@ -919,9 +921,9 @@ describe("cast-search-modal", () => {
     vi.useFakeTimers();
     document.body.innerHTML = buildModalMarkup({ dynamic: true });
 
-    let activeSignal: AbortSignal | null = null;
+    const activeSignalState: { value: AbortSignal | null } = { value: null };
     const fetchMock = vi.fn().mockImplementation((_: string, init?: RequestInit) => {
-      activeSignal = init?.signal as AbortSignal;
+      activeSignalState.value = init?.signal as AbortSignal;
       return new Promise<Response>(() => {
         // keep pending to assert abort on disconnect
       });
@@ -946,7 +948,7 @@ describe("cast-search-modal", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
 
     activeModal.remove();
-    expect(activeSignal?.aborted).toBe(true);
+    expect(activeSignalState.value?.aborted).toBe(true);
 
     const trigger = document.querySelector("[data-cast-search-trigger]") as HTMLButtonElement;
     trigger.click();

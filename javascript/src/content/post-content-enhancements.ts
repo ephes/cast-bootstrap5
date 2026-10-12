@@ -32,7 +32,7 @@ function applyLineSpacing(blockquote: HTMLElement): void {
 }
 
 function isBlockquote(element: Element | null): element is HTMLElement {
-  return Boolean(element) && element.tagName.toLowerCase() === "blockquote";
+  return element !== null && element.tagName.toLowerCase() === "blockquote";
 }
 
 function findBlockquotes(root: ParentNode | Element): HTMLElement[] {
