@@ -153,13 +153,20 @@ uv run --extra test pytest  # Python/template contract tests only
 npx vitest run              # JavaScript tests once
 npx vitest watch            # JavaScript tests in watch mode
 just check-assets           # rebuild Vite bundle and cast.css, fail on drift
-# Testing against a sibling django-cast worktree instead of the pinned commit:
+# Testing against a sibling django-cast worktree instead of the develop branch:
 PYTHONPATH=../django-cast/src uv run --extra test pytest
 ```
 
 django-cast 0.2.67 is not on PyPI yet, so `[tool.uv.sources]` in
-`pyproject.toml` pins a django-cast `develop` commit for uv. Remove that block
-once 0.2.67 is released.
+`pyproject.toml` tracks the django-cast `develop` branch for uv, matching the
+source used by homepage and python-podcast. A commit-specific source here
+conflicts with those consumers' branch source when uv resolves Git dependencies.
+Published package metadata keeps the plain `django-cast>=0.2.67` requirement.
+Remove the source block once 0.2.67 is released.
+
+Sites can upgrade the theme by setting their cast-bootstrap5 Git `rev` to the
+new theme commit and running `uv lock --upgrade-package cast-bootstrap5`; keep
+their django-cast source at `branch = "develop"`.
 
 CI (`.github/workflows/ci.yml`) runs `just js-test`, `just check-assets`, and
 the pytest suite on every push and pull request.

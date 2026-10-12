@@ -62,10 +62,10 @@ Source = "https://github.com/ephes/cast-bootstrap5"
 
 
 # django-cast 0.2.67 is not on PyPI yet. Until it is, uv installs it from this
-# pinned develop commit (version 0.2.67). Published metadata keeps the plain
-# `django-cast>=0.2.67` requirement; drop this block after the release.
+# develop branch, matching uv consumers that also track develop. Published
+# metadata keeps `django-cast>=0.2.67`; drop this block after the release.
 [tool.uv.sources]
-django-cast = { git = "https://github.com/ephes/django-cast", rev = "1bac7ef7c324d45aad1b7cb45606aa3283952e88" }
+django-cast = { git = "https://github.com/ephes/django-cast", branch = "develop" }
 
 [tool.uv.build-backend]
 module-root = ""
