@@ -281,3 +281,12 @@ when necessary, and enhances HTMX swap targets. Repeated calls are idempotent.
 `destroyPostContentEnhancements()` cancels pending initialization and removes the
 swap listener; it leaves already rendered content in place. Initialization can
 be called again after teardown.
+
+## Theme preference
+
+The color mode (Auto, Light, or Dark) is stored in localStorage under
+`cast-theme`. If the browser refuses the write (private or restricted contexts,
+exceeded quota), the choice still applies for the rest of the page session,
+including system color-scheme changes and HTMX swaps; the next full page load
+falls back to the stored value, or Auto when none is readable. Other open tabs
+do not update live; they pick up a stored change on their next page load.

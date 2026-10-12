@@ -106,6 +106,42 @@ describe("theme-switcher", () => {
     vi.restoreAllMocks();
   });
 
+  it.each([false, true])("retains a session choice when storage writes fail (reads denied: %s)", async (denyReads) => {
+    storageMock.setItem('cast-theme', 'light');
+    const write = vi.spyOn(storageMock, 'setItem').mockImplementation(() => { throw new Error('denied'); });
+    if (denyReads) vi.spyOn(storageMock, 'getItem').mockImplementation(() => { throw new Error('denied'); });
+    document.body.innerHTML = createSwitcherMarkup('a');
+    const module = await loadModule();
+    (document.querySelector('[data-cast-theme-value="mode:dark"]') as HTMLButtonElement).click();
+    expect(write).toHaveBeenCalledTimes(1);
+    expect(document.querySelector('[data-cast-theme-label]')?.textContent).toBe('Dark');
+    matchMediaMock.dispatch(false);
+    expect(document.documentElement.getAttribute('data-bs-theme')).toBe('dark');
+    const target = document.createElement('div');
+    target.innerHTML = createSwitcherMarkup('b');
+    document.body.append(target);
+    document.body.dispatchEvent(new CustomEvent('htmx:afterSwap', { detail: { target } }));
+    module.initThemeSwitcher(target);
+    for (const label of document.querySelectorAll('[data-cast-theme-label]')) expect(label.textContent).toBe('Dark');
+    expect(document.documentElement.getAttribute('data-bs-theme')).toBe('dark');
+  });
+
+  it("returns to stored preferences once a later write succeeds", async () => {
+    const write = vi.spyOn(storageMock, "setItem").mockImplementationOnce(() => {
+      throw new Error("denied");
+    });
+    document.body.innerHTML = createSwitcherMarkup("a");
+    await loadModule();
+    (document.querySelector('[data-cast-theme-value="mode:dark"]') as HTMLButtonElement).click();
+    expect(storageMock.getItem("cast-theme")).toBeNull();
+    expect(document.querySelector("[data-cast-theme-label]")?.textContent).toBe("Dark");
+    (document.querySelector('[data-cast-theme-value="mode:light"]') as HTMLButtonElement).click();
+    expect(write).toHaveBeenCalledTimes(2);
+    expect(storageMock.getItem("cast-theme")).toBe("light");
+    expect(document.querySelector("[data-cast-theme-label]")?.textContent).toBe("Light");
+    expect(document.documentElement.getAttribute("data-bs-theme")).toBe("light");
+  });
+
   it("syncs document and switcher state from stored theme", async () => {
     window.localStorage.setItem("cast-theme", "dark");
     document.body.innerHTML = createSwitcherMarkup("a");

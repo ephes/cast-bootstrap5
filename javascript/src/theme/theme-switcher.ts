@@ -10,6 +10,8 @@ type HtmxAfterSwapDetail = {
   target?: Element;
 };
 
+// Set only while the last selection could not be persisted; it then overrides storage.
+let sessionMode: ThemeMode | null = null;
 let listenersBound = false;
 let mediaQueryList: MediaQueryList | null = null;
 let bodyClickHandler: ((event: Event) => void) | null = null;
@@ -42,16 +44,18 @@ export function getStoredTheme(): ThemeMode | null {
   }
 }
 
-export function setStoredTheme(theme: ThemeMode): void {
-  const win = getWindow();
-  if (!win) {
-    return;
-  }
+function getCurrentMode(): ThemeMode {
+  return sessionMode ?? getStoredTheme() ?? "auto";
+}
 
+export function setStoredTheme(theme: ThemeMode): void {
   try {
-    win.localStorage.setItem(THEME_STORAGE_KEY, theme);
+    // A missing window throws here as well, which keeps the choice in memory.
+    window.localStorage.setItem(THEME_STORAGE_KEY, theme);
+    sessionMode = null;
   } catch {
-    // Intentionally ignored to keep the switcher functional in private/restricted contexts.
+    // Storage is unavailable (private/restricted context): keep the choice for this page session.
+    sessionMode = theme;
   }
 }
 
@@ -140,7 +144,7 @@ export function syncThemeSwitchers(root: ParentNode | Element = getDocument() as
     return;
   }
 
-  const mode = getStoredTheme() ?? "auto";
+  const mode = getCurrentMode();
   findSwitchers(root).forEach((switcher) => {
     syncThemeSwitcher(switcher, mode);
   });
@@ -232,8 +236,7 @@ function bindListeners(): void {
   if (typeof win.matchMedia === "function") {
     mediaQueryList = win.matchMedia(MEDIA_QUERY);
     mediaChangeHandler = () => {
-      const stored = getStoredTheme();
-      if (!stored || stored === "auto") {
+      if (getCurrentMode() === "auto") {
         applyTheme("auto");
         syncThemeSwitchers(doc);
       }
@@ -253,13 +256,14 @@ export function initThemeSwitcher(root: ParentNode | Element = getDocument() as 
     return;
   }
 
-  const mode = getStoredTheme() ?? "auto";
+  const mode = getCurrentMode();
   applyTheme(mode);
   syncThemeSwitchers(root);
   bindListeners();
 }
 
 export function destroyThemeSwitcher(): void {
+  sessionMode = null;
   const doc = getDocument();
   if (!doc || !listenersBound) {
     listenersBound = false;
