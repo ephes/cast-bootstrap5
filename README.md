@@ -130,11 +130,17 @@ to do is to change to that folder.
 cd javascript
 ```
 
-Then install the dependencies:
+Use Node.js 24.15 or newer in the 24.x line, matching CI, then install the
+locked dependencies:
 
 ```shell
-npm install
+npm ci
 ```
+
+TypeScript is pinned in `javascript/package.json`. The strict typecheck uses
+bundler module resolution to match Vite, includes Vitest globals and Node types,
+and checks dependency declarations without `skipLibCheck`. Run it before
+committing frontend changes; it does not emit or rebuild assets.
 
 ### Build javascript
 
@@ -172,7 +178,9 @@ The purged CSS is written back to
 ### Run tests
 
 ```shell
-just test                   # JavaScript and Python/template tests
+just test                   # strict TypeScript, JavaScript and Python/template tests
+just js-typecheck           # strict sources, tests and Vite config (tsc --noEmit)
+# Or, from javascript/: npm run typecheck
 uv run --extra test pytest  # Python/template contract tests only
 npx vitest run              # JavaScript tests once
 npx vitest watch            # JavaScript tests in watch mode
@@ -192,7 +200,7 @@ Sites can upgrade the theme by setting their cast-bootstrap5 Git `rev` to the
 new theme commit and running `uv lock --upgrade-package cast-bootstrap5`; keep
 their django-cast source at `branch = "develop"`.
 
-CI (`.github/workflows/ci.yml`) runs `just js-test`, `just check-assets`, and
+CI (`.github/workflows/ci.yml`) runs `just js-typecheck`, `just js-test`, `just check-assets`, and
 the pytest suite on every push and pull request.
 
 Rendered metadata behavior and JSON-LD parsing are covered by django-cast's

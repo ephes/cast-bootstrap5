@@ -22,7 +22,7 @@ env:
 
 jobs:
   javascript:
-    name: JavaScript tests and asset drift
+    name: JavaScript types, tests and asset drift
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -47,6 +47,8 @@ jobs:
       - name: Install JavaScript dependencies
         working-directory: javascript
         run: npm ci
+      - name: Strict types (just js-typecheck)
+        run: just js-typecheck
       - name: Tests (just js-test)
         run: just js-test
       - name: Rebuild assets and check for drift (just check-assets)

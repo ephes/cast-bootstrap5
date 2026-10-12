@@ -13,6 +13,9 @@ just js-build-sync
 # Compile SCSS to CSS (minified, no source map)
 just scss
 
+# Check strict TypeScript (sources, tests and Vite config)
+just js-typecheck
+
 # Run JS tests
 just js-test
 ```

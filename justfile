@@ -5,7 +5,7 @@ default:
 
 # Install JavaScript dependencies
 js-install:
-    cd javascript && npm install
+    cd javascript && npm ci
 
 # Run Vite development server
 js-dev:
@@ -24,6 +24,10 @@ js-build-sync:
     rm -rf javascript/dist/.vite
     rm -f cast_bootstrap5/static/cast_bootstrap5/vite/*
     cp javascript/dist/* cast_bootstrap5/static/cast_bootstrap5/vite/
+
+# Strictly typecheck sources, tests, and Vite configuration
+js-typecheck:
+    cd javascript && npm run typecheck
 
 # Run tests once
 js-test:
@@ -49,8 +53,8 @@ scss-dev:
 py-test:
     uv run --extra test pytest
 
-# Run all tests (JavaScript and Python)
-test: js-test py-test
+# Run typecheck and all tests (JavaScript and Python)
+test: js-typecheck js-test py-test
 
 # Rebuild committed assets and fail if they differ from the sources (as CI does)
 check-assets: js-build-sync scss

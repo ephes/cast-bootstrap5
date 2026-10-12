@@ -310,13 +310,13 @@ describe("CastSearchTypeahead", () => {
   });
 
   it("aborts stale requests and applies only the current query", async () => {
-    let firstSignal: AbortSignal | null = null;
+    const firstSignalState: { value: AbortSignal | null } = { value: null };
     const fetchMock = vi
       .fn()
       .mockImplementationOnce((_: string, init?: RequestInit) => {
-        firstSignal = init?.signal as AbortSignal;
+        firstSignalState.value = init?.signal as AbortSignal;
         return new Promise<Response>((_resolve, reject) => {
-          firstSignal?.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")));
+          firstSignalState.value?.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")));
         });
       })
       .mockImplementationOnce(() => response("pyth", [pythonSuggestions[0]]));
@@ -333,7 +333,7 @@ describe("CastSearchTypeahead", () => {
     await Promise.resolve();
     await Promise.resolve();
 
-    expect(firstSignal?.aborted).toBe(true);
+    expect(firstSignalState.value?.aborted).toBe(true);
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(listbox.querySelectorAll("[role=option]")).toHaveLength(1);
     expect(listbox.textContent).toContain("Python newest");
