@@ -486,6 +486,9 @@ export default class CastSearchModal extends HTMLElement {
   }
 
   private handleDocumentKeydown(event: KeyboardEvent): void {
+    if (event.isComposing || event.keyCode === 229) {
+      return;
+    }
     if (!this.overlay) {
       return;
     }

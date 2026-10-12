@@ -54,6 +54,13 @@ the current filter combination has no matching posts. While destinations are
 visible, they take visual priority over the live full-text no-results message.
 When a longer query refreshes an open list, the settled destinations remain
 visible but temporarily non-selectable until the matching response arrives.
+IME input is supported: suggestions wait until composition ends, and composition
+keys retain their input-method behavior. This also means keyboards that keep
+Latin words in an active composition session show suggestions after the word
+is committed (for example, by a space), rather than while composing it.
+Plain suggestion clicks open in the
+current page; Ctrl/Meta and middle clicks open a new tab, and Shift clicks request
+a separate window (the browser controls the final presentation).
 With an older django-cast version the endpoint URL is absent and the modal
 keeps its submit-only search behavior.
 

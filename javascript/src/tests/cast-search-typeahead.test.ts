@@ -19,6 +19,7 @@ function setup(
   actions: {
     navigate?: (url: string) => void;
     openInNewTab?: (url: string) => void;
+    openInNewWindow?: (url: string) => void;
     onOpenChange?: (open: boolean) => void;
     messages?: Partial<{
       noSuggestions: string;
@@ -175,6 +176,86 @@ describe("CastSearchTypeahead", () => {
     input.dispatchEvent(selectedEnter);
     expect(selectedEnter.defaultPrevented).toBe(true);
     expect(navigate).toHaveBeenCalledWith("/python-newest/");
+  });
+
+  it.each(["Enter", "ArrowDown", "ArrowUp", "Escape"])("leaves composing %s untouched", async (key) => {
+    const navigate = vi.fn();
+    vi.stubGlobal("fetch", vi.fn().mockImplementation(() => response("py", pythonSuggestions)));
+    const { input, listbox } = setup({ navigate });
+    input.value = "py";
+    input.dispatchEvent(new Event("input"));
+    await vi.advanceTimersByTimeAsync(225);
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown" }));
+    const active = input.getAttribute("aria-activedescendant");
+    const event = new KeyboardEvent("keydown", { key, isComposing: true, cancelable: true });
+    input.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(false);
+    expect(navigate).not.toHaveBeenCalled();
+    expect(input.getAttribute("aria-activedescendant")).toBe(active);
+    expect(listbox.hidden).toBe(false);
+  });
+
+  it("cancels pending work and waits for committed composition text", async () => {
+    const fetchMock = vi.fn().mockImplementation(() => response("日本", pythonSuggestions));
+    vi.stubGlobal("fetch", fetchMock);
+    const { controller, input } = setup();
+    input.value = "pending";
+    input.dispatchEvent(new Event("input"));
+    input.dispatchEvent(new CompositionEvent("compositionstart"));
+    input.value = "にほ";
+    input.dispatchEvent(new InputEvent("input", { isComposing: true }));
+    controller.facetStateChanged();
+    await vi.advanceTimersByTimeAsync(500);
+    expect(fetchMock).not.toHaveBeenCalled();
+    const enter = new KeyboardEvent("keydown", { key: "Enter", cancelable: true });
+    input.dispatchEvent(enter);
+    expect(enter.defaultPrevented).toBe(false);
+    input.value = "日本";
+    input.dispatchEvent(new CompositionEvent("compositionend"));
+    input.dispatchEvent(new InputEvent("input", { isComposing: false }));
+    await vi.advanceTimersByTimeAsync(224);
+    expect(fetchMock).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(new URL(fetchMock.mock.calls[0][0]).searchParams.get("search")).toBe("日本");
+    controller.disconnect();
+    controller.connect();
+    input.value = "another";
+    input.dispatchEvent(new Event("input"));
+    await vi.advanceTimersByTimeAsync(225);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it.each([
+    ["plain", {}, "navigate"],
+    ["Ctrl", { ctrlKey: true }, "tab"],
+    ["Meta", { metaKey: true }, "tab"],
+    ["Shift", { shiftKey: true }, "window"],
+    ["middle", { button: 1 }, "tab"],
+  ])("handles %s clicks exactly once and ignores retained options", async (_label, modifiers, action) => {
+    const navigate = vi.fn();
+    const openInNewTab = vi.fn();
+    const openInNewWindow = vi.fn();
+    vi.stubGlobal("fetch", vi.fn().mockImplementation(() => response("py", pythonSuggestions)));
+    const { input, listbox } = setup({ navigate, openInNewTab, openInNewWindow });
+    input.value = "py";
+    input.dispatchEvent(new Event("input"));
+    await vi.advanceTimersByTimeAsync(225);
+    const option = listbox.querySelector("[role=option] span") as HTMLElement;
+    const type = "button" in modifiers && modifiers.button === 1 ? "auxclick" : "click";
+    option.dispatchEvent(new MouseEvent(type, { ...modifiers, bubbles: true, cancelable: true }));
+    expect(navigate.mock.calls).toEqual(action === "navigate" ? [["/python-newest/"]] : []);
+    expect(openInNewTab.mock.calls).toEqual(action === "tab" ? [["/python-newest/"]] : []);
+    expect(openInNewWindow.mock.calls).toEqual(action === "window" ? [["/python-newest/"]] : []);
+    navigate.mockClear();
+    openInNewTab.mockClear();
+    openInNewWindow.mockClear();
+    input.value = "pyt";
+    input.dispatchEvent(new Event("input"));
+    option.dispatchEvent(new MouseEvent(type, { ...modifiers, bubbles: true }));
+    expect(navigate).not.toHaveBeenCalled();
+    expect(openInNewTab).not.toHaveBeenCalled();
+    expect(openInNewWindow).not.toHaveBeenCalled();
   });
 
   it("uses caller-provided localized live-region messages", async () => {
