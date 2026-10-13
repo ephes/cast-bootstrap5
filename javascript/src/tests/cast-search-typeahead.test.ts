@@ -145,8 +145,7 @@ describe("CastSearchTypeahead", () => {
     expect(loading.hidden).toBe(false);
 
     resolveRequest?.((await response("py", pythonSuggestions)) as Response);
-    await Promise.resolve();
-    await Promise.resolve();
+    await vi.advanceTimersByTimeAsync(0);
     expect(listbox.getAttribute("aria-busy")).toBe("false");
     expect(loading.hidden).toBe(true);
   });
@@ -499,8 +498,7 @@ describe("CastSearchTypeahead", () => {
     expect(listbox.hidden).toBe(false);
 
     resolveRefresh?.((await response("pyt", [pythonSuggestions[0]])) as Response);
-    await Promise.resolve();
-    await Promise.resolve();
+    await vi.advanceTimersByTimeAsync(0);
 
     expect(listbox.getAttribute("aria-busy")).toBe("false");
     expect(listbox.querySelectorAll("[role=option]")).toHaveLength(1);
@@ -550,8 +548,7 @@ describe("CastSearchTypeahead", () => {
     await vi.advanceTimersByTimeAsync(225);
     input.blur();
     resolveRequest?.((await response("py", pythonSuggestions)) as Response);
-    await Promise.resolve();
-    await Promise.resolve();
+    await vi.advanceTimersByTimeAsync(0);
 
     expect(listbox.hidden).toBe(true);
     expect(input.getAttribute("aria-expanded")).toBe("false");
@@ -583,6 +580,94 @@ describe("CastSearchTypeahead", () => {
     await Promise.resolve();
 
     expect(status.textContent).toBe("");
+  });
+
+  it.each(["fetch", "body"])("settles a stalled %s at the total request deadline", async (stage) => {
+    let requestSignal: AbortSignal | undefined;
+    let resolveBody: ((payload: unknown) => void) | undefined;
+    const body = new Promise((resolve) => { resolveBody = resolve; });
+    const json = vi.fn(() => body);
+    vi.stubGlobal("fetch", vi.fn((_: string, init: RequestInit) => {
+      requestSignal = init.signal as AbortSignal;
+      return stage === "fetch" ? new Promise(() => {}) : Promise.resolve({ ok: true, json });
+    }));
+    const { input, listbox, status, loading, form } = setup();
+    input.value = "py";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    await vi.advanceTimersByTimeAsync(225);
+    await vi.advanceTimersByTimeAsync(4999);
+    expect(loading.hidden).toBe(false);
+    expect(requestSignal?.aborted).toBe(false);
+    if (stage === "body") expect(json).toHaveBeenCalledOnce();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(requestSignal?.aborted).toBe(true);
+    expect(status.textContent).toBe("Suggestions unavailable. You can still search.");
+    expect(listbox.hidden).toBe(true);
+    expect(listbox.getAttribute("aria-busy")).toBe("false");
+    expect(loading.hidden).toBe(true);
+    expect(vi.getTimerCount()).toBe(0);
+    const enter = new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true });
+    input.dispatchEvent(enter);
+    expect(enter.defaultPrevented).toBe(false);
+    expect((form.querySelector('button[type="submit"]') as HTMLButtonElement).disabled).toBe(false);
+    resolveBody?.({ query: "py", suggestions: pythonSuggestions });
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(listbox.hidden).toBe(true);
+    expect(status.textContent).toContain("unavailable");
+  });
+
+  it("uses one deadline across fetch and JSON consumption", async () => {
+    let resolveFetch: ((response: Response) => void) | undefined;
+    vi.stubGlobal("fetch", vi.fn(() => new Promise<Response>((resolve) => { resolveFetch = resolve; })));
+    const { input, status } = setup();
+    input.value = "py";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    await vi.advanceTimersByTimeAsync(225 + 4000);
+    resolveFetch?.({ ok: true, json: () => new Promise(() => {}) } as Response);
+    await vi.advanceTimersByTimeAsync(999);
+    expect(status.textContent).toBe("");
+    await vi.advanceTimersByTimeAsync(1);
+    expect(status.textContent).toContain("unavailable");
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("clears the deadline on supersession, completion and disconnect", async () => {
+    const signals: AbortSignal[] = [];
+    const fetchMock = vi.fn((_: string, init: RequestInit) => {
+      signals.push(init.signal as AbortSignal);
+      return new Promise<Response>(() => {});
+    }).mockImplementationOnce((_: string, init: RequestInit) => {
+      signals.push(init.signal as AbortSignal);
+      return new Promise<Response>(() => {});
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const { controller, input, status, loading, listbox } = setup();
+    input.value = "py";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    await vi.advanceTimersByTimeAsync(225 + 4000);
+    input.value = "python";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    expect(signals[0].aborted).toBe(true);
+    await vi.advanceTimersByTimeAsync(225 + 1000);
+    expect(status.textContent).toBe("");
+    expect(signals[1].aborted).toBe(false);
+    controller.disconnect();
+    expect(signals[1].aborted).toBe(true);
+    expect(vi.getTimerCount()).toBe(0);
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(status.textContent).toBe("");
+    expect(loading.hidden).toBe(true);
+    expect(listbox.getAttribute("aria-busy")).toBe("false");
+    controller.connect();
+    input.focus();
+    fetchMock.mockImplementationOnce(() => response("python", pythonSuggestions));
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    await vi.advanceTimersByTimeAsync(225);
+    expect(status.textContent).toBe("2 suggestions available.");
+    expect(vi.getTimerCount()).toBe(0);
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(status.textContent).toBe("2 suggestions available.");
   });
 
   it("disconnects listeners and cancels scheduled work", async () => {
