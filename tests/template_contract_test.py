@@ -140,3 +140,19 @@ def test_rendered_episode_without_audio_uses_parent_metadata():
 
     assert "PARENT METADATA" in rendered
     assert "twitter:player" not in rendered
+
+
+def test_styleguide_color_mode_toggle_is_driven_by_the_shared_theme_switcher():
+    template = (TEMPLATE_DIR / "styleguide" / "index.html").read_text()
+
+    # One controller owns the color mode: a second inline one would not know a
+    # choice that could not be persisted and would reset it on system changes.
+    assert "localStorage" not in template
+    assert "prefers-color-scheme" not in template
+    assert "data-cast-theme-switcher" in template
+    assert "data-cast-theme-label" in template
+    for mode in ("auto", "light", "dark"):
+        assert f'data-cast-theme-icon="{mode}"' in template
+        assert f'data-cast-theme-value="mode:{mode}" data-cast-theme-mode="{mode}"' in template
+    assert "{{ block.super }}" in template[template.index("{% block javascript %}") :]
+    assert "src/theme/theme-switcher.ts" in (TEMPLATE_DIR / "base.html").read_text()
