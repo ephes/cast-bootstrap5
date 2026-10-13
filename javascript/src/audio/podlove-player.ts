@@ -958,6 +958,17 @@ class PodlovePlayerElement extends HTMLElement {
     status.textContent = "Player failed to load. Please retry.";
     this.querySelector(".podlove-player-error")?.remove();
     container.appendChild(status);
+    // A reinitialization can fail after the first iframe already switched the
+    // container out of facade mode; bring the facade back so its retry button
+    // is not left inside a hidden overlay.
+    const facadeInner = container.querySelector(".podlove-facade-inner");
+    if (this.isFacadeMode() && facadeInner instanceof HTMLElement) {
+      facadeInner.style.removeProperty("position");
+      facadeInner.style.removeProperty("inset");
+      facadeInner.style.removeProperty("z-index");
+      facadeInner.style.removeProperty("padding");
+      container.classList.add("podlove-facade");
+    }
     const playButton = container.querySelector(".podlove-facade-play");
     if (playButton) {
       this.originalFacadeButton = {
@@ -974,10 +985,15 @@ class PodlovePlayerElement extends HTMLElement {
     } else {
       this.showFacade(true);
     }
-    if (this.retryShouldFocus) {
+    // Only hand focus back when it is still on this player or was dropped by
+    // removing the activated button; never pull it away from another element.
+    const active = document.activeElement;
+    const focusIsFree = active === null || active === document.body || this.contains(active);
+    if (this.retryShouldFocus && focusIsFree) {
       const retryButton = container.querySelector<HTMLElement>(".podlove-facade-play, .podlove-player-retry-btn");
       retryButton?.focus();
     }
+    this.retryShouldFocus = false;
   }
 
   private restoreFacadeButton() {

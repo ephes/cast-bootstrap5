@@ -112,7 +112,11 @@ the loading indicator clears, a visible failure message is announced, and the
 player offers a button labelled “Retry
 loading player”. Activate it with a pointer or keyboard to try again; hover and
 focus do not automatically retry failed loads while the facade remains connected.
-Keyboard focus returns to the retry action when its button triggered the load. Both facade modes allow one
+Keyboard focus returns to the retry action when its button triggered the load
+and focus has not moved to another element in the meantime; focus is never
+taken away from elsewhere on the page. If a theme change reinitializes a facade
+player that was still being revealed and that attempt fails, the facade is shown
+again with the retry action. Both facade modes allow one
 initialization at a time. Failed or unusable embed scripts are discarded so the
 next attempt can fetch them again. A failed initializer discards its partial
 player host, and recovery from an older attempt cannot reset a newer player.

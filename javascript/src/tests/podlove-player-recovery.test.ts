@@ -99,6 +99,52 @@ describe('player recovery', () => {
       expect(originalButton.getAttribute('aria-label')).toBe('Play');
     }
   });
+  it.each([false, true])('does not steal focus moved elsewhere during loading (facade=%s)', async (facade) => {
+    const element = setup(facade);
+    const other = document.createElement('input');
+    document.body.append(other);
+    const button = element.querySelector<HTMLButtonElement>('button')!;
+    button.focus();
+    if (!facade) button.click();
+    other.focus();
+    document.querySelector('script[data-podlove-embed]')!.dispatchEvent(new Event('error'));
+    await settle();
+    expectRetry(element);
+    expect(document.activeElement).toBe(other);
+    // A later failure must not reuse the stale focus snapshot either.
+    click(element);
+    document.querySelector('script[data-podlove-embed]')!.dispatchEvent(new Event('error'));
+    await settle();
+    expectRetry(element);
+    expect(document.activeElement).toBe(other);
+  });
+  it('shows the facade retry again when reinitialization fails before reveal', () => {
+    globalThis.podlovePlayer = vi.fn()
+      .mockImplementationOnce((host: HTMLElement) => { host.append(document.createElement('iframe')); })
+      .mockImplementationOnce(() => { throw new Error('Reinitialization failed'); });
+    const element = setup(true);
+    const other = document.createElement('input');
+    document.body.append(other);
+    const container = element.querySelector<HTMLElement>('.podlove-player-container')!;
+    const inner = element.querySelector<HTMLElement>('.podlove-facade-inner')!;
+    element.querySelector<HTMLButtonElement>('button')!.focus();
+    expect(element.isInitialized).toBe(true);
+    expect(container.classList.contains('podlove-facade')).toBe(false);
+    expect(inner.style.position).toBe('absolute');
+    other.focus();
+    element.reinitializePlayer();
+    expectRetry(element);
+    expect(container.classList.contains('podlove-facade')).toBe(true);
+    expect(container.hasAttribute('data-cast-mask-active')).toBe(false);
+    expect(inner.isConnected).toBe(true);
+    expect(inner.style.position).toBe('');
+    expect(inner.contains(element.querySelector('button'))).toBe(true);
+    expect(document.activeElement).toBe(other);
+    globalThis.podlovePlayer = vi.fn();
+    click(element);
+    expect(element.isInitialized).toBe(true);
+    expect(globalThis.podlovePlayer).toHaveBeenCalledTimes(1);
+  });
   it('does not reset a newer initialization when an older initializer throws', () => {
     const element = setup(false);
     globalThis.podlovePlayer = vi.fn().mockImplementationOnce(() => {
