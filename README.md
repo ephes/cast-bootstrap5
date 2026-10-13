@@ -105,6 +105,18 @@ that override `post_body.html` keep the morph as long as each post is an
 and whose overview section has the `block-overview` class; see django-cast's
 frontend documentation for the full contract.
 
+## Podlove player loading and retry
+
+If the embed script fails to load or register, or the player initializer throws synchronously,
+the loading indicator clears, a visible failure message is announced, and the
+player offers a button labelled “Retry
+loading player”. Activate it with a pointer or keyboard to try again; hover and
+focus do not automatically retry failed loads while the facade remains connected.
+Keyboard focus returns to the retry action when its button triggered the load. Both facade modes allow one
+initialization at a time. Failed or unusable embed scripts are discarded so the
+next attempt can fetch them again. A failed initializer discards its partial
+player host, and recovery from an older attempt cannot reset a newer player.
+
 ## HTMX pagination with Podlove players
 
 While an HTMX pagination request for `#paging-area` is running, a list that
