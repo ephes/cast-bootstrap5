@@ -93,11 +93,16 @@ function loadEmbedScript(embedUrl: string): Promise<void> {
     return Promise.resolve();
   }
 
+  const loadedScript = document.querySelector(`script[${EMBED_SCRIPT_LOADED_ATTR}="true"]`);
+  if (loadedScript) {
+    loadedScript.remove();
+    embedScriptPromise = null;
+  }
   if (embedScriptPromise) {
     return embedScriptPromise;
   }
 
-  embedScriptPromise = new Promise((resolve, reject) => {
+  embedScriptPromise = new Promise<void>((resolve, reject) => {
     const existing = document.querySelector(`script[${EMBED_SCRIPT_ATTR}]`);
     if (existing) {
       if (
@@ -110,13 +115,15 @@ function loadEmbedScript(embedUrl: string): Promise<void> {
       if (existing.getAttribute(EMBED_SCRIPT_FAILED_ATTR) === "true") {
         existing.remove();
       } else {
-        existing.addEventListener("load", () => resolve(), { once: true });
+        existing.addEventListener("load", () => {
+          existing.setAttribute(EMBED_SCRIPT_LOADED_ATTR, "true");
+          resolve();
+        }, { once: true });
         existing.addEventListener(
           "error",
           () => {
             existing.setAttribute(EMBED_SCRIPT_FAILED_ATTR, "true");
             existing.remove();
-            embedScriptPromise = null;
             reject(new Error("Failed to load Podlove embed script"));
           },
           { once: true }
@@ -142,12 +149,19 @@ function loadEmbedScript(embedUrl: string): Promise<void> {
       () => {
         script.setAttribute(EMBED_SCRIPT_FAILED_ATTR, "true");
         script.remove();
-        embedScriptPromise = null;
         reject(new Error("Failed to load Podlove embed script"));
       },
       { once: true }
     );
     document.head.appendChild(script);
+  }).then(() => {
+    if (typeof podlovePlayer !== "function") {
+      throw new Error("Podlove embed script did not register.");
+    }
+  }).catch((error: unknown) => {
+    document.querySelector(`script[${EMBED_SCRIPT_ATTR}]`)?.remove();
+    embedScriptPromise = null;
+    throw error;
   });
 
   return embedScriptPromise;
@@ -266,6 +280,8 @@ class PodlovePlayerElement extends HTMLElement {
   iframeRevealTimeoutId: number | null;
   iframeRevealShieldTimeoutId: number | null;
   facadeAbortController: AbortController | null;
+  private retryShouldFocus = false;
+  private originalFacadeButton: { button: Element; html: string; label: string | null } | null = null;
 
   constructor() {
     super();
@@ -331,6 +347,9 @@ class PodlovePlayerElement extends HTMLElement {
       this.facadeAbortController = null;
     }
     this.clearIframeMasking();
+    this.restoreFacadeButton();
+    this.querySelector(".podlove-player-error")?.remove();
+    this.retryShouldFocus = false;
     // Remove stale facade/loading elements so they don't persist after reattach
     this.querySelector(`.${FACADE_LOADING_CLASS}`)?.remove();
     this.querySelector(`.${FACADE_BTN_CLASS}`)?.remove();
@@ -633,6 +652,21 @@ class PodlovePlayerElement extends HTMLElement {
         z-index: 1;
         transition: transform 0.15s ease, background-color 0.15s ease;
       }
+      podlove-player .podlove-player-retry-btn {
+        width: auto;
+        max-width: 90%;
+        padding: 0 20px;
+        border-radius: 8px;
+        color: white;
+      }
+      podlove-player .podlove-player-error {
+        text-align: center;
+      }
+      podlove-player .podlove-player-container:not(.podlove-facade) .podlove-player-error {
+        position: absolute;
+        top: 16px;
+        width: 100%;
+      }
       podlove-player .podlove-player-facade-btn:hover {
         transform: translate(-50%, -50%) scale(1.1);
         background: rgba(0, 0, 0, 0.8);
@@ -773,6 +807,9 @@ class PodlovePlayerElement extends HTMLElement {
     if (!container || !(container instanceof HTMLElement)) {
       return;
     }
+    this.retryShouldFocus = document.activeElement === container.querySelector(".podlove-facade-play");
+    this.restoreFacadeButton();
+    this.querySelector(".podlove-player-error")?.remove();
     // Lock the container at its current height so the facade-to-player
     // transition doesn't shrink/expand.  The facade may be taller than
     // the generic reserved height (e.g. 502px stacked cover vs 312px).
@@ -787,7 +824,7 @@ class PodlovePlayerElement extends HTMLElement {
     this.initializePlayer();
   }
 
-  showFacade() {
+  showFacade(retry = false) {
     if (this.isInitialized || !this.getAttribute("data-url")) {
       return;
     }
@@ -798,8 +835,11 @@ class PodlovePlayerElement extends HTMLElement {
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = FACADE_BTN_CLASS;
-    btn.setAttribute("aria-label", "Play");
-    btn.innerHTML =
+    btn.setAttribute("aria-label", retry ? "Retry loading player" : "Play");
+    if (retry) {
+      btn.classList.add("podlove-player-retry-btn");
+      btn.textContent = "Retry loading player";
+    } else btn.innerHTML =
       '<svg viewBox="0 0 24 24" width="28" height="28" fill="white" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>';
     btn.addEventListener("click", () => this.handleFacadeClick(), { once: true });
     container.appendChild(btn);
@@ -812,6 +852,8 @@ class PodlovePlayerElement extends HTMLElement {
     const container = this.querySelector(".podlove-player-container");
     if (!container) return;
     const btn = container.querySelector(`.${FACADE_BTN_CLASS}`);
+    this.retryShouldFocus = document.activeElement === btn;
+    this.querySelector(".podlove-player-error")?.remove();
     if (btn) btn.remove();
     const spinner = document.createElement("div");
     spinner.className = FACADE_LOADING_CLASS;
@@ -869,38 +911,98 @@ class PodlovePlayerElement extends HTMLElement {
     const { hostname, port } = window.location;
     const playerHost = this.getOrCreatePlayerDiv(container, playerId, podloveTemplate);
 
+    const initialize = () => {
+      if (currentVersion !== this.initVersion || !this.isConnected) return;
+      // Catch only the external initializer; lifecycle/masking errors remain visible.
+      try {
+        if (typeof podlovePlayer !== "function") {
+          throw new Error("Podlove embed script did not register.");
+        }
+        podlovePlayer(playerHost, url, configUrl);
+      } catch {
+        this.recoverInitialization(container, currentVersion);
+        return;
+      }
+      if (currentVersion === this.initVersion && this.isConnected) {
+        this.maskIframeUntilReady(container, currentVersion);
+      }
+    };
+
     if (typeof podlovePlayer === 'function') {
-      // Initialize existing Podlove player
-      podlovePlayer(playerHost, url, configUrl);
-      this.maskIframeUntilReady(container, currentVersion);
+      initialize();
     } else {
       // If in dev mode on localhost and embedUrl starts with a slash, use the local embedUrl
       // otherwise the vite url 5173 will be used -> which will not work
       if (hostname === 'localhost' && embedUrl.startsWith("/")) {
         embedUrl = `http://localhost:${port}${embedUrl}`;
       }
-      loadEmbedScript(embedUrl)
-        .then(() => {
-          if (currentVersion !== this.initVersion || !this.isConnected) {
-            return; // Stale: a reinitialize or disconnect happened while loading
-          }
-          if (typeof podlovePlayer === "function") {
-            podlovePlayer(playerHost, url, configUrl);
-            this.maskIframeUntilReady(container, currentVersion);
-            return;
-          }
-          throw new Error("Podlove embed script did not register.");
-        })
-        .catch(() => {
-          if (currentVersion === this.initVersion) {
-            this.isInitialized = false;
-            this.clearReservedHeight(container);
-            const spinner = this.querySelector(`.${FACADE_LOADING_CLASS}`);
-            if (spinner) spinner.remove();
-          }
-          // Intentionally silent: the placeholder remains and avoids console spam.
-        });
+      void loadEmbedScript(embedUrl).then(initialize, () => {
+        this.recoverInitialization(container, currentVersion);
+      });
     }
+  }
+
+  recoverInitialization(container: Element, version: number) {
+    if (version !== this.initVersion || !this.isConnected) return;
+    this.isInitialized = false;
+    this.clearReservedHeight(container);
+    container.classList.remove("is-loading");
+    this.querySelector(`.${FACADE_LOADING_CLASS}`)?.remove();
+    this.playerDiv?.remove();
+    this.playerDiv = null;
+    this.facadeAbortController?.abort();
+    this.facadeAbortController = null;
+    const status = document.createElement("p");
+    status.className = "podlove-player-error";
+    status.setAttribute("role", "alert");
+    status.textContent = "Player failed to load. Please retry.";
+    this.querySelector(".podlove-player-error")?.remove();
+    container.appendChild(status);
+    // A reinitialization can fail after the first iframe already switched the
+    // container out of facade mode; bring the facade back so its retry button
+    // is not left inside a hidden overlay.
+    const facadeInner = container.querySelector(".podlove-facade-inner");
+    if (this.isFacadeMode() && facadeInner instanceof HTMLElement) {
+      facadeInner.style.removeProperty("position");
+      facadeInner.style.removeProperty("inset");
+      facadeInner.style.removeProperty("z-index");
+      facadeInner.style.removeProperty("padding");
+      container.classList.add("podlove-facade");
+    }
+    const playButton = container.querySelector(".podlove-facade-play");
+    if (playButton) {
+      this.originalFacadeButton = {
+        button: playButton, html: playButton.innerHTML, label: playButton.getAttribute("aria-label"),
+      };
+      playButton.textContent = "Retry loading player";
+      playButton.setAttribute("aria-label", "Retry loading player");
+      this.facadeAbortController = new AbortController();
+      playButton.addEventListener("click", () => {
+        this.facadeAbortController?.abort();
+        this.facadeAbortController = null;
+        this.handleFacadeLoad();
+      }, { once: true, signal: this.facadeAbortController.signal });
+    } else {
+      this.showFacade(true);
+    }
+    // Only hand focus back when it is still on this player or was dropped by
+    // removing the activated button; never pull it away from another element.
+    const active = document.activeElement;
+    const focusIsFree = active === null || active === document.body || this.contains(active);
+    if (this.retryShouldFocus && focusIsFree) {
+      const retryButton = container.querySelector<HTMLElement>(".podlove-facade-play, .podlove-player-retry-btn");
+      retryButton?.focus();
+    }
+    this.retryShouldFocus = false;
+  }
+
+  private restoreFacadeButton() {
+    if (!this.originalFacadeButton) return;
+    const { button, html, label } = this.originalFacadeButton;
+    button.innerHTML = html;
+    if (label === null) button.removeAttribute("aria-label");
+    else button.setAttribute("aria-label", label);
+    this.originalFacadeButton = null;
   }
 
   getOrCreatePlayerDiv(container: Element, playerId: string, podloveTemplate: string | null) {
