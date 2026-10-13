@@ -61,6 +61,14 @@ is committed (for example, by a space), rather than while composing it.
 Plain suggestion clicks open in the
 current page; Ctrl/Meta and middle clicks open a new tab, and Shift clicks request
 a separate window (the browser controls the final presentation).
+Each suggestion request has a five-second total deadline, including reading the
+JSON response. A timeout clears the loading indicator and announces that
+suggestions are unavailable; ordinary Enter and submit-button searches remain
+usable. Superseded requests are cancelled silently. Removing the modal element from
+the page disconnects typeahead and cancels its request and deadline timer.
+Hiding the modal leaves an active request bounded by the same deadline; status
+messages are announced only while the search input has focus. As with other endpoint failures,
+two consecutive timeouts suspend suggestions until the modal is reopened.
 With an older django-cast version the endpoint URL is absent and the modal
 keeps its submit-only search behavior.
 

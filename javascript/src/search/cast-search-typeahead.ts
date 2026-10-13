@@ -1,5 +1,6 @@
 const TYPEAHEAD_DEBOUNCE_MS = 225;
 const TYPEAHEAD_LOADING_DELAY_MS = 300;
+const TYPEAHEAD_REQUEST_DEADLINE_MS = 5000;
 const TYPEAHEAD_MIN_QUERY_LENGTH = 2;
 const TYPEAHEAD_CACHE_MAX_ENTRIES = 50;
 const FACET_NAMES = ["date_facets", "tag_facets", "category_facets"] as const;
@@ -83,6 +84,7 @@ export default class CastSearchTypeahead {
   private debounceTimer: ReturnType<typeof setTimeout> | null = null;
   private loadingTimer: ReturnType<typeof setTimeout> | null = null;
   private inFlight: AbortController | null = null;
+  private requestDeadlineTimer: ReturnType<typeof setTimeout> | null = null;
   private requestSequence = 0;
   private connected = false;
   private composing = false;
@@ -344,12 +346,31 @@ export default class CastSearchTypeahead {
     const sequence = ++this.requestSequence;
     this.loadingTimer = setTimeout(() => this.setLoading(true), TYPEAHEAD_LOADING_DELAY_MS);
 
+    let timedOut = false;
+    let rejectAborted: (reason: DOMException) => void = () => undefined;
+    const aborted = new Promise<never>((_resolve, reject) => {
+      rejectAborted = reject;
+    });
+    const onAbort = () => rejectAborted(new DOMException("Aborted", "AbortError"));
+    controller.signal.addEventListener("abort", onAbort, { once: true });
+    const deadlineTimer = setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, TYPEAHEAD_REQUEST_DEADLINE_MS);
+    this.requestDeadlineTimer = deadlineTimer;
+
     try {
-      const response = await fetch(this.buildUrl(key), { signal: controller.signal });
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-      const payload = (await response.json()) as unknown;
+      // Race the whole operation so even an uncooperative fetch/body settles.
+      const payload: unknown = await Promise.race([
+        (async () => {
+          const response = await fetch(this.buildUrl(key), { signal: controller.signal });
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+          }
+          return response.json();
+        })(),
+        aborted,
+      ]);
       if (!isSuggestionsResponse(payload)) {
         throw new Error("Invalid suggestion response");
       }
@@ -360,7 +381,7 @@ export default class CastSearchTypeahead {
       this.setCache(key, payload);
       this.applyResponse(payload, key);
     } catch (error) {
-      if (error instanceof DOMException && error.name === "AbortError") {
+      if (!timedOut && error instanceof DOMException && error.name === "AbortError") {
         return;
       }
       if (sequence !== this.requestSequence || key !== this.buildKey()) {
@@ -376,6 +397,11 @@ export default class CastSearchTypeahead {
         this.disabled = true;
       }
     } finally {
+      controller.signal.removeEventListener("abort", onAbort);
+      clearTimeout(deadlineTimer);
+      if (this.requestDeadlineTimer === deadlineTimer) {
+        this.requestDeadlineTimer = null;
+      }
       if (this.inFlight === controller) {
         this.inFlight = null;
         this.setLoading(false);
@@ -559,6 +585,10 @@ export default class CastSearchTypeahead {
 
   private abortRequest(): void {
     this.requestSequence += 1;
+    if (this.requestDeadlineTimer !== null) {
+      clearTimeout(this.requestDeadlineTimer);
+      this.requestDeadlineTimer = null;
+    }
     this.inFlight?.abort();
     this.inFlight = null;
     this.setLoading(false);
