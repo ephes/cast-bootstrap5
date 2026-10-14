@@ -1,6 +1,6 @@
 {
   "dependencies": {
-    "vite": "^7.3.1"
+    "vite": "^7.3.7"
   },
   "scripts": {
     "dev": "vite",
@@ -24,6 +24,6 @@
     "purgecss": "^8.0.0",
     "sass": "^1.83.0",
     "typescript": "7.0.2",
-    "vitest": "^4.0.18"
+    "vitest": "^4.1.11"
   }
 }
