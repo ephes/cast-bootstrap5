@@ -239,6 +239,10 @@ package, so sites with `USE_I18N = True` and a German active language render the
 translated theme strings without running `compilemessages` themselves. Strings
 without a German translation fall back to English.
 
+The `<html lang>` attribute of `base.html` follows the active language
+(`get_current_language`), so a German request renders `lang="de"`. With
+`USE_I18N = False` it is the site's `LANGUAGE_CODE`.
+
 After adding or changing `{% translate %}` / `{% blocktranslate %}` strings in
 the templates, regenerate the catalog with GNU gettext installed:
 

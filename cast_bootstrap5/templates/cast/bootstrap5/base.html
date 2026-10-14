@@ -2,8 +2,9 @@
 {% load wagtailcore_tags %}
 {% load cast_extras %}
 {% load django_vite %}
+{% get_current_language as LANGUAGE_CODE %}
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ LANGUAGE_CODE }}">
   <head>
     <title>{% block title %}{% endblock title %}</title>
     {% block meta %}

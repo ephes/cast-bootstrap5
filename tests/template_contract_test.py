@@ -156,3 +156,22 @@ def test_styleguide_color_mode_toggle_is_driven_by_the_shared_theme_switcher():
         assert f'data-cast-theme-value="mode:{mode}" data-cast-theme-mode="{mode}"' in template
     assert "{{ block.super }}" in template[template.index("{% block javascript %}") :]
     assert "src/theme/theme-switcher.ts" in (TEMPLATE_DIR / "base.html").read_text()
+
+
+def render_base_html_tag():
+    source = (TEMPLATE_DIR / "base.html").read_text()
+    opening = source[source.index("{% get_current_language") : source.index("<head>")]
+    engine = Engine(libraries={"i18n": "django.templatetags.i18n"})
+    return engine.from_string("{% load i18n %}" + opening).render(Context()).strip().splitlines()[-1]
+
+
+def test_base_html_lang_follows_active_language(monkeypatch):
+    from django.utils import translation
+
+    monkeypatch.setattr(translation, "get_language", lambda: "de")
+
+    assert render_base_html_tag() == '<html lang="de">'
+
+
+def test_base_html_lang_falls_back_to_language_code_without_i18n():
+    assert render_base_html_tag() == f'<html lang="{settings.LANGUAGE_CODE}">'
