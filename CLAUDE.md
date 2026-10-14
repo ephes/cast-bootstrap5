@@ -18,6 +18,9 @@ just js-typecheck
 
 # Run JS tests
 just js-test
+
+# Update the German .po from templates and compile django.mo (GNU gettext)
+just messages
 ```
 
 ## Critical: Syncing Built Assets

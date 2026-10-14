@@ -1,6 +1,7 @@
 name: CI
 
-# Runs the same commands as `just test` and `just check-assets`. No secrets or
+# Runs the same commands as `just test`, `just check-assets` and
+# `just check-messages`. No secrets or
 # services are needed.
 
 on:
@@ -75,3 +76,7 @@ jobs:
           cache-dependency-glob: pyproject.toml
       - name: Tests (just py-test)
         run: uv run --extra test pytest -q
+      - name: Install GNU gettext
+        run: command -v msgmerge || (sudo apt-get update && sudo apt-get install -y --no-install-recommends gettext)
+      - name: Translation catalog drift (just check-messages)
+        run: uv run --extra test python scripts/messages.py --check

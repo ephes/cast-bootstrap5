@@ -53,6 +53,14 @@ scss-dev:
 py-test:
     uv run --extra test pytest
 
+# Update the German .po from the templates and compile django.mo (needs GNU gettext)
+messages:
+    uv run --extra test python scripts/messages.py
+
+# Fail if the committed .po no longer matches the templates (as CI does)
+check-messages:
+    uv run --extra test python scripts/messages.py --check
+
 # Run typecheck and all tests (JavaScript and Python)
 test: js-typecheck js-test py-test
 

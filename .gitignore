@@ -54,6 +54,8 @@ test-results/
 
 # Translations
 *.mo
+# Compiled theme catalogs ship in the package (run `just messages` to update).
+!/cast_bootstrap5/locale/*/LC_MESSAGES/django.mo
 *.pot
 
 # Django stuff:

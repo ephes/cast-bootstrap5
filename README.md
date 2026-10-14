@@ -224,12 +224,32 @@ Sites can upgrade the theme by setting their cast-bootstrap5 Git `rev` to the
 new theme commit and running `uv lock --upgrade-package cast-bootstrap5`; keep
 their django-cast source at `branch = "develop"`.
 
-CI (`.github/workflows/ci.yml`) runs `just js-typecheck`, `just js-test`, `just check-assets`, and
-the pytest suite on every push and pull request.
+CI (`.github/workflows/ci.yml`) runs `just js-typecheck`, `just js-test`, `just check-assets`,
+the pytest suite and `just check-messages` on every push and pull request.
 
 Rendered metadata behavior and JSON-LD parsing are covered by django-cast's
 post and episode detail tests; this theme's tests guard the shared-template and
 minimum-version contract.
+
+### Translations
+
+The theme ships a German catalog in `cast_bootstrap5/locale/de/LC_MESSAGES/`.
+Both `django.po` and the compiled `django.mo` are committed and included in the
+package, so sites with `USE_I18N = True` and a German active language render the
+translated theme strings without running `compilemessages` themselves. Strings
+without a German translation fall back to English.
+
+After adding or changing `{% translate %}` / `{% blocktranslate %}` strings in
+the templates, regenerate the catalog with GNU gettext installed:
+
+```shell
+just messages        # makemessages + compilemessages for the theme package
+just check-messages  # fail if django.po no longer matches the templates (CI)
+```
+
+`just messages` keeps existing translations, adds new msgids untranslated (no
+fuzzy guesses) and drops strings the templates no longer use. The pytest suite
+checks that `django.mo` matches the translated entries in `django.po`.
 
 ### Run development server
 
