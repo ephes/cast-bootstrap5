@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import CastSearchModal, { buildOrderingPills, FACET_DEBOUNCE_MS } from "@/search/cast-search-modal";
+import CastSearchModal, { buildOrderingPills, initModalFacetToggles, FACET_DEBOUNCE_MS } from "@/search/cast-search-modal";
 
 function markVisible(element: HTMLElement): void {
   Object.defineProperty(element, "offsetParent", {
@@ -1036,6 +1036,141 @@ describe("cast-search-modal", () => {
     await vi.advanceTimersByTimeAsync(FACET_DEBOUNCE_MS);
     expect(resumedFetch).toHaveBeenCalledTimes(2);
     expect(document.querySelector("[data-cast-facet-status]")!.textContent).toBe("Filters updated.");
+  });
+
+
+  it.each([
+    ["missing options", { options: undefined }],
+    ["null options", { options: null }],
+    ["non-array options", { options: {} }],
+    ["null option", { options: [null] }],
+    ["non-string slug", { options: [{ slug: 1, name: "Synthetic", count: 1 }] }],
+    ["missing name", { options: [{ slug: "synthetic", count: 1 }] }],
+    ["negative option count", { options: [{ slug: "synthetic", name: "Synthetic", count: -1 }] }],
+    ["nonfinite option count", { options: [{ slug: "synthetic", name: "Synthetic", count: Infinity }] }],
+    ["missing selected", { selected: undefined }],
+    ["numeric selected", { selected: 1 }],
+    ["null selected", { selected: null }],
+    ["missing all count", { all_count: undefined }],
+    ["negative all count", { all_count: -1 }],
+    ["nonfinite all count", { all_count: NaN }],
+  ])("rejects %s before changing any group, hidden input or cache", async (_label, invalidFields) => {
+    vi.useFakeTimers();
+    document.body.innerHTML = buildModalMarkup({ dynamic: true });
+    const payload = {
+      mode: "modal", result_count: 2,
+      groups: {
+        date_facets: { selected: "2026-02", all_count: 2, options: [{ slug: "2026-02", name: "February", count: 2 }] },
+        tag_facets: { selected: "django", all_count: 2, options: [], ...invalidFields },
+      },
+    };
+    const fetchMock = vi.fn().mockImplementationOnce(() => jsonResponse(payload))
+      .mockImplementation(() => jsonResponse(modalResponse()));
+    vi.stubGlobal("fetch", fetchMock);
+    const groups = Array.from(document.querySelectorAll<HTMLElement>("[data-cast-facet-group]"));
+    const beforeGroups = groups.map((group) => group.innerHTML);
+    const form = document.querySelector<HTMLFormElement>("form")!;
+    const beforeInputs = Array.from(new FormData(form).entries());
+    const input = document.querySelector<HTMLInputElement>('input[name="search"]')!;
+    input.dispatchEvent(new Event("input"));
+    await vi.advanceTimersByTimeAsync(FACET_DEBOUNCE_MS);
+    expect(groups.map((group) => group.innerHTML)).toEqual(beforeGroups);
+    expect(Array.from(new FormData(form).entries())).toEqual(beforeInputs);
+    expect(document.querySelector("[data-cast-facet-status]")!.textContent)
+      .toBe("Could not refresh filters. You can still search.");
+    input.dispatchEvent(new Event("input"));
+    await vi.advanceTimersByTimeAsync(FACET_DEBOUNCE_MS);
+    // An invalid response must not poison the cache for this identical request.
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(document.querySelector<HTMLInputElement>('input[name="tag_facets"]')!.value).toBe("django");
+    expect(document.querySelector<HTMLInputElement>('input[name="category_facets"]')!.value).toBe("til");
+    expect(document.querySelector("[data-cast-facet-status]")!.textContent).toBe("Filters updated.");
+  });
+
+  it.each([
+    { result_count: NaN }, { result_count: Infinity }, { result_count: -1 },
+    { groups: [] }, { groups: "invalid" }, { groups: { unknown_facets: {} } },
+    { groups: { tag_facets: null } },
+  ])("rejects invalid response envelopes: %j", async (invalidFields) => {
+    vi.useFakeTimers();
+    document.body.innerHTML = buildModalMarkup({ dynamic: true });
+    vi.stubGlobal("fetch", vi.fn(() => jsonResponse({ ...modalResponse(), ...invalidFields })));
+    const before = document.querySelector('[data-cast-facet-group="tag_facets"]')!.innerHTML;
+    document.querySelector<HTMLInputElement>('input[name="search"]')!.dispatchEvent(new Event("input"));
+    await vi.advanceTimersByTimeAsync(FACET_DEBOUNCE_MS);
+    expect(document.querySelector('[data-cast-facet-group="tag_facets"]')!.innerHTML).toBe(before);
+    expect(document.querySelector("[data-cast-facet-status]")!.textContent)
+      .toBe("Could not refresh filters. You can still search.");
+  });
+
+  it("accepts a configured subset and uses all new selections in every facet URL", async () => {
+    vi.useFakeTimers();
+    document.body.innerHTML = buildModalMarkup({ dynamic: true });
+    vi.stubGlobal("fetch", vi.fn(() => jsonResponse({
+      mode: "modal", result_count: 1,
+      groups: {
+        date_facets: { selected: "2026-02", all_count: 1, options: [{ slug: "2026-02", name: "February", count: 1 }] },
+        tag_facets: { selected: "django", all_count: 1, options: [{ slug: "django", name: "Django", count: 1 }] },
+      },
+    })));
+    document.querySelector<HTMLInputElement>('input[name="search"]')!.dispatchEvent(new Event("input"));
+    await vi.advanceTimersByTimeAsync(FACET_DEBOUNCE_MS);
+    const dateLink = document.querySelector<HTMLAnchorElement>('[data-cast-facet-group="date_facets"] a.selected')!;
+    expect(new URL(dateLink.href).searchParams.get("tag_facets")).toBe("django");
+    expect(document.querySelector<HTMLInputElement>('input[name="date_facets"]')!.value).toBe("2026-02");
+    expect(document.querySelector<HTMLInputElement>('input[name="tag_facets"]')!.value).toBe("django");
+  });
+
+  it("keeps selected overflow facets visible initially and after refresh, with working toggles and removal", async () => {
+    vi.useFakeTimers();
+    const options = Array.from({ length: 15 }, (_, index) => ({ slug: `tag${index}`, name: `Tag ${index}`, count: 1 }));
+    const template = document.createElement("template");
+    template.innerHTML = buildModalMarkup({ dynamic: true });
+    const initialGroup = template.content.querySelector<HTMLElement>('[data-cast-facet-group="tag_facets"]')!;
+    initialGroup.dataset.limit = "12";
+    initialGroup.querySelector(".cast-date-facet-container")!.innerHTML =
+      '<div class="cast-date-facet-item"><a href="/blog/">All (15)</a></div>' + options.map((option) =>
+        `<div class="cast-date-facet-item"><a href="/blog/?tag_facets=${option.slug}" class="${option.slug === "tag13" ? "selected" : ""}">${option.name} (1)</a></div>`
+      ).join("");
+    document.body.replaceChildren(template.content);
+    const group = document.querySelector<HTMLElement>('[data-cast-facet-group="tag_facets"]')!;
+    const selectedItem = () => group.querySelector<HTMLElement>('a[href*="tag_facets=tag13"]')!.parentElement!;
+    const ordinaryItem = () => group.querySelector<HTMLElement>('a[href*="tag_facets=tag14"]')!.parentElement!;
+    expect(selectedItem().hidden).toBe(false);
+    expect(ordinaryItem().hidden).toBe(true);
+    const response = (selected: string) => ({ mode: "modal", result_count: 1, groups: { tag_facets: { selected, all_count: 15, options } } });
+    vi.stubGlobal("fetch", vi.fn().mockImplementationOnce(() => jsonResponse(response("tag13")))
+      .mockImplementation(() => jsonResponse(response(""))));
+    document.querySelector<HTMLInputElement>('input[name="search"]')!.dispatchEvent(new Event("input"));
+    await vi.advanceTimersByTimeAsync(FACET_DEBOUNCE_MS);
+    expect(selectedItem().hidden).toBe(false);
+    expect(ordinaryItem().hidden).toBe(true);
+    const toggle = group.parentElement!.querySelector<HTMLButtonElement>("[data-cast-facet-toggle]")!;
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+    expect(toggle.querySelector<HTMLElement>("[data-show-text]")!.hidden).toBe(false);
+    toggle.click();
+    expect(ordinaryItem().hidden).toBe(false);
+    expect(toggle.getAttribute("aria-expanded")).toBe("true");
+    expect(toggle.querySelector<HTMLElement>("[data-hide-text]")!.hidden).toBe(false);
+    toggle.click();
+    expect(selectedItem().hidden).toBe(false);
+    expect(ordinaryItem().hidden).toBe(true);
+    group.querySelector<HTMLAnchorElement>("a.cast-facet-all-option")!.click();
+    expect(document.querySelector('input[name="tag_facets"]')).toBeNull();
+    await vi.advanceTimersByTimeAsync(FACET_DEBOUNCE_MS);
+    expect(selectedItem().querySelector("a")!.classList.contains("selected")).toBe(false);
+    expect(selectedItem().hidden).toBe(true);
+  });
+
+  it("hides the expansion toggle when only selected items exceed the limit", () => {
+    const root = document.createElement("div");
+    root.innerHTML = `<div><div data-cast-facet-group data-limit="1">
+      <div class="cast-date-facet-item"><a>All</a></div>
+      <div class="cast-date-facet-item"><a class="selected">Selected</a></div>
+    </div><button data-cast-facet-toggle><span data-show-text>Show all</span><span data-hide-text hidden>Show fewer</span></button></div>`;
+    initModalFacetToggles(root);
+    expect(root.querySelector<HTMLElement>("[data-cast-facet-toggle]")!.hidden).toBe(true);
+    expect(Array.from(root.querySelectorAll<HTMLElement>(".cast-date-facet-item")).every((item) => !item.hidden)).toBe(true);
   });
 
   it("clears debounce timer and aborts request on disconnect", async () => {

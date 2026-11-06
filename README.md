@@ -146,6 +146,22 @@ You can still search.” The current filters and ordinary form submission remain
 usable, and a later filter or query change can retry. Superseding a request,
 closing the modal or removing it cancels pending work silently.
 
+Before caching or changing any filter selection, the modal validates the entire
+response: `mode` must be `"modal"`, `result_count` must be finite and nonnegative,
+and `groups` must be an object containing only `date_facets`, `tag_facets` and
+`category_facets` (configured subsets, including an empty object, are supported).
+Each group requires a string `selected`, a finite nonnegative `all_count`, and an
+`options` array whose entries have string `slug`/`name` and finite nonnegative
+`count`. An invalid response leaves every group and hidden form input unchanged,
+is never cached, and uses the same failure announcement. Valid responses update
+all selections before building facet links so the links share the new state.
+
+Collapsed facet groups keep selected options visible even past the configured
+limit (twelve by default), including after a dynamic refresh. Use “All” to remove
+the group's selected filter. “Show all” / “Show fewer” controls only the remaining
+overflow options, with matching `aria-expanded`; the toggle is hidden when no
+options need collapsing.
+
 ## Keyboard focus in the search modal
 
 While the search modal is open, Tab and Shift+Tab stay inside it and wrap

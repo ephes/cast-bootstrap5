@@ -170,7 +170,8 @@ export function initModalFacetToggles(modal: HTMLElement): void {
 
     const applyExpandedState = (expanded: boolean): void => {
       items.forEach((item, index) => {
-        item.hidden = !expanded && index >= limit;
+        const selected = item.matches(".selected") || item.querySelector("a.selected") !== null;
+        item.hidden = !expanded && index >= limit && !selected;
       });
       toggle.setAttribute("aria-expanded", String(expanded));
 
@@ -184,8 +185,8 @@ export function initModalFacetToggles(modal: HTMLElement): void {
       }
     };
 
-    toggle.hidden = false;
     applyExpandedState(false);
+    toggle.hidden = !items.some((item) => item.hidden);
 
     toggle.addEventListener("click", () => {
       const expanded = toggle.getAttribute("aria-expanded") === "true";
@@ -244,13 +245,35 @@ export function syncFacetHiddenInput(form: HTMLFormElement, paramName: string, v
   form.appendChild(input);
 }
 
-function isModalFacetResponse(payload: unknown): payload is ModalFacetResponse {
-  if (!payload || typeof payload !== "object") {
-    return false;
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function isFacetCount(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0;
+}
+
+function parseModalFacetResponse(payload: unknown): ModalFacetResponse | null {
+  if (!isRecord(payload) || payload.mode !== "modal" || !isFacetCount(payload.result_count) || !isRecord(payload.groups)) {
+    return null;
   }
 
-  const candidate = payload as Partial<ModalFacetResponse>;
-  return candidate.mode === "modal" && typeof candidate.result_count === "number" && !!candidate.groups;
+  const groups: ModalFacetResponse["groups"] = {};
+  for (const [name, group] of Object.entries(payload.groups)) {
+    if (!isFacetGroupName(name) || !isRecord(group) || typeof group.selected !== "string" ||
+        !isFacetCount(group.all_count) || !Array.isArray(group.options)) {
+      return null;
+    }
+    const options: ModalFacetOption[] = [];
+    for (const option of group.options) {
+      if (!isRecord(option) || typeof option.slug !== "string" || typeof option.name !== "string" || !isFacetCount(option.count)) {
+        return null;
+      }
+      options.push({ slug: option.slug, name: option.name, count: option.count });
+    }
+    groups[name] = { selected: group.selected, all_count: group.all_count, options };
+  }
+  return { mode: "modal", result_count: payload.result_count, groups };
 }
 
 function createEmptyFacetState(): FacetState {
@@ -765,7 +788,8 @@ export default class CastSearchModal extends HTMLElement {
         })(),
         aborted,
       ]);
-      if (!isModalFacetResponse(payload)) {
+      const normalized = parseModalFacetResponse(payload);
+      if (!normalized) {
         throw new Error("Invalid modal facet response");
       }
 
@@ -773,8 +797,8 @@ export default class CastSearchModal extends HTMLElement {
         return;
       }
 
-      this.setCacheEntry(requestKey, payload);
-      this.applyFacetResponse(payload);
+      this.setCacheEntry(requestKey, normalized);
+      this.applyFacetResponse(normalized);
       this.announceStatus("Filters updated.");
     } catch (error) {
       if (!timedOut && error instanceof DOMException && error.name === "AbortError") {
@@ -862,8 +886,13 @@ export default class CastSearchModal extends HTMLElement {
         return;
       }
 
-      this.state.selected[groupName] = groupData.selected ?? "";
-      this.renderFacetGroup(groupName, groupData);
+      this.state.selected[groupName] = groupData.selected;
+    });
+    // Every rendered URL must use the same complete set of new selections.
+    Object.entries(payload.groups).forEach(([groupName, groupData]) => {
+      if (isFacetGroupName(groupName) && groupData) {
+        this.renderFacetGroup(groupName, groupData);
+      }
     });
 
     this.syncHiddenInputsFromState();
