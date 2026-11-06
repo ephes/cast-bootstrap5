@@ -61,6 +61,10 @@ is committed (for example, by a space), rather than while composing it.
 Plain suggestion clicks open in the
 current page; Ctrl/Meta and middle clicks open a new tab, and Shift clicks request
 a separate window (the browser controls the final presentation).
+Suggestion destinations must resolve against the current origin to HTTP(S) URLs
+on that same origin, without credentials. Relative post links remain supported;
+invalid destinations (including executable schemes and foreign origins) reject
+the whole response before caching or rendering, leaving ordinary search usable.
 Each suggestion request has a five-second total deadline, including reading the
 JSON response. A timeout clears the loading indicator and announces that
 suggestions are unavailable; ordinary Enter and submit-button searches remain
@@ -111,7 +115,8 @@ frontend documentation for the full contract.
 
 ## Podlove player loading and retry
 
-If the embed script fails to load or register, or the player initializer throws synchronously,
+The shared embed script load has a ten-second deadline. If it times out, fails
+to load or register, or the player initializer throws synchronously,
 the loading indicator clears, a visible failure message is announced, and the
 player offers a button labelled “Retry
 loading player”. Activate it with a pointer or keyboard to try again; hover and
@@ -122,7 +127,9 @@ taken away from elsewhere on the page. If a theme change reinitializes a facade
 player that was still being revealed and that attempt fails, the facade is shown
 again with the retry action. Both facade modes allow one
 initialization at a time. Failed or unusable embed scripts are discarded so the
-next attempt can fetch them again. A failed initializer discards its partial
+next attempt can fetch them again. A timeout fails every waiting player and
+removes the attempt's script and event handlers; late events from it cannot
+settle or remove a retry's script. A failed initializer discards its partial
 player host, and recovery from an older attempt cannot reset a newer player.
 
 ## HTMX pagination with Podlove players
@@ -303,7 +310,13 @@ dropdown contract. Enabled selections retain ordinary form
 submission and emit one bubbling `input` followed by `change` when the selection
 changes. External changes dispatched through `input` or `change`, and form
 resets, synchronize the displayed label and active option. Initialization is
-idempotent.
+idempotent. The replacement button's accessible name includes both the field
+label and the current selected value, including after selection changes and reset.
+
+`initFilterEnhancementsBootstrap()` owns one pending DOMContentLoaded callback
+and one HTMX swap listener. `destroyFilterEnhancementsBootstrap()` cancels pending
+initialization and removes the swap listener, leaving already rendered controls
+in place. Reinitialization is supported after teardown.
 
 ## Enlarged gallery images
 

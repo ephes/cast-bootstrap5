@@ -17,6 +17,7 @@ let playerInstanceCounter = 0;
 let pageLoadPromise: Promise<void> | null = null;
 let sharedObserver: IntersectionObserver | null = null;
 let lastKnownColorScheme: string | null = null;
+const EMBED_SCRIPT_LOAD_DEADLINE_MS = 10000;
 const EMBED_SCRIPT_ATTR = "data-podlove-embed";
 const EMBED_SCRIPT_LOADED_ATTR = "data-podlove-embed-loaded";
 const EMBED_SCRIPT_FAILED_ATTR = "data-podlove-embed-failed";
@@ -102,67 +103,58 @@ function loadEmbedScript(embedUrl: string): Promise<void> {
     return embedScriptPromise;
   }
 
-  embedScriptPromise = new Promise<void>((resolve, reject) => {
-    const existing = document.querySelector(`script[${EMBED_SCRIPT_ATTR}]`);
-    if (existing) {
-      if (
-        existing.getAttribute(EMBED_SCRIPT_LOADED_ATTR) === "true" &&
-        typeof podlovePlayer === "function"
-      ) {
-        resolve();
-        return;
-      }
-      if (existing.getAttribute(EMBED_SCRIPT_FAILED_ATTR) === "true") {
-        existing.remove();
-      } else {
-        existing.addEventListener("load", () => {
-          existing.setAttribute(EMBED_SCRIPT_LOADED_ATTR, "true");
-          resolve();
-        }, { once: true });
-        existing.addEventListener(
-          "error",
-          () => {
-            existing.setAttribute(EMBED_SCRIPT_FAILED_ATTR, "true");
-            existing.remove();
-            reject(new Error("Failed to load Podlove embed script"));
-          },
-          { once: true }
-        );
-        return;
-      }
+  const promise = new Promise<void>((resolve, reject) => {
+    let script = document.querySelector<HTMLScriptElement>(`script[${EMBED_SCRIPT_ATTR}]`);
+    if (script?.getAttribute(EMBED_SCRIPT_FAILED_ATTR) === "true") {
+      script.remove();
+      script = null;
     }
-
-    const script = document.createElement("script");
-    script.src = embedUrl;
-    script.async = true;
-    script.setAttribute(EMBED_SCRIPT_ATTR, "true");
-    script.addEventListener(
-      "load",
-      () => {
-        script.setAttribute(EMBED_SCRIPT_LOADED_ATTR, "true");
-        resolve();
-      },
-      { once: true }
+    const isNew = !script;
+    const ownedScript = script ?? document.createElement("script");
+    let settled = false;
+    const cleanup = (): void => {
+      clearTimeout(deadline);
+      ownedScript.removeEventListener("load", onLoad);
+      ownedScript.removeEventListener("error", onError);
+    };
+    const fail = (message: string): void => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      ownedScript.setAttribute(EMBED_SCRIPT_FAILED_ATTR, "true");
+      ownedScript.remove();
+      reject(new Error(message));
+    };
+    const onLoad = (): void => {
+      if (settled) return;
+      if (typeof podlovePlayer !== "function") {
+        fail("Podlove embed script did not register.");
+        return;
+      }
+      settled = true;
+      cleanup();
+      ownedScript.setAttribute(EMBED_SCRIPT_LOADED_ATTR, "true");
+      resolve();
+    };
+    const onError = (): void => fail("Failed to load Podlove embed script");
+    const deadline = setTimeout(
+      () => fail("Podlove embed script load timed out"), EMBED_SCRIPT_LOAD_DEADLINE_MS
     );
-    script.addEventListener(
-      "error",
-      () => {
-        script.setAttribute(EMBED_SCRIPT_FAILED_ATTR, "true");
-        script.remove();
-        reject(new Error("Failed to load Podlove embed script"));
-      },
-      { once: true }
-    );
-    document.head.appendChild(script);
-  }).then(() => {
-    if (typeof podlovePlayer !== "function") {
-      throw new Error("Podlove embed script did not register.");
+    ownedScript.addEventListener("load", onLoad);
+    ownedScript.addEventListener("error", onError);
+    if (isNew) {
+      ownedScript.src = embedUrl;
+      ownedScript.async = true;
+      ownedScript.setAttribute(EMBED_SCRIPT_ATTR, "true");
+      document.head.appendChild(ownedScript);
     }
   }).catch((error: unknown) => {
-    document.querySelector(`script[${EMBED_SCRIPT_ATTR}]`)?.remove();
-    embedScriptPromise = null;
+    if (embedScriptPromise === promise) {
+      embedScriptPromise = null;
+    }
     throw error;
   });
+  embedScriptPromise = promise;
 
   return embedScriptPromise;
 }

@@ -60,6 +60,53 @@ const pythonSuggestions: Suggestion[] = [
 ];
 
 describe("CastSearchTypeahead", () => {
+  it.each([
+    "javascript:alert(1)", "data:text/html,hello", "https://foreign.invalid/post/",
+    "//foreign.invalid/post/", `${window.location.origin.replace("://", "://user:password@")}/post/`,
+    "http://[invalid", "\tJaVaScRiPt:alert(1)",
+  ])("rejects unsafe suggestion destinations before rendering or caching: %s", async (url) => {
+    const navigate = vi.fn();
+    const openInNewTab = vi.fn();
+    const openInNewWindow = vi.fn();
+    const fetchMock = vi.fn()
+      .mockImplementationOnce(() => response("py", [{ id: 1, title: "Unsafe", url }]))
+      .mockImplementation(() => response("py", pythonSuggestions));
+    vi.stubGlobal("fetch", fetchMock);
+    const { controller, input, listbox, status } = setup({ navigate, openInNewTab, openInNewWindow });
+    input.value = "py";
+    input.dispatchEvent(new Event("input"));
+    await vi.advanceTimersByTimeAsync(225);
+    expect(listbox.querySelectorAll("[role=option]")).toHaveLength(0);
+    expect(status.textContent).toContain("unavailable");
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown" }));
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+    expect(navigate).not.toHaveBeenCalled();
+    expect(openInNewTab).not.toHaveBeenCalled();
+    expect(openInNewWindow).not.toHaveBeenCalled();
+    input.value = "p";
+    input.dispatchEvent(new Event("input"));
+    input.value = "py";
+    input.dispatchEvent(new Event("input"));
+    await vi.advanceTimersByTimeAsync(225);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(listbox.querySelectorAll("[role=option]")).toHaveLength(2);
+    controller.disconnect();
+  });
+
+  it.each(["/post/?q=1#title", "post/", `${window.location.origin}/post/`])(
+    "resolves allowed destinations against the current origin: %s", async (url) => {
+      const navigate = vi.fn();
+      vi.stubGlobal("fetch", vi.fn(() => response("py", [{ id: 1, title: "Post", url }])));
+      const { controller, input, listbox } = setup({ navigate });
+      input.value = "py";
+      input.dispatchEvent(new Event("input"));
+      await vi.advanceTimersByTimeAsync(225);
+      listbox.querySelector<HTMLElement>("[role=option]")!.click();
+      expect(navigate).toHaveBeenCalledWith(new URL(url, window.location.origin).href);
+      controller.disconnect();
+    }
+  );
+
   beforeEach(() => {
     vi.useFakeTimers();
     vi.unstubAllGlobals();
@@ -174,7 +221,7 @@ describe("CastSearchTypeahead", () => {
     const selectedEnter = new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true });
     input.dispatchEvent(selectedEnter);
     expect(selectedEnter.defaultPrevented).toBe(true);
-    expect(navigate).toHaveBeenCalledWith("/python-newest/");
+    expect(navigate).toHaveBeenCalledWith(`${window.location.origin}/python-newest/`);
   });
 
   it.each(["Enter", "ArrowDown", "ArrowUp", "Escape"])("leaves composing %s untouched", async (key) => {
@@ -243,9 +290,9 @@ describe("CastSearchTypeahead", () => {
     const option = listbox.querySelector("[role=option] span") as HTMLElement;
     const type = "button" in modifiers && modifiers.button === 1 ? "auxclick" : "click";
     option.dispatchEvent(new MouseEvent(type, { ...modifiers, bubbles: true, cancelable: true }));
-    expect(navigate.mock.calls).toEqual(action === "navigate" ? [["/python-newest/"]] : []);
-    expect(openInNewTab.mock.calls).toEqual(action === "tab" ? [["/python-newest/"]] : []);
-    expect(openInNewWindow.mock.calls).toEqual(action === "window" ? [["/python-newest/"]] : []);
+    expect(navigate.mock.calls).toEqual(action === "navigate" ? [[`${window.location.origin}/python-newest/`]] : []);
+    expect(openInNewTab.mock.calls).toEqual(action === "tab" ? [[`${window.location.origin}/python-newest/`]] : []);
+    expect(openInNewWindow.mock.calls).toEqual(action === "window" ? [[`${window.location.origin}/python-newest/`]] : []);
     navigate.mockClear();
     openInNewTab.mockClear();
     openInNewWindow.mockClear();
@@ -283,7 +330,7 @@ describe("CastSearchTypeahead", () => {
     input.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true }));
     input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", metaKey: true, bubbles: true }));
 
-    expect(openInNewTab).toHaveBeenCalledWith("/python-newest/");
+    expect(openInNewTab).toHaveBeenCalledWith(`${window.location.origin}/python-newest/`);
   });
 
   it("closes suggestions on the first Escape without clearing input", async () => {
