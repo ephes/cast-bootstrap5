@@ -33,8 +33,45 @@ function expectRetry(element: HTMLElementTagNameMap['podlove-player']) {
 afterEach(() => {
   document.body.replaceChildren();
   delete globalThis.podlovePlayer;
+  vi.useRealTimers();
 });
 describe('player recovery', () => {
+  it.each([false, true])('times out shared script waiters and isolates late old events (facade=%s)', async (facade) => {
+    vi.useFakeTimers();
+    const firstPlayer = setup(facade);
+    const secondPlayer = setup(facade);
+    click(firstPlayer);
+    click(secondPlayer);
+    const oldScript = document.querySelector('script[data-podlove-embed]')!;
+    expect(document.querySelectorAll('script[data-podlove-embed]')).toHaveLength(1);
+    await vi.advanceTimersByTimeAsync(9999);
+    expect(firstPlayer.querySelector('[role=alert]')).toBeNull();
+    await vi.advanceTimersByTimeAsync(1);
+    expectRetry(firstPlayer);
+    expectRetry(secondPlayer);
+    expect(oldScript.isConnected).toBe(false);
+    click(firstPlayer);
+    click(secondPlayer);
+    const newScript = document.querySelector('script[data-podlove-embed]')!;
+    expect(newScript).not.toBe(oldScript);
+    oldScript.dispatchEvent(new Event('load'));
+    oldScript.dispatchEvent(new Event('error'));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(newScript.isConnected).toBe(true);
+    expect(firstPlayer.querySelector("[role=alert]")).toBeNull();
+    expect(newScript.getAttribute("data-podlove-embed-loaded")).toBeNull();
+    globalThis.podlovePlayer = vi.fn();
+    newScript.dispatchEvent(new Event('load'));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(globalThis.podlovePlayer).toHaveBeenCalledTimes(2);
+    expect(firstPlayer.isInitialized).toBe(true);
+    expect(secondPlayer.isInitialized).toBe(true);
+    oldScript.dispatchEvent(new Event('error'));
+    await vi.advanceTimersByTimeAsync(10000);
+    expect(newScript.isConnected).toBe(true);
+    expect(globalThis.podlovePlayer).toHaveBeenCalledTimes(2);
+  });
+
   it.each([false, true])('retries failed script and missing registration (facade=%s)', async (facade) => {
     const element = setup(facade);
     click(element);

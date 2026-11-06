@@ -46,6 +46,21 @@ const DEFAULT_MESSAGES: TypeaheadMessages = {
   manyAvailable: "{count} suggestions available.",
 };
 
+function navigationUrl(value: string): string | null {
+  try {
+    const url = new URL(value, window.location.origin);
+    if (
+      (url.protocol === "http:" || url.protocol === "https:") &&
+      url.origin === window.location.origin && !url.username && !url.password
+    ) {
+      return url.href;
+    }
+  } catch {
+    // Malformed destinations invalidate the response just like other bad fields.
+  }
+  return null;
+}
+
 function isSuggestion(value: unknown): value is SearchSuggestion {
   if (!value || typeof value !== "object") {
     return false;
@@ -54,7 +69,8 @@ function isSuggestion(value: unknown): value is SearchSuggestion {
   return (
     typeof candidate.id === "number" &&
     typeof candidate.title === "string" &&
-    typeof candidate.url === "string"
+    typeof candidate.url === "string" &&
+    navigationUrl(candidate.url) !== null
   );
 }
 
@@ -377,6 +393,10 @@ export default class CastSearchTypeahead {
       if (sequence !== this.requestSequence || key !== this.buildKey()) {
         return;
       }
+      payload.suggestions = payload.suggestions.map(suggestion => ({
+        ...suggestion,
+        url: navigationUrl(suggestion.url)!,
+      }));
       this.consecutiveFailures = 0;
       this.setCache(key, payload);
       this.applyResponse(payload, key);

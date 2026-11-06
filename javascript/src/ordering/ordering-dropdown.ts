@@ -1,5 +1,14 @@
 const CONTAINER_SELECTOR = "#div_id_o";
 
+function availableId(base: string): string {
+  let id = base;
+  let suffix = 0;
+  while (document.getElementById(id)) {
+    id = `${base}-${++suffix}`;
+  }
+  return id;
+}
+
 function findOrderingContainers(root: ParentNode | Element): HTMLElement[] {
   const containers: HTMLElement[] = [];
 
@@ -27,7 +36,7 @@ export function enhanceOrderingDropdown(container: HTMLElement): void {
 
   const label = container.querySelector<HTMLLabelElement>('label[for="id_o"]');
   if (label && !label.id) {
-    label.id = "ordering-label";
+    label.id = availableId("ordering-label");
   }
 
   const dropdown = document.createElement("div");
@@ -38,8 +47,11 @@ export function enhanceOrderingDropdown(container: HTMLElement): void {
   button.className = "btn btn-outline-secondary dropdown-toggle w-100 text-start";
   button.setAttribute("data-bs-toggle", "dropdown");
   button.setAttribute("aria-expanded", "false");
+  const selectedValue = document.createElement("span");
+  selectedValue.id = availableId("ordering-value");
+  button.appendChild(selectedValue);
   if (label?.id) {
-    button.setAttribute("aria-labelledby", label.id);
+    button.setAttribute("aria-labelledby", `${label.id} ${selectedValue.id}`);
   }
 
   const menu = document.createElement("ul");
@@ -69,7 +81,7 @@ export function enhanceOrderingDropdown(container: HTMLElement): void {
   select.parentNode?.insertBefore(dropdown, select);
 
   const sync = (): void => {
-    button.textContent = select.options[select.selectedIndex]?.textContent ?? "Ordering";
+    selectedValue.textContent = select.options[select.selectedIndex]?.textContent ?? "Ordering";
     button.disabled = select.matches(":disabled");
     itemButtons.forEach((itemButton, index) => {
       itemButton.classList.toggle("active", options[index].selected);

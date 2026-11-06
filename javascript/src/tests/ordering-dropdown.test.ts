@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import "@testing-library/jest-dom/vitest";
 
 import { initOrderingDropdowns } from "@/ordering/ordering-dropdown";
 
@@ -16,6 +17,31 @@ function buildOrderingMarkup(withLabelId = false): string {
 }
 
 describe("ordering-dropdown", () => {
+  it("names the button with the field label and current value through change and reset", async () => {
+    document.body.innerHTML = `<form>${buildOrderingMarkup()}</form>`;
+    initOrderingDropdowns();
+    const button = document.querySelector<HTMLButtonElement>(".dropdown-toggle")!;
+    const value = button.querySelector("span")!;
+    expect(button).toHaveAccessibleName("Order Date desc");
+    document.querySelector<HTMLButtonElement>('[data-order-value="visible_date"]')!.click();
+    expect(button).toHaveAccessibleName("Order Date asc");
+    const select = document.querySelector("select")!;
+    select.value = "";
+    select.dispatchEvent(new Event("input"));
+    expect(button).toHaveAccessibleName("Order Default");
+    select.value = "visible_date";
+    select.dispatchEvent(new Event("change"));
+    expect(button).toHaveAccessibleName("Order Date asc");
+    document.querySelector("form")!.reset();
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(button).toHaveAccessibleName("Order Date desc");
+    expect(button.querySelector("span")).toBe(value);
+    initOrderingDropdowns();
+    expect(document.querySelectorAll(".dropdown-toggle")).toHaveLength(1);
+    expect(new Set(Array.from(document.querySelectorAll("[id]"), node => node.id)).size)
+      .toBe(document.querySelectorAll("[id]").length);
+  });
+
   it("leaves disabled native controls visible, including disabled fieldsets", () => {
     for (const markup of [buildOrderingMarkup().replace('<select ', '<select disabled '),
       `<fieldset disabled>${buildOrderingMarkup()}</fieldset>`]) {
@@ -136,7 +162,7 @@ describe("ordering-dropdown", () => {
     const button = document.querySelector("#div_id_o .dropdown-toggle") as HTMLButtonElement;
 
     expect(label.id).toBe("ordering-label");
-    expect(button.getAttribute("aria-labelledby")).toBe("ordering-label");
+    expect(button.getAttribute("aria-labelledby")).toBe(`ordering-label ${button.querySelector("span")!.id}`);
   });
 
   it("respects existing label id", () => {
@@ -145,7 +171,7 @@ describe("ordering-dropdown", () => {
     initOrderingDropdowns();
 
     const button = document.querySelector("#div_id_o .dropdown-toggle") as HTMLButtonElement;
-    expect(button.getAttribute("aria-labelledby")).toBe("custom-order-label");
+    expect(button.getAttribute("aria-labelledby")).toBe(`custom-order-label ${button.querySelector("span")!.id}`);
   });
 
   it("skips containers inside search modal", () => {
