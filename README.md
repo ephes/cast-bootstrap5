@@ -66,8 +66,12 @@ JSON response. A timeout clears the loading indicator and announces that
 suggestions are unavailable; ordinary Enter and submit-button searches remain
 usable. Superseded requests are cancelled silently. Removing the modal element from
 the page disconnects typeahead and cancels its request and deadline timer.
-Hiding the modal leaves an active request bounded by the same deadline; status
-messages are announced only while the search input has focus. As with other endpoint failures,
+Closing the modal cancels queued and in-flight facet and suggestion requests,
+clears loading indicators and closes the suggestion list. Late responses cannot
+change filters or announce results. Reopening reconnects suggestions once and
+preserves the current query and selected filters. Interrupted facet updates and
+suggestions refresh on reopening without needing another input event. Suggestion status messages are
+announced only while the search input has focus. As with other endpoint failures,
 two consecutive timeouts suspend suggestions until the modal is reopened.
 With an older django-cast version the endpoint URL is absent and the modal
 keeps its submit-only search behavior.
@@ -133,6 +137,14 @@ response, a network failure (`htmx:sendError`), a timeout (`htmx:timeout`), an
 aborted request and a failed swap. The reader keeps the page they were on and
 can try again. Failures of HTMX requests that target other elements leave the
 paging state alone.
+
+## Dynamic search facets
+
+Dynamic facet requests have a five-second total deadline covering both fetch and
+JSON body parsing. Expiry clears loading and announces “Could not refresh filters.
+You can still search.” The current filters and ordinary form submission remain
+usable, and a later filter or query change can retry. Superseding a request,
+closing the modal or removing it cancels pending work silently.
 
 ## Keyboard focus in the search modal
 

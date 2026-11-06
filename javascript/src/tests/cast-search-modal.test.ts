@@ -840,6 +840,7 @@ describe("cast-search-modal", () => {
     await Promise.resolve();
     await Promise.resolve();
 
+    await vi.advanceTimersByTimeAsync(0);
     expect(fetchMock).toHaveBeenCalledTimes(2);
     const form = document.querySelector("form") as HTMLFormElement;
     const selectedHidden = form.querySelector('input[type="hidden"][name="tag_facets"]') as HTMLInputElement;
@@ -915,6 +916,126 @@ describe("cast-search-modal", () => {
     const dateHidden = form.querySelector('input[type="hidden"][name="date_facets"]');
     expect(tagHidden.value).toBe("legacy");
     expect(dateHidden).toBeNull();
+  });
+
+
+  it.each(["fetch", "body"])("bounds a hanging facet %s and allows a later search", async (phase) => {
+    vi.useFakeTimers();
+    document.body.innerHTML = buildModalMarkup({ dynamic: true });
+    const signals: AbortSignal[] = [];
+    const fetchMock = vi.fn().mockImplementationOnce((_: string, init: RequestInit) => {
+      signals.push(init.signal as AbortSignal);
+      const pending = new Promise<Response>(() => undefined);
+      return phase === "fetch" ? pending : Promise.resolve({ ok: true, json: () => pending } as Response);
+    }).mockImplementation(() => jsonResponse(modalResponse()));
+    vi.stubGlobal("fetch", fetchMock);
+    const input = document.querySelector<HTMLInputElement>('input[name="search"]')!;
+    const status = document.querySelector<HTMLElement>("[data-cast-facet-status]")!;
+    const announcements: string[] = [];
+    const observer = new MutationObserver(() => announcements.push(status.textContent ?? ""));
+    observer.observe(status, { childList: true });
+    input.value = "first";
+    input.dispatchEvent(new Event("input"));
+    await vi.advanceTimersByTimeAsync(FACET_DEBOUNCE_MS + 4999);
+    expect(signals[0].aborted).toBe(false);
+    expect(document.querySelector(".cast-search-modal-body")?.getAttribute("aria-busy")).toBe("true");
+    await vi.advanceTimersByTimeAsync(1);
+    expect(signals[0].aborted).toBe(true);
+    expect(document.querySelector(".cast-search-modal-body")?.hasAttribute("aria-busy")).toBe(false);
+    expect(document.querySelector<HTMLElement>("[data-cast-facet-loading]")!.hidden).toBe(true);
+    expect(announcements).toEqual(["Could not refresh filters. You can still search."]);
+    expect(document.querySelector<HTMLButtonElement>('button[type="submit"]')!.disabled).toBe(false);
+    expect(vi.getTimerCount()).toBe(0);
+    input.value = "second";
+    input.dispatchEvent(new Event("input"));
+    await vi.advanceTimersByTimeAsync(FACET_DEBOUNCE_MS);
+    expect(status.textContent).toBe("Filters updated.");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    // Let jsdom dispatch the details toggle events from the rendered panels.
+    await vi.advanceTimersByTimeAsync(10);
+    expect(vi.getTimerCount()).toBe(0);
+    observer.disconnect();
+  });
+
+  it("cancels facet and suggestion debounces when closed and resumes once on reopen", async () => {
+    vi.useFakeTimers();
+    document.body.innerHTML = buildModalMarkup({ dynamic: true, suggestions: true });
+    const unchangedFacets = modalResponse() as { groups: { tag_facets: { selected: string }; category_facets: { selected: string } } };
+    unchangedFacets.groups.tag_facets.selected = "python";
+    unchangedFacets.groups.category_facets.selected = "";
+    const fetchMock = vi.fn().mockImplementation((url: string) => jsonResponse(
+      url.includes("search-suggestions")
+        ? { query: "py", suggestions: [{ id: 1, title: "Synthetic post", url: "/blog/synthetic/" }] }
+        : unchangedFacets
+    ));
+    vi.stubGlobal("fetch", fetchMock);
+    const modal = getModalElement();
+    modal.openModal();
+    const input = document.querySelector<HTMLInputElement>('input[name="search"]')!;
+    input.value = "py";
+    input.dispatchEvent(new Event("input"));
+    modal.closeModal();
+    await vi.advanceTimersByTimeAsync(6000);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(vi.getTimerCount()).toBe(0);
+    modal.openModal();
+    modal.openModal();
+    await vi.advanceTimersByTimeAsync(FACET_DEBOUNCE_MS);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const url = new URL(fetchMock.mock.calls.find(([url]) => url.includes("facet_counts"))![0]);
+    expect(url.searchParams.get("tag_facets")).toBe("python");
+    const listbox = document.querySelector<HTMLElement>("[data-cast-search-suggestions]")!;
+    expect(listbox.hidden).toBe(false);
+    modal.closeModal();
+    expect(listbox.hidden).toBe(true);
+    modal.openModal();
+    // The same query/filter key restores settled suggestions from cache.
+    expect(listbox.hidden).toBe(false);
+    expect(input.getAttribute("aria-expanded")).toBe("true");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it.each(["fetch", "body"])("ignores late facet and suggestion %s responses after close", async (phase) => {
+    vi.useFakeTimers();
+    document.body.innerHTML = buildModalMarkup({ dynamic: true, suggestions: true });
+    const signals: AbortSignal[] = [];
+    const complete: (() => void)[] = [];
+    vi.stubGlobal("fetch", vi.fn((url: string, init: RequestInit) => {
+      signals.push(init.signal as AbortSignal);
+      const payload = url.includes("search-suggestions")
+        ? { query: "py", suggestions: [{ id: 1, title: "Synthetic post", url: "/blog/synthetic/" }] }
+        : modalResponse();
+      if (phase === "body") {
+        return Promise.resolve({ ok: true, json: () => new Promise((resolve) => complete.push(() => resolve(payload))) });
+      }
+      return new Promise((resolve) => complete.push(() => resolve({ ok: true, json: async () => payload })));
+    }));
+    const modal = getModalElement();
+    modal.openModal();
+    const input = document.querySelector<HTMLInputElement>('input[name="search"]')!;
+    input.value = "py";
+    input.dispatchEvent(new Event("input"));
+    await vi.advanceTimersByTimeAsync(FACET_DEBOUNCE_MS + 200);
+    expect(signals).toHaveLength(2);
+    modal.closeModal();
+    expect(signals.every((signal) => signal.aborted)).toBe(true);
+    const facets = document.querySelector(".cast-search-modal-body")!.innerHTML;
+    const suggestionStatus = document.querySelector("[data-cast-suggestion-status]")!.textContent;
+    complete.forEach((resolve) => resolve());
+    await vi.advanceTimersByTimeAsync(6000);
+    expect(document.querySelector(".cast-search-modal-body")!.innerHTML).toBe(facets);
+    expect(document.querySelector("[data-cast-suggestion-status]")!.textContent).toBe(suggestionStatus);
+    expect(document.querySelector<HTMLElement>("[data-cast-search-suggestions]")!.hidden).toBe(true);
+    expect(input.getAttribute("aria-expanded")).toBe("false");
+    expect(document.querySelector<HTMLInputElement>('input[name="tag_facets"]')!.value).toBe("python");
+    expect(vi.getTimerCount()).toBe(0);
+    const resumedFetch = vi.fn((url: string) => jsonResponse(url.includes("search-suggestions")
+      ? { query: "py", suggestions: [] } : modalResponse()));
+    vi.stubGlobal("fetch", resumedFetch);
+    modal.openModal();
+    await vi.advanceTimersByTimeAsync(FACET_DEBOUNCE_MS);
+    expect(resumedFetch).toHaveBeenCalledTimes(2);
+    expect(document.querySelector("[data-cast-facet-status]")!.textContent).toBe("Filters updated.");
   });
 
   it("clears debounce timer and aborts request on disconnect", async () => {
