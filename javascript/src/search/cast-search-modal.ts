@@ -5,6 +5,7 @@ const DEFAULT_TRIGGER_SELECTOR = "[data-cast-search-trigger]";
 const ORDERING_DEFAULT = "-visible_date";
 export const FACET_DEBOUNCE_MS = 300;
 const FACET_CACHE_MAX_ENTRIES = 50;
+const FACET_REQUEST_DEADLINE_MS = 5000;
 const FACET_GROUP_NAMES = ["date_facets", "tag_facets", "category_facets"] as const;
 const ALL_FACETS_LABEL = "All";
 
@@ -288,6 +289,7 @@ export default class CastSearchModal extends HTMLElement {
   private latestResultCount: number | null;
   private focusTrap: FocusTrapController | null;
   private listenersBound: boolean;
+  private refreshFacetsOnOpen = false;
   private readonly state: ModalState;
   private boundTriggerClick: () => void;
   private boundOverlayClick: (event: Event) => void;
@@ -377,15 +379,21 @@ export default class CastSearchModal extends HTMLElement {
   }
 
   openModal(): void {
-    if (!this.overlay) {
+    if (!this.overlay || !this.overlay.hidden) {
       return;
     }
 
     this.overlay.hidden = false;
     document.body.style.overflow = "hidden";
+    this.typeahead?.connect();
     this.typeahead?.resume();
     this.focusTrap?.activate();
     this.searchInput?.focus();
+    this.typeahead?.facetStateChanged();
+    if (this.refreshFacetsOnOpen) {
+      this.refreshFacetsOnOpen = false;
+      this.scheduleFacetRecalculation();
+    }
   }
 
   closeModal(): void {
@@ -393,6 +401,11 @@ export default class CastSearchModal extends HTMLElement {
       return;
     }
 
+    this.refreshFacetsOnOpen ||= this.state.debounceTimer !== null || this.state.inFlight !== null;
+    this.clearDebounceTimer();
+    this.state.requestSeq += 1;
+    this.abortInFlightRequest();
+    this.typeahead?.disconnect();
     this.overlay.hidden = true;
     document.body.style.overflow = "";
     this.focusTrap?.deactivate();
@@ -679,6 +692,7 @@ export default class CastSearchModal extends HTMLElement {
     const sequence = ++this.state.requestSeq;
     const requestKey = this.buildRequestKey();
     this.state.debounceTimer = setTimeout(() => {
+      this.state.debounceTimer = null;
       void this.refreshDynamicFacets(sequence, requestKey);
     }, FACET_DEBOUNCE_MS);
   }
@@ -727,17 +741,30 @@ export default class CastSearchModal extends HTMLElement {
 
     this.setLoading(true);
 
+    let timedOut = false;
+    let rejectAborted: (reason: DOMException) => void = () => undefined;
+    const aborted = new Promise<never>((_resolve, reject) => {
+      rejectAborted = reject;
+    });
+    const onAbort = () => rejectAborted(new DOMException("Aborted", "AbortError"));
+    controller.signal.addEventListener("abort", onAbort, { once: true });
+    const deadlineTimer = setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, FACET_REQUEST_DEADLINE_MS);
+
     try {
-      const requestUrl = this.buildRequestUrl();
-      const response = await fetch(requestUrl.toString(), {
-        signal: controller.signal,
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-
-      const payload = (await response.json()) as unknown;
+      // Bound fetch and body parsing even if either ignores the abort signal.
+      const payload: unknown = await Promise.race([
+        (async () => {
+          const response = await fetch(this.buildRequestUrl().toString(), { signal: controller.signal });
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+          }
+          return response.json();
+        })(),
+        aborted,
+      ]);
       if (!isModalFacetResponse(payload)) {
         throw new Error("Invalid modal facet response");
       }
@@ -750,7 +777,7 @@ export default class CastSearchModal extends HTMLElement {
       this.applyFacetResponse(payload);
       this.announceStatus("Filters updated.");
     } catch (error) {
-      if (error instanceof DOMException && error.name === "AbortError") {
+      if (!timedOut && error instanceof DOMException && error.name === "AbortError") {
         return;
       }
       if (sequence !== this.state.requestSeq || requestKey !== this.buildRequestKey()) {
@@ -760,6 +787,8 @@ export default class CastSearchModal extends HTMLElement {
       this.updateNoResultsVisibility();
       this.announceStatus("Could not refresh filters. You can still search.");
     } finally {
+      controller.signal.removeEventListener("abort", onAbort);
+      clearTimeout(deadlineTimer);
       if (this.state.inFlight === controller) {
         this.state.inFlight = null;
         this.setLoading(false);
