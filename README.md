@@ -201,6 +201,7 @@ locked dependencies:
 
 ```shell
 npm ci
+npm run audit  # full locked tree, including developer dependencies; moderate or higher fails
 ```
 
 TypeScript is pinned in `javascript/package.json`. The strict typecheck uses
@@ -245,6 +246,7 @@ The purged CSS is written back to
 
 ```shell
 just test                   # strict TypeScript, JavaScript and Python/template tests
+just js-audit               # full-lock moderate/high/critical advisory gate
 just js-browser-test        # native Chromium keyboard/layout regressions
 # First install the browser: cd javascript && npx playwright install chromium
 just js-typecheck           # strict sources, tests and Vite config (tsc --noEmit)
@@ -268,8 +270,16 @@ Sites can upgrade the theme by setting their cast-bootstrap5 Git `rev` to the
 new theme commit and running `uv lock --upgrade-package cast-bootstrap5`; keep
 their django-cast source at `branch = "develop"`.
 
-CI (`.github/workflows/ci.yml`) runs `just js-typecheck`, `just js-test`, `just check-assets`,
+CI (`.github/workflows/ci.yml`) runs `just js-audit` immediately after the locked
+install, then `just js-typecheck`, `just js-test`, `just check-assets`,
 `just js-browser-test`, the pytest suite and `just check-messages` on every push and pull request.
+
+The audit includes build/test dependencies, even packages that never ship in the
+browser bundle. Registry or scanner failures also fail the job; no lockfile is
+rewritten by the audit. The tooling refresh requires Vitest 4.1.12 or newer and jsdom 30.1.3 or newer;
+the lock resolves mocker 4.1.12 and undici 8.12.4. The unused Vue test utilities
+were removed, including their vulnerable formatting dependencies; this theme
+uses Vitest and DOM fixtures. The audit addresses development tooling exposure.
 
 Rendered metadata behavior and JSON-LD parsing are covered by django-cast's
 post and episode detail tests; this theme's tests guard the shared-template and

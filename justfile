@@ -29,6 +29,10 @@ js-build-sync:
 js-typecheck:
     cd javascript && npm run typecheck
 
+# Fail on moderate-or-higher advisories, including development dependencies
+js-audit:
+    cd javascript && npm run audit
+
 # Run tests once
 js-test:
     cd javascript && npx vitest run

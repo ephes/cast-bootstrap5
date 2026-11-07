@@ -48,6 +48,8 @@ jobs:
       - name: Install JavaScript dependencies
         working-directory: javascript
         run: npm ci
+      - name: Full JavaScript lock audit (just js-audit)
+        run: just js-audit
       - name: Strict types (just js-typecheck)
         run: just js-typecheck
       - name: Tests (just js-test)
