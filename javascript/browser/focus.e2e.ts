@@ -54,3 +54,30 @@ test("uses positive tabindex order and observes changes at each keypress", async
   await page.keyboard.press("Shift+Tab");
   await expect(page.locator("#zero")).toBeFocused();
 });
+
+
+test("recovers focus across hidden/inert changes and empty facet replacements", async ({ page }) => {
+  await page.locator("#modal").evaluate((modal) => {
+    modal.innerHTML = '<button id="first">First</button><div id="facet"><button id="last">Last</button></div>';
+  });
+  await page.locator("#last").focus();
+  await page.locator("#facet").evaluate((facet) => facet.setAttribute("inert", ""));
+  await page.keyboard.press("Tab");
+  await expect(page.locator("#first")).toBeFocused();
+  await page.locator("#modal").evaluate((modal) => modal.replaceChildren());
+  await page.keyboard.press("Shift+Tab");
+  await expect(page.locator("#modal")).toBeFocused();
+  await page.locator("#modal").evaluate((modal) => {
+    modal.innerHTML = '<button style="visibility:hidden">Hidden</button><button id="new">New</button><div inert><button>Inert</button></div>';
+  });
+  await page.keyboard.press("Tab");
+  await expect(page.locator("#new")).toBeFocused();
+  await page.keyboard.press("Shift+Tab");
+  await expect(page.locator("#new")).toBeFocused();
+  await page.locator("#new").evaluate((control) => control.style.visibility = "hidden");
+  await page.keyboard.press("Tab");
+  await expect(page.locator("#modal")).toBeFocused();
+  await expect(page.locator("#modal")).toHaveAttribute("tabindex", "-1");
+  await page.locator("#deactivate").click();
+  expect(await page.locator("#modal").getAttribute("tabindex")).toBeNull();
+});

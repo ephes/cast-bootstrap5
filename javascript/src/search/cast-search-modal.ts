@@ -1,3 +1,4 @@
+import { isOrderingOptionDisabled } from "@/utils/ordering-options";
 import { createFocusTrap, type FocusTrapController } from "@/utils/focus-trap";
 import CastSearchTypeahead from "@/search/cast-search-typeahead";
 
@@ -90,61 +91,64 @@ function findFacetGroupElement(modal: HTMLElement, groupName: FacetGroupName): H
 
 export function buildOrderingPills(root: ParentNode | Element): void {
   findOrderingContainers(root).forEach((orderContainer) => {
-    if (orderContainer.dataset.castOrderingPills === "true") {
-      return;
-    }
-
+    if (orderContainer.dataset.castOrderingPills === "true") return;
     const select = orderContainer.querySelector<HTMLSelectElement>('select[name="o"]');
-    if (!select) {
-      return;
+    if (!select || select.matches(":disabled")) return;
+
+    const options = Array.from(select.options).filter((option) => option.value !== "");
+    if (options.length === 0) return;
+    const defaultOption = options.find((option) => option.value === ORDERING_DEFAULT);
+    if (select.value === "" && defaultOption && !isOrderingOptionDisabled(select, defaultOption)) {
+      select.value = defaultOption.value;
     }
 
     const pillsDiv = document.createElement("div");
     pillsDiv.className = "cast-ordering-pills";
+    const pills: HTMLButtonElement[] = [];
+    const sync = (): void => {
+      pills.forEach((pill, index) => {
+        pill.disabled = isOrderingOptionDisabled(select, options[index]);
+        pill.classList.toggle("active", options[index].selected);
+        pill.setAttribute("aria-pressed", String(options[index].selected));
+      });
+    };
 
-    Array.from(select.options).forEach((option) => {
-      if (!option.value) {
-        return;
-      }
-
+    options.forEach((option) => {
       const pill = document.createElement("button");
       pill.type = "button";
       pill.className = "tag-pill";
       pill.textContent = option.textContent;
       pill.setAttribute("data-order-value", option.value);
-
-      const isActive =
-        (option.selected && option.value !== "") ||
-        (select.value === "" && option.value === ORDERING_DEFAULT);
-
-      if (isActive) {
-        pill.classList.add("active");
-        pill.setAttribute("aria-pressed", "true");
-        select.value = option.value;
-      } else {
-        pill.setAttribute("aria-pressed", "false");
-      }
-
+      pills.push(pill);
       pill.addEventListener("click", () => {
-        select.value = option.value;
-        pillsDiv.querySelectorAll<HTMLElement>(".tag-pill").forEach((otherPill) => {
-          otherPill.classList.remove("active");
-          otherPill.setAttribute("aria-pressed", "false");
-        });
-        pill.classList.add("active");
-        pill.setAttribute("aria-pressed", "true");
+        const index = Array.from(select.options).indexOf(option);
+        if (index < 0 || isOrderingOptionDisabled(select, option) || select.selectedIndex === index) return;
+        select.selectedIndex = index;
+        sync();
+        select.dispatchEvent(new Event("input", { bubbles: true }));
+        select.dispatchEvent(new Event("change", { bubbles: true }));
       });
-
       pillsDiv.appendChild(pill);
     });
 
-    if (pillsDiv.children.length > 0) {
-      select.setAttribute("tabindex", "-1");
-      select.setAttribute("aria-hidden", "true");
-      select.style.display = "none";
-      orderContainer.appendChild(pillsDiv);
-      orderContainer.dataset.castOrderingPills = "true";
-    }
+    select.addEventListener("input", sync);
+    select.addEventListener("change", sync);
+    const form = select.form;
+    const onReset = (): void => {
+      if (!select.isConnected) {
+        form?.removeEventListener("reset", onReset);
+        return;
+      }
+      // Native reset restores the selection after dispatching the event.
+      setTimeout(sync, 0);
+    };
+    form?.addEventListener("reset", onReset);
+    sync();
+    select.setAttribute("tabindex", "-1");
+    select.setAttribute("aria-hidden", "true");
+    select.style.display = "none";
+    orderContainer.appendChild(pillsDiv);
+    orderContainer.dataset.castOrderingPills = "true";
   });
 }
 
@@ -642,15 +646,16 @@ export default class CastSearchModal extends HTMLElement {
 
     const orderingSelect = this.form.querySelector<HTMLSelectElement>('select[name="o"]');
     if (orderingSelect) {
-      if (orderingSelect.querySelector(`option[value="${ORDERING_DEFAULT}"]`)) {
-        orderingSelect.value = ORDERING_DEFAULT;
-      } else if (orderingSelect.options.length > 0) {
-        orderingSelect.value = orderingSelect.options[0].value;
-      } else {
-        orderingSelect.value = "";
+      const available = Array.from(orderingSelect.options).filter(
+        (option) => !isOrderingOptionDisabled(orderingSelect, option)
+      );
+      const resetOption = available.find((option) => option.value === ORDERING_DEFAULT) ?? available[0];
+      if (resetOption && orderingSelect.selectedIndex !== resetOption.index) {
+        orderingSelect.selectedIndex = resetOption.index;
+        orderingSelect.dispatchEvent(new Event("input", { bubbles: true }));
+        orderingSelect.dispatchEvent(new Event("change", { bubbles: true }));
       }
       this.state.ordering = orderingSelect.value;
-      this.syncOrderingPills(orderingSelect.value);
     } else {
       this.state.ordering = "";
     }
@@ -661,18 +666,6 @@ export default class CastSearchModal extends HTMLElement {
     this.announceStatus("Filters cleared.");
     this.scheduleFacetRecalculation();
     this.typeahead?.facetStateChanged();
-  }
-
-  private syncOrderingPills(orderingValue: string): void {
-    if (!this.modal) {
-      return;
-    }
-
-    this.modal.querySelectorAll<HTMLElement>(".cast-ordering-pills .tag-pill").forEach((pill) => {
-      const isActive = pill.getAttribute("data-order-value") === orderingValue;
-      pill.classList.toggle("active", isActive);
-      pill.setAttribute("aria-pressed", isActive ? "true" : "false");
-    });
   }
 
   private initializeFacetInputsFromSelection(): void {

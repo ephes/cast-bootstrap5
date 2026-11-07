@@ -1,6 +1,18 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { createFocusTrap } from "@/utils/focus-trap";
+import { createFocusTrap as createTrap, type FocusTrapController } from "@/utils/focus-trap";
+
+const traps: FocusTrapController[] = [];
+function createFocusTrap(container: HTMLElement): FocusTrapController {
+  const trap = createTrap(container);
+  traps.push(trap);
+  return trap;
+}
+
+afterEach(() => {
+  traps.splice(0).forEach((trap) => trap.deactivate());
+  vi.restoreAllMocks();
+});
 
 // jsdom has no layout; browser/focus.e2e.ts covers native geometry.
 function markVisible(element: HTMLElement): void {
@@ -226,6 +238,49 @@ describe("focus-trap", () => {
     expect(document.activeElement).toBe(same);
   });
 
+  it("ignores CSS-hidden and inert controls and recovers from a stale active stop", () => {
+    document.body.innerHTML = `<div id="modal">
+      <button style="visibility:hidden">Hidden</button><div inert><button>Inert</button></div>
+      <button id="first">First</button><button id="last">Last</button>
+      <button style="visibility:hidden">Hidden last</button><div inert><button>Inert last</button></div>
+    </div>`;
+    const modal = document.getElementById("modal")!;
+    const first = document.getElementById("first")!;
+    const last = document.getElementById("last")!;
+    modal.querySelectorAll<HTMLElement>("button").forEach(markVisible);
+    const trap = createFocusTrap(modal);
+    trap.activate();
+    last.focus();
+    expect(pressTab(last)).toBe(true);
+    expect(document.activeElement).toBe(first);
+    first.tabIndex = -1;
+    expect(pressTab(first)).toBe(true);
+    expect(document.activeElement).toBe(last);
+    trap.deactivate();
+  });
+
+  it("contains an empty set and recovers after the focused control is replaced", () => {
+    document.body.innerHTML = '<div id="modal"><button id="old">Old</button></div><button id="outside">Outside</button>';
+    const modal = document.getElementById("modal")!;
+    const trap = createFocusTrap(modal);
+    trap.activate();
+    document.getElementById("old")!.focus();
+    modal.replaceChildren();
+    expect(pressTab(document.body)).toBe(true);
+    expect(document.activeElement).toBe(modal);
+    modal.innerHTML = '<button id="new">New</button>';
+    const fresh = document.getElementById("new")!;
+    markVisible(fresh);
+    expect(pressTab(modal, true)).toBe(true);
+    expect(document.activeElement).toBe(fresh);
+    fresh.remove();
+    expect(pressTab(document.body, true)).toBe(true);
+    expect(document.activeElement).toBe(modal);
+    trap.deactivate();
+    expect(modal.hasAttribute("tabindex")).toBe(false);
+    expect(pressTab(modal)).toBe(false);
+  });
+
   it("registers one listener however often it is activated", () => {
     document.body.innerHTML = `
       <div id="modal">
@@ -237,8 +292,8 @@ describe("focus-trap", () => {
     const comment = document.getElementById("comment") as HTMLTextAreaElement;
     markVisible(document.getElementById("first") as HTMLElement);
     markVisible(comment);
-    const addSpy = vi.spyOn(modal, "addEventListener");
-    const removeSpy = vi.spyOn(modal, "removeEventListener");
+    const addSpy = vi.spyOn(document, "addEventListener");
+    const removeSpy = vi.spyOn(document, "removeEventListener");
     const trap = createFocusTrap(modal);
 
     trap.activate();

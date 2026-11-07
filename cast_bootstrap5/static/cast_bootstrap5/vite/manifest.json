@@ -1,4 +1,8 @@
 {
+  "_ordering-options-GpPxbNf_.js": {
+    "file": "ordering-options-GpPxbNf_.js",
+    "name": "ordering-options"
+  },
   "src/audio/podlove-player.ts": {
     "file": "podlovePlayer-DIsiTuVQ.js",
     "name": "podlovePlayer",
@@ -12,10 +16,13 @@
     "isEntry": true
   },
   "src/filters/filter-enhancements-bootstrap.ts": {
-    "file": "filterEnhancements-hdFUMpm9.js",
+    "file": "filterEnhancements-CTGojnSm.js",
     "name": "filterEnhancements",
     "src": "src/filters/filter-enhancements-bootstrap.ts",
-    "isEntry": true
+    "isEntry": true,
+    "imports": [
+      "_ordering-options-GpPxbNf_.js"
+    ]
   },
   "src/gallery/image-gallery-bs5.ts": {
     "file": "main-BcQvDr6z.js",
@@ -24,10 +31,13 @@
     "isEntry": true
   },
   "src/search/cast-search-modal.ts": {
-    "file": "searchModal-BjeoEqBc.js",
+    "file": "searchModal-C20EL08K.js",
     "name": "searchModal",
     "src": "src/search/cast-search-modal.ts",
-    "isEntry": true
+    "isEntry": true,
+    "imports": [
+      "_ordering-options-GpPxbNf_.js"
+    ]
   },
   "src/theme/paging-content-visibility.ts": {
     "file": "pagingContentVisibility-CQiIDex0.js",

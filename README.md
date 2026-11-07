@@ -185,7 +185,14 @@ controls cannot intrude. In this mode, each enabled radio input is a separate
 stop; radio groups are not collapsed to a single stop. Controls in closed
 details content are skipped. The trap
 rechecks layout, disabled state and tabindex on each keypress. A template override may therefore
-end the modal with any of these controls, including a textarea.
+end the modal with any of these controls, including a textarea. This is a bounded
+control set, not a general focus manager for shadow DOM or embedded documents.
+If replacement, hiding, or disabling leaves focus outside the current set, the
+next Tab enters the first control (Shift+Tab enters the last). If no supported
+stops remain, Tab stays on the modal container until controls return. The trap
+makes an otherwise non-focusable container temporarily focusable while active
+and removes that attribute on deactivation. Focus on the dialog background
+also restarts at the first/last control on the next Tab/Shift+Tab.
 
 ## Development
 ### Install javascript dependencies
@@ -324,8 +331,13 @@ and disabled attributes should be established before enhancement; later attribut
 changes on an enhanced select require a native `input` or `change` event to refresh
 the dropdown state. A select disabled at initialization stays native until
 enhancement is run again.
-Search-modal ordering pills use a separate implementation and are outside this
-dropdown contract. Enabled selections retain ordinary form
+Search-modal ordering pills share the same disabled-option policy and native
+event/reset synchronization. A disabled select remains native at initialization;
+after enhancement, disabled attributes are refreshed through native `input` or
+`change` events, and click handling always checks the current disabled state.
+Establish the option list before enhancement. An empty native value defaults to
+newest first only when that option is enabled. Clear all also preserves disabled
+selects and skips unavailable reset choices. Enabled selections retain ordinary form
 submission and emit one bubbling `input` followed by `change` when the selection
 changes. External changes dispatched through `input` or `change`, and form
 resets, synchronize the displayed label and active option. Initialization is

@@ -30,9 +30,10 @@ export type FocusTrapController = {
 
 export function createFocusTrap(container: HTMLElement): FocusTrapController {
   let isActive = false;
+  let addedTabindex = false;
 
   const onKeydown = (event: KeyboardEvent): void => {
-    if (!isActive || event.key !== "Tab") {
+    if (!isActive || !container.isConnected || event.defaultPrevented || event.key !== "Tab") {
       return;
     }
 
@@ -43,13 +44,20 @@ export function createFocusTrap(container: HTMLElement): FocusTrapController {
       .sort((a, b) => (a.tabIndex || Infinity) - (b.tabIndex || Infinity));
 
     if (focusable.length === 0) {
+      event.preventDefault();
+      container.focus();
       return;
     }
 
     // Positive tabindex navigation is document-wide, even between our stops.
     // Own each step in this case so outside positive/zero controls cannot intrude.
     const activeIndex = focusable.indexOf(document.activeElement as HTMLElement);
-    if (activeIndex >= 0 && focusable.some((element) => element.tabIndex > 0)) {
+    if (activeIndex < 0) {
+      event.preventDefault();
+      focusable[event.shiftKey ? focusable.length - 1 : 0].focus();
+      return;
+    }
+    if (focusable.some((element) => element.tabIndex > 0)) {
       event.preventDefault();
       const next = (activeIndex + (event.shiftKey ? -1 : 1) + focusable.length) % focusable.length;
       focusable[next].focus();
@@ -76,14 +84,20 @@ export function createFocusTrap(container: HTMLElement): FocusTrapController {
       if (isActive) {
         return;
       }
-      container.addEventListener("keydown", onKeydown);
+      addedTabindex = !container.hasAttribute("tabindex");
+      if (addedTabindex) container.setAttribute("tabindex", "-1");
+      document.addEventListener("keydown", onKeydown);
       isActive = true;
     },
     deactivate() {
       if (!isActive) {
         return;
       }
-      container.removeEventListener("keydown", onKeydown);
+      document.removeEventListener("keydown", onKeydown);
+      if (addedTabindex && container.getAttribute("tabindex") === "-1") {
+        container.removeAttribute("tabindex");
+      }
+      addedTabindex = false;
       isActive = false;
     },
   };
