@@ -320,6 +320,20 @@ in place. Reinitialization is supported after teardown.
 
 ## Enlarged gallery images
 
+Ordinary primary clicks and keyboard activation open the enlarged-image modal.
+Modified clicks, non-primary clicks, cancelled events, and links with a download
+or another browsing target keep their native browser behavior. After Escape or
+the close button finishes hiding the modal, focus returns to the opening
+thumbnail if it is still connected. Removing the gallery clears that focus
+ownership; another active modal keeps its focus.
+
+Each enlarged image has a ten-second loading deadline. A failed or timed-out
+load clears the spinner and busy state and announces “Could not load image.”
+Use “Retry loading image” to try the selected image again, or “Open original
+image” to follow its full-size link. Switching images, closing the modal, or
+removing the gallery cancels pending listeners and deadlines; old attempts cannot
+change a later image's state.
+
 The enlarged image copies the selected thumbnail's full-size image metadata,
 including empty alternative text. Attributes absent from the selected image are
 removed from the shared modal, so navigation cannot reuse another image's
@@ -332,6 +346,15 @@ to finish, then disposes the instance and removes the modal. Its backdrop and
 focus trap are released and Bootstrap restores scrolling. Without Bootstrap,
 the gallery removes its fallback modal and clears the body lock when no other
 modal is active. Teardown preserves an active modal's body lock.
+
+## Scroll to top
+
+Activating the scroll-to-top button focuses the first main-content heading,
+falling back to the main landmark. It reads the current reduced-motion preference
+at activation: reduced motion jumps immediately; otherwise it scrolls smoothly.
+Template overrides using a link keep native link navigation. Ordinary scrolling
+never moves focus, and a focused scroll-to-top button stays visible and exposed
+to assistive technology until focus leaves it.
 
 ## Post content enhancements
 

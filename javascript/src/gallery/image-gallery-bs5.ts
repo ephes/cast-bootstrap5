@@ -5,13 +5,26 @@ export default class ImageGalleryBs5 extends HTMLElement {
     private boundFooterClick: (event: Event) => void;
     private boundKeydown: (event: KeyboardEvent) => void;
     private pendingModalImage: HTMLImageElement | null;
-    private pendingFinalize: (() => void) | null;
+    private pendingLoad: (() => void) | null = null;
+    private pendingError: (() => void) | null = null;
+    private imageDeadline: ReturnType<typeof setTimeout> | null = null;
     private loadingSequence: number;
     private showingModal: HTMLElement | null = null;
     private closingModal: HTMLElement | null = null;
-    private boundModalHide = (event: Event) => { this.closingModal = event.currentTarget as HTMLElement; };
+    private openingTrigger: HTMLAnchorElement | null = null;
+    private boundModalHide = (event: Event) => {
+        this.closingModal = event.currentTarget as HTMLElement;
+        this.cancelImageLoading();
+    };
     private boundModalHidden = (event: Event) => {
         if (this.closingModal === event.currentTarget) this.closingModal = null;
+        if (event.currentTarget !== this.currentModal) return;
+        const trigger = this.openingTrigger;
+        this.openingTrigger = null;
+        const anotherModal = document.querySelector('.modal.show, .modal[aria-modal="true"]');
+        if (this.isConnected && trigger?.isConnected && this.contains(trigger) && !anotherModal) {
+            trigger.focus({ preventScroll: true });
+        }
     };
 	constructor () {
 		super();
@@ -21,7 +34,6 @@ export default class ImageGalleryBs5 extends HTMLElement {
         this.boundFooterClick = this.handleFooterClick.bind(this);
         this.boundKeydown = this.handleKeydown.bind(this);
         this.pendingModalImage = null;
-        this.pendingFinalize = null;
         this.loadingSequence = 0;
     }
     static register(tagName: string):void {
@@ -78,7 +90,11 @@ export default class ImageGalleryBs5 extends HTMLElement {
             modal.removeEventListener("show.bs.modal", markOpening);
             if (!opening.event || opening.event.defaultPrevented) {
                 modal.removeEventListener("shown.bs.modal", markShown);
-                if (opening.event?.defaultPrevented) markShown();
+                if (opening.event?.defaultPrevented) {
+                    markShown();
+                    this.openingTrigger = null;
+                    this.cancelImageLoading();
+                }
             }
             return;
         }
@@ -175,34 +191,65 @@ export default class ImageGalleryBs5 extends HTMLElement {
 
     private syncImageLoadingState(modal: HTMLElement, modalImage: HTMLImageElement): void {
         this.clearPendingImageListeners();
+        modal.querySelector(".cast-gallery-error")?.remove();
         this.setLoadingState(modal, true);
         if (this.isModalImageReady(modalImage)) {
             this.setLoadingState(modal, false);
             return;
         }
 
-        const sequence = ++this.loadingSequence;
-        const finalize = () => {
-            if (this.currentModal === modal && this.loadingSequence === sequence) {
-                this.setLoadingState(modal, false);
-            }
-            if (this.pendingFinalize === finalize) {
-                this.clearPendingImageListeners();
-            }
+        const sequence = this.loadingSequence;
+        const thumbnail = this.currentImage;
+        const finish = (failed: boolean) => {
+            if (this.currentModal !== modal || this.loadingSequence !== sequence) return;
+            this.clearPendingImageListeners();
+            this.setLoadingState(modal, false);
+            if (!failed) return;
+            modalImage.style.opacity = "0";
+            const error = document.createElement("div");
+            error.className = "cast-gallery-error";
+            error.setAttribute("role", "alert");
+            const message = document.createElement("p");
+            message.textContent = "Could not load image.";
+            const retry = document.createElement("button");
+            retry.type = "button";
+            retry.className = "btn btn-primary";
+            retry.textContent = "Retry loading image";
+            retry.addEventListener("click", () => {
+                if (this.isConnected && thumbnail?.isConnected && this.currentImage === thumbnail) {
+                    this.setModalImage(thumbnail, modal);
+                }
+            });
+            const original = document.createElement("a");
+            original.textContent = "Open original image";
+            original.setAttribute("href", modalImage.closest("a")?.getAttribute("href") ?? "");
+            error.append(message, retry, " ", original);
+            this.getModalBody(modal)?.append(error);
         };
         this.pendingModalImage = modalImage;
-        this.pendingFinalize = finalize;
-        modalImage.addEventListener("load", finalize, { once: true });
-        modalImage.addEventListener("error", finalize, { once: true });
+        this.pendingLoad = () => finish(false);
+        this.pendingError = () => finish(true);
+        modalImage.addEventListener("load", this.pendingLoad, { once: true });
+        modalImage.addEventListener("error", this.pendingError, { once: true });
+        this.imageDeadline = setTimeout(this.pendingError, 10000);
     }
 
     private clearPendingImageListeners(): void {
-        if (this.pendingModalImage && this.pendingFinalize) {
-            this.pendingModalImage.removeEventListener("load", this.pendingFinalize);
-            this.pendingModalImage.removeEventListener("error", this.pendingFinalize);
+        if (this.pendingModalImage) {
+            if (this.pendingLoad) this.pendingModalImage.removeEventListener("load", this.pendingLoad);
+            if (this.pendingError) this.pendingModalImage.removeEventListener("error", this.pendingError);
         }
+        if (this.imageDeadline !== null) clearTimeout(this.imageDeadline);
+        this.imageDeadline = null;
         this.pendingModalImage = null;
-        this.pendingFinalize = null;
+        this.pendingLoad = null;
+        this.pendingError = null;
+        this.loadingSequence++;
+    }
+
+    private cancelImageLoading(): void {
+        this.clearPendingImageListeners();
+        if (this.currentModal) this.setLoadingState(this.currentModal, false);
     }
 
     private showModalImmediately(modal: HTMLElement | null): void {
@@ -249,7 +296,7 @@ export default class ImageGalleryBs5 extends HTMLElement {
     }
 
     private cleanupModal(): void {
-        this.clearPendingImageListeners();
+        this.cancelImageLoading();
         const ownerId = this.id;
         const selector = ownerId ? `.modal[data-gallery-owner="${ownerId}"]` : null;
         const modal = selector ? document.querySelector<HTMLElement>(selector) : this.currentModal;
@@ -399,14 +446,20 @@ export default class ImageGalleryBs5 extends HTMLElement {
     }
 
     private handleThumbnailClick(event: Event) {
+        const click = event as MouseEvent;
+        const link = event.currentTarget as HTMLAnchorElement;
+        if (event.defaultPrevented || click.button > 0 || click.metaKey || click.ctrlKey || click.shiftKey || click.altKey
+            || link.hasAttribute("download") || (link.target && link.target.toLowerCase() !== "_self")) {
+            return;
+        }
         event.preventDefault();
         event.stopPropagation();
         // Find the img element within the clicked link
-        const link = event.currentTarget as HTMLElement;
         const img = link.querySelector('img');
         if (img) {
             const modal = this.resolveModal(link);
             this.setModalImage(img, modal);
+            this.openingTrigger = link;
             this.showModalImmediately(modal);
         } else {
             console.error("No img element found in clicked thumbnail");
@@ -447,6 +500,7 @@ export default class ImageGalleryBs5 extends HTMLElement {
     }
 
     disconnectedCallback() {
+        this.openingTrigger = null;
         // Remove event listeners from thumbnail links
         let thumbnailLinks = this.querySelectorAll(".cast-gallery-container > a");
         thumbnailLinks.forEach((link) => {

@@ -484,7 +484,8 @@ describe("image gallery test", () => {
 
         modalImage.dispatchEvent(new dom.window.Event("error"));
         expect(modalBody.getAttribute("aria-busy")).toBe("false");
-        expect(modalImage.style.opacity).toBe("1");
+        expect(modalImage.style.opacity).toBe("0");
+        expect(modalBody.querySelector('[role="alert"]')?.textContent).toContain("Could not load image");
     });
 
     test("gallery clears old loading listeners on rapid navigation", () => {
