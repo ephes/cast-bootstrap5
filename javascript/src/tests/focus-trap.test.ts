@@ -2,13 +2,9 @@ import { describe, expect, it, vi } from "vitest";
 
 import { createFocusTrap } from "@/utils/focus-trap";
 
+// jsdom has no layout; browser/focus.e2e.ts covers native geometry.
 function markVisible(element: HTMLElement): void {
-  Object.defineProperty(element, "offsetParent", {
-    configurable: true,
-    get() {
-      return document.body;
-    },
-  });
+  vi.spyOn(element, "getClientRects").mockReturnValue([{} as DOMRect] as unknown as DOMRectList);
 }
 
 describe("focus-trap", () => {
@@ -191,6 +187,43 @@ describe("focus-trap", () => {
     comment.focus();
     expect(pressTab(comment)).toBe(true);
     expect(document.activeElement).toBe(first);
+  });
+
+  it("includes a rendered fixed control with no offset parent", () => {
+    document.body.innerHTML = '<div id="modal"><button id="first">First</button><button id="last" style="position:fixed">Last</button></div>';
+    const modal = document.getElementById("modal")!;
+    const first = document.getElementById("first")!;
+    const last = document.getElementById("last")!;
+    markVisible(first);
+    markVisible(last);
+    createFocusTrap(modal).activate();
+    last.focus();
+    expect(pressTab(last)).toBe(true);
+    expect(document.activeElement).toBe(first);
+  });
+
+  it("wraps in stable positive tabindex order before zero stops", () => {
+    document.body.innerHTML = '<div id="modal"><button id="zero">Zero</button><button id="one" tabindex="1">One</button><button id="same" tabindex="1">Same</button></div>';
+    const modal = document.getElementById("modal")!;
+    const zero = document.getElementById("zero")!;
+    const one = document.getElementById("one")!;
+    const same = document.getElementById("same")!;
+    [zero, one, same].forEach(markVisible);
+    createFocusTrap(modal).activate();
+    zero.focus();
+    expect(pressTab(zero)).toBe(true);
+    expect(document.activeElement).toBe(one);
+    expect(pressTab(one, true)).toBe(true);
+    expect(document.activeElement).toBe(zero);
+    one.focus();
+    expect(pressTab(one)).toBe(true);
+    expect(document.activeElement).toBe(same);
+    expect(pressTab(same)).toBe(true);
+    expect(document.activeElement).toBe(zero);
+    same.tabIndex = 1;
+    one.tabIndex = 2;
+    expect(pressTab(zero)).toBe(true);
+    expect(document.activeElement).toBe(same);
   });
 
   it("registers one listener however often it is activated", () => {

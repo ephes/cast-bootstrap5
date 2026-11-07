@@ -52,6 +52,11 @@ jobs:
         run: just js-typecheck
       - name: Tests (just js-test)
         run: just js-test
+      - name: Install Chromium
+        working-directory: javascript
+        run: npx playwright install --with-deps chromium
+      - name: Native keyboard tests (just js-browser-test)
+        run: just js-browser-test
       - name: Rebuild assets and check for drift (just check-assets)
         run: just check-assets
 

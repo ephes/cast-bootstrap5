@@ -33,6 +33,10 @@ js-typecheck:
 js-test:
     cd javascript && npx vitest run
 
+# Native keyboard/layout regressions in Chromium
+js-browser-test:
+    cd javascript && npm run test:browser
+
 # Run tests in watch mode
 js-test-watch:
     cd javascript && npx vitest watch

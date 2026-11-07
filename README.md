@@ -177,7 +177,14 @@ enabled `input` (except `type="hidden"`), `button`, `select` and `textarea`
 elements, links with an `href`, `summary` elements and elements with a
 non-negative `tabindex`. Hidden controls, disabled controls (including those
 inside a disabled `fieldset`) and controls with a negative `tabindex` are
-skipped, as in the browser's own tab order. A template override may therefore
+skipped, along with inert descendants and CSS visibility-hidden controls. Visible
+fixed-position controls are included. Positive tabindex values come first in
+ascending order (ties retain DOM order), then zero/default controls. When positive
+values are present, every Tab step follows this modal-local order so outside
+controls cannot intrude. In this mode, each enabled radio input is a separate
+stop; radio groups are not collapsed to a single stop. Controls in closed
+details content are skipped. The trap
+rechecks layout, disabled state and tabindex on each keypress. A template override may therefore
 end the modal with any of these controls, including a textarea.
 
 ## Development
@@ -238,6 +245,8 @@ The purged CSS is written back to
 
 ```shell
 just test                   # strict TypeScript, JavaScript and Python/template tests
+just js-browser-test        # native Chromium keyboard/layout regressions
+# First install the browser: cd javascript && npx playwright install chromium
 just js-typecheck           # strict sources, tests and Vite config (tsc --noEmit)
 # Or, from javascript/: npm run typecheck
 uv run --extra test pytest  # Python/template contract tests only
@@ -260,7 +269,7 @@ new theme commit and running `uv lock --upgrade-package cast-bootstrap5`; keep
 their django-cast source at `branch = "develop"`.
 
 CI (`.github/workflows/ci.yml`) runs `just js-typecheck`, `just js-test`, `just check-assets`,
-the pytest suite and `just check-messages` on every push and pull request.
+`just js-browser-test`, the pytest suite and `just check-messages` on every push and pull request.
 
 Rendered metadata behavior and JSON-LD parsing are covered by django-cast's
 post and episode detail tests; this theme's tests guard the shared-template and
