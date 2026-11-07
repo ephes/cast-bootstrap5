@@ -7,6 +7,7 @@ let trackedButton: HTMLElement | null = null;
 let scrollHandler: ((event: Event) => void) | null = null;
 let resizeHandler: ((event: Event) => void) | null = null;
 let clickHandler: ((event: Event) => void) | null = null;
+let blurHandler: ((event: Event) => void) | null = null;
 let afterSwapHandler: ((event: Event) => void) | null = null;
 
 type VisibilityState = {
@@ -43,9 +44,10 @@ function updateButtonState(button: HTMLElement): void {
   }
 
   const state = getScrollTopVisibilityState(win.scrollY, win.innerHeight, doc.documentElement.scrollHeight);
-  button.classList.toggle("is-visible", state.show);
-  button.tabIndex = state.show ? 0 : -1;
-  button.setAttribute("aria-hidden", state.show ? "false" : "true");
+  const show = state.show || doc.activeElement === button;
+  button.classList.toggle("is-visible", show);
+  button.tabIndex = show ? 0 : -1;
+  button.setAttribute("aria-hidden", show ? "false" : "true");
 }
 
 function unbindButtonListeners(): void {
@@ -55,6 +57,7 @@ function unbindButtonListeners(): void {
     scrollHandler = null;
     resizeHandler = null;
     clickHandler = null;
+    blurHandler = null;
     return;
   }
 
@@ -67,11 +70,15 @@ function unbindButtonListeners(): void {
   if (trackedButton && clickHandler) {
     trackedButton.removeEventListener("click", clickHandler);
   }
+  if (trackedButton && blurHandler) {
+    trackedButton.removeEventListener("blur", blurHandler);
+  }
 
   trackedButton = null;
   scrollHandler = null;
   resizeHandler = null;
   clickHandler = null;
+  blurHandler = null;
 }
 
 function bindButtonListeners(button: HTMLElement): void {
@@ -95,13 +102,28 @@ function bindButtonListeners(button: HTMLElement): void {
   scrollHandler = viewportHandler;
   resizeHandler = viewportHandler;
 
-  clickHandler = () => {
-    win.scrollTo({ top: 0, behavior: "smooth" });
+  clickHandler = (event) => {
+    const click = event as MouseEvent;
+    if (event.defaultPrevented || click.button > 0 || click.ctrlKey || click.metaKey || click.shiftKey || click.altKey
+      || button.matches("a[href]")) return;
+
+    const destination = doc.querySelector<HTMLElement>("main h1, #main-content h1, [role='main'] h1")
+      ?? doc.querySelector<HTMLElement>("#main-content, main, [role='main']")
+      ?? doc.querySelector<HTMLElement>("h1") ?? doc.body;
+    if (!destination.hasAttribute("tabindex")) {
+      destination.tabIndex = -1;
+      destination.addEventListener("blur", () => destination.removeAttribute("tabindex"), { once: true });
+    }
+    destination.focus({ preventScroll: true });
+    const reducedMotion = win.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    win.scrollTo({ top: 0, behavior: reducedMotion ? "instant" : "smooth" });
   };
+  blurHandler = () => updateButtonState(button);
 
   win.addEventListener("scroll", scrollHandler, { passive: true });
   win.addEventListener("resize", resizeHandler, { passive: true });
   button.addEventListener("click", clickHandler);
+  button.addEventListener("blur", blurHandler);
 
   trackedButton = button;
   updateButtonState(button);

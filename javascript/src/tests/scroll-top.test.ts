@@ -153,3 +153,90 @@ describe("scroll-top", () => {
     expect(replacement.tabIndex).toBe(0);
   });
 });
+
+describe("scroll-top accessible activation", () => {
+  beforeEach(() => {
+    destroyScrollTop();
+    document.body.innerHTML = '<main id="main-content"><h1>Top heading</h1></main><button class="cast-scroll-top">Top</button>';
+    setViewport({ scrollY: 600, innerHeight: 900, scrollHeight: 2000 });
+    vi.spyOn(window, "scrollTo").mockImplementation(() => {});
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation(callback => { callback(0); return 1; });
+  });
+  afterEach(() => {
+    destroyScrollTop();
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  it.each([false, true])("reads current reduced motion (%s) and transfers focus", (reduced) => {
+    const matchMedia = vi.fn().mockReturnValue({ matches: !reduced });
+    vi.stubGlobal("matchMedia", matchMedia);
+    initScrollTop();
+    matchMedia.mockReturnValue({ matches: reduced });
+    const button = document.querySelector<HTMLButtonElement>("button")!;
+    button.focus();
+    button.click();
+    expect(matchMedia).toHaveBeenCalledWith("(prefers-reduced-motion: reduce)");
+    expect(window.scrollTo).toHaveBeenCalledWith({ top: 0, behavior: reduced ? "instant" : "smooth" });
+    expect(document.activeElement).toBe(document.querySelector("h1"));
+    setViewport({ scrollY: 0, innerHeight: 900, scrollHeight: 2000 });
+    window.dispatchEvent(new Event("scroll"));
+    expect(button.getAttribute("aria-hidden")).toBe("true");
+    expect(document.activeElement).not.toBe(button);
+    button.focus();
+    expect(document.querySelector("h1")!.hasAttribute("tabindex")).toBe(false);
+  });
+
+  it("ordinary scrolling never steals focus or hides the focused control", () => {
+    initScrollTop();
+    const button = document.querySelector<HTMLButtonElement>("button")!;
+    button.focus();
+    setViewport({ scrollY: 0, innerHeight: 900, scrollHeight: 2000 });
+    window.dispatchEvent(new Event("scroll"));
+    expect(document.activeElement).toBe(button);
+    expect(button.getAttribute("aria-hidden")).toBe("false");
+    expect(button.classList.contains("is-visible")).toBe(true);
+    const heading = document.querySelector<HTMLElement>("h1")!;
+    heading.tabIndex = -1;
+    heading.focus();
+    expect(button.getAttribute("aria-hidden")).toBe("true");
+    expect(button.classList.contains("is-visible")).toBe(false);
+  });
+
+  it("uses the main landmark when there is no heading", () => {
+    document.querySelector("h1")!.remove();
+    initScrollTop();
+    document.querySelector<HTMLButtonElement>("button")!.click();
+    expect(document.activeElement).toBe(document.querySelector("main"));
+  });
+
+  it("preserves native links, modified clicks and cancelled activation", () => {
+    document.querySelector("button")!.outerHTML = '<a class="cast-scroll-top" href="#main-content">Top</a>';
+    initScrollTop();
+    const link = document.querySelector<HTMLAnchorElement>(".cast-scroll-top")!;
+    const event = new MouseEvent("click", { cancelable: true, ctrlKey: true });
+    link.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(false);
+    expect(window.scrollTo).not.toHaveBeenCalled();
+    link.click();
+    expect(window.scrollTo).not.toHaveBeenCalled();
+    document.body.innerHTML = '<button class="cast-scroll-top">Top</button>';
+    initScrollTop();
+    const cancelled = new MouseEvent("click", { cancelable: true });
+    cancelled.preventDefault();
+    document.querySelector("button")!.dispatchEvent(cancelled);
+    expect(window.scrollTo).not.toHaveBeenCalled();
+  });
+});
+
+it("prefers the main landmark over a hero heading outside main", () => {
+  destroyScrollTop();
+  document.body.innerHTML = '<header><h1>Hero title</h1></header><main id="main-content"><h2>Post</h2></main><button class="cast-scroll-top">Top</button>';
+  setViewport({ scrollY: 600, innerHeight: 900, scrollHeight: 2000 });
+  const scroll = vi.spyOn(window, "scrollTo").mockImplementation(() => {});
+  initScrollTop();
+  document.querySelector<HTMLButtonElement>("button")!.click();
+  expect(document.activeElement).toBe(document.querySelector("main"));
+  destroyScrollTop();
+  scroll.mockRestore();
+});
