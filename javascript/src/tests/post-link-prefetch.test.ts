@@ -44,6 +44,40 @@ describe("post-link-prefetch", () => {
     expect(getPrefetchLinks()).toHaveLength(0);
   });
 
+  it.each([
+    ["reader", ""],
+    ["", "synthetic-password"],
+    ["reader", "synthetic-password"],
+  ])("ignores same-origin credentials %s / %s without changing the anchor", (username, password) => {
+    const url = new URL("/post/", window.location.href);
+    url.username = username;
+    url.password = password;
+    const anchor = document.createElement("a");
+    anchor.href = url.href;
+    anchor.setAttribute("data-cast-prefetch", "");
+    document.body.appendChild(anchor);
+
+    initPostLinkPrefetch();
+    const event = new MouseEvent("mouseover", { bubbles: true, cancelable: true });
+    anchor.dispatchEvent(event);
+
+    expect(getPrefetchLinks()).toHaveLength(0);
+    expect(anchor.href).toBe(url.href);
+    expect(event.defaultPrevented).toBe(false);
+  });
+
+  it("prefetches an absolute same-origin URL", () => {
+    const anchor = document.createElement("a");
+    anchor.href = new URL("/post/", window.location.href).href;
+    anchor.setAttribute("data-cast-prefetch", "");
+    document.body.appendChild(anchor);
+    initPostLinkPrefetch();
+
+    anchor.dispatchEvent(new Event("focusin", { bubbles: true }));
+
+    expect(getPrefetchLinks().map((link) => link.href)).toEqual([anchor.href]);
+  });
+
   it("prefetches on focusin", () => {
     document.body.innerHTML = `
       <a href="/blogs/ephes_blog/post-1/" data-cast-prefetch>Post 1</a>
@@ -68,9 +102,9 @@ describe("post-link-prefetch", () => {
     expect(getPrefetchLinks()).toHaveLength(1);
   });
 
-  it("ignores non-http schemes", () => {
+  it.each(["mailto:test@example.com", "javascript:void(0)"])("ignores non-http scheme %s", (href) => {
     document.body.innerHTML = `
-      <a href="mailto:test@example.com" data-cast-prefetch>Email</a>
+      <a href="${href}" data-cast-prefetch>Unsupported</a>
     `;
     const link = document.querySelector("a") as HTMLAnchorElement;
 
@@ -117,6 +151,41 @@ describe("post-link-prefetch", () => {
     link.dispatchEvent(new Event("touchstart", { bubbles: true }));
 
     expect(getPrefetchLinks()).toHaveLength(1);
+  });
+
+  it("deduplicates fragment variants across triggers while preserving anchor destinations and queries", () => {
+    const hrefs = ["/post/?page=1#one", "/post/?page=1#two", "/post/?page=1#three", "/post/?page=2#one"];
+    const events = ["mouseover", "focusin", "touchstart", "mouseover"];
+    initPostLinkPrefetch();
+
+    hrefs.forEach((href, index) => {
+      const anchor = document.createElement("a");
+      anchor.setAttribute("href", href);
+      anchor.setAttribute("data-cast-prefetch", "");
+      document.body.appendChild(anchor);
+      const event = new Event(events[index], { bubbles: true, cancelable: true });
+      anchor.dispatchEvent(event);
+      expect(anchor.getAttribute("href")).toBe(href);
+      expect(event.defaultPrevented).toBe(false);
+    });
+
+    expect(getPrefetchLinks().map((link) => link.href)).toEqual([
+      new URL("/post/?page=1", window.location.href).href,
+      new URL("/post/?page=2", window.location.href).href,
+    ]);
+  });
+
+  it.each(["", "#existing"])("reuses an existing prefetch link with fragment '%s'", (fragment) => {
+    const existing = document.createElement("link");
+    existing.rel = "prefetch";
+    existing.href = `/post/${fragment}`;
+    document.head.appendChild(existing);
+    document.body.innerHTML = '<a href="/post/#next" data-cast-prefetch>Post</a>';
+    initPostLinkPrefetch();
+
+    document.querySelector("a")!.dispatchEvent(new Event("focusin", { bubbles: true }));
+
+    expect(getPrefetchLinks()).toEqual([existing]);
   });
 
   it("handles links inserted after initialization", () => {

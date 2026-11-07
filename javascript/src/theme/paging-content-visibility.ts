@@ -10,6 +10,7 @@ let afterSettleHandler: ((event: Event) => void) | null = null;
 let historyRestoreHandler: ((event: Event) => void) | null = null;
 let cleanupHandler: ((event: Event) => void) | null = null;
 let pagingMaskTimeoutId: number | null = null;
+let historyScrollTimeoutId: number | null = null;
 
 type HtmxEventDetail = {
   target?: EventTarget | null;
@@ -100,6 +101,13 @@ function clearPagingMaskTimeout(): void {
 
   window.clearTimeout(pagingMaskTimeoutId);
   pagingMaskTimeoutId = null;
+}
+
+function clearHistoryScrollTimeout(): void {
+  if (historyScrollTimeoutId !== null) {
+    window.clearTimeout(historyScrollTimeoutId);
+    historyScrollTimeoutId = null;
+  }
 }
 
 function activatePagingMask(): void {
@@ -193,7 +201,9 @@ export function initPagingContentVisibility(): void {
 
   if (!historyRestoreHandler) {
     historyRestoreHandler = () => {
-      if (!getPagingArea()) {
+      clearHistoryScrollTimeout();
+      const pagingArea = getPagingArea();
+      if (!pagingArea) {
         return;
       }
       // Defer scroll-to-top so it runs after htmx's own deferred scroll
@@ -201,7 +211,17 @@ export function initPagingContentVisibility(): void {
       // settle (which runs synchronously when settleDelay=0), then fires
       // htmx:historyRestore. Our setTimeout is queued after theirs, so
       // FIFO ordering guarantees we execute last.
-      window.setTimeout(() => window.scrollTo(0, 0), 0);
+      const handler = historyRestoreHandler;
+      const timeoutId = window.setTimeout(() => {
+        if (historyScrollTimeoutId !== timeoutId || historyRestoreHandler !== handler) {
+          return;
+        }
+        historyScrollTimeoutId = null;
+        if (pagingArea.isConnected && getPagingArea() === pagingArea) {
+          window.scrollTo(0, 0);
+        }
+      }, 0);
+      historyScrollTimeoutId = timeoutId;
     };
     doc.addEventListener("htmx:historyRestore", historyRestoreHandler);
   }
@@ -247,6 +267,7 @@ export function destroyPagingContentVisibility(): void {
   }
 
   clearPagingMaskTimeout();
+  clearHistoryScrollTimeout();
   beforeRequestHandler = null;
   beforeTransitionHandler = null;
   afterSettleHandler = null;

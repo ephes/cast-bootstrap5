@@ -53,6 +53,10 @@ function getPrefetchUrl(anchor: HTMLAnchorElement): string | null {
     return null;
   }
 
+  if (parsed.username || parsed.password) {
+    return null;
+  }
+
   const currentUrl = new URL(win.location.href);
   if (
     parsed.origin === currentUrl.origin
@@ -62,12 +66,21 @@ function getPrefetchUrl(anchor: HTMLAnchorElement): string | null {
     return null;
   }
 
+  parsed.hash = "";
   return parsed.href;
 }
 
 function hasExistingPrefetchLink(doc: Document, url: string): boolean {
   return Array.from(doc.querySelectorAll<HTMLLinkElement>('link[rel="prefetch"]')).some(
-    (link) => link.href === url,
+    (link) => {
+      try {
+        const existing = new URL(link.href);
+        existing.hash = "";
+        return existing.href === url;
+      } catch {
+        return false;
+      }
+    },
   );
 }
 

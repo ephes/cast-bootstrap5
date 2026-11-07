@@ -134,6 +134,13 @@ player host, and recovery from an older attempt cannot reset a newer player.
 
 ## HTMX pagination with Podlove players
 
+On HTMX history restoration, the theme queues a scroll to the top after HTMX's
+own deferred saved-position scroll. A later restoration cancels the previous
+theme scroll, and `destroyPagingContentVisibility()` cancels it during teardown.
+The callback only scrolls while its original paging area is still connected and
+current in the same initialized lifecycle; removing or replacing that area
+makes the queued callback a no-op.
+
 While an HTMX pagination request for `#paging-area` is running, a list that
 contains Podlove players is masked so the players do not flash during the swap.
 The mask and the fade state are removed again when the new content has settled.
@@ -144,6 +151,16 @@ response, a network failure (`htmx:sendError`), a timeout (`htmx:timeout`), an
 aborted request and a failed swap. The reader keeps the page they were on and
 can try again. Failures of HTMX requests that target other elements leave the
 paging state alone.
+
+## Post link prefetching
+
+Links marked `data-cast-prefetch` request a speculative document fetch on hover,
+focus or touch. Only same-origin HTTP(S) URLs without a username or password
+are eligible; the current page is excluded. Prefetch identity ignores fragments
+(including when checking existing prefetch links), while paths and query strings
+remain distinct. Anchor destinations, including fragments, and ordinary browser
+navigation are unchanged. The focused regressions run with
+`cd javascript && npx vitest run src/tests/post-link-prefetch.test.ts src/tests/paging-content-visibility.test.ts`.
 
 ## Dynamic search facets
 

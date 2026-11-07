@@ -307,6 +307,70 @@ describe("paging-content-visibility", () => {
     vi.useRealTimers();
   });
 
+  it.each([false, true])("cancels pending history scrolling on destroy (reinitialize: %s)", (reinitialize) => {
+    vi.useFakeTimers();
+    initPagingContentVisibility();
+    document.dispatchEvent(new CustomEvent("htmx:historyRestore"));
+    expect(vi.getTimerCount()).toBe(1);
+
+    destroyPagingContentVisibility();
+    expect(vi.getTimerCount()).toBe(0);
+    if (reinitialize) {
+      initPagingContentVisibility();
+    }
+    vi.runAllTimers();
+    expect(window.scrollTo).not.toHaveBeenCalled();
+
+    if (reinitialize) {
+      document.dispatchEvent(new CustomEvent("htmx:historyRestore"));
+      vi.runAllTimers();
+      expect(window.scrollTo).toHaveBeenCalledExactlyOnceWith(0, 0);
+    }
+  });
+
+  it.each([false, true])("ignores obsolete history scrolling after paging removal (replace: %s)", (replace) => {
+    vi.useFakeTimers();
+    initPagingContentVisibility();
+    document.dispatchEvent(new CustomEvent("htmx:historyRestore"));
+    const pagingArea = document.querySelector("#paging-area")!;
+    if (replace) {
+      pagingArea.replaceWith(pagingArea.cloneNode(true));
+    } else {
+      pagingArea.remove();
+    }
+
+    vi.runAllTimers();
+
+    expect(window.scrollTo).not.toHaveBeenCalled();
+  });
+
+  it("supersedes queued history scrolling and runs once after the latest HTMX scroll", () => {
+    vi.useFakeTimers();
+    initPagingContentVisibility();
+    document.dispatchEvent(new CustomEvent("htmx:historyRestore"));
+    window.setTimeout(() => window.scrollTo(0, 856), 0);
+    document.dispatchEvent(new CustomEvent("htmx:historyRestore"));
+
+    expect(vi.getTimerCount()).toBe(2);
+    vi.runAllTimers();
+
+    expect(vi.mocked(window.scrollTo).mock.calls).toEqual([[0, 856], [0, 0]]);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("cancels a pending history scroll when a later restore has no paging area", () => {
+    vi.useFakeTimers();
+    initPagingContentVisibility();
+    document.dispatchEvent(new CustomEvent("htmx:historyRestore"));
+    document.querySelector("#paging-area")!.remove();
+
+    document.dispatchEvent(new CustomEvent("htmx:historyRestore"));
+
+    expect(vi.getTimerCount()).toBe(0);
+    vi.runAllTimers();
+    expect(window.scrollTo).not.toHaveBeenCalled();
+  });
+
   it("registers each listener once", () => {
     const addEventListenerSpy = vi.spyOn(document, "addEventListener");
 
