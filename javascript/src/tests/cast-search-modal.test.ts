@@ -302,6 +302,12 @@ describe("cast-search-modal", () => {
     ascPill.click();
     expect(orderingSelect.value).toBe("visible_date");
 
+    const events: string[] = [];
+    for (const type of ["input", "change"]) {
+      form.addEventListener(type, (event) => {
+        if (event.target === orderingSelect) events.push(type);
+      });
+    }
     const clearLink = document.querySelector(".cast-btn-clear") as HTMLAnchorElement;
     const clearEvent = new MouseEvent("click", { bubbles: true, cancelable: true });
     const dispatchResult = clearLink.dispatchEvent(clearEvent);
@@ -311,6 +317,14 @@ describe("cast-search-modal", () => {
     expect(overlay.hidden).toBe(false);
     expect(searchInput.value).toBe("");
     expect(orderingSelect.value).toBe("-visible_date");
+    expect(ascPill.getAttribute("aria-pressed")).toBe("false");
+    expect(ascPill.classList.contains("active")).toBe(false);
+    const descPill = form.querySelector('[data-order-value="-visible_date"]')!;
+    expect(descPill.getAttribute("aria-pressed")).toBe("true");
+    expect(descPill.classList.contains("active")).toBe(true);
+    expect(events).toEqual(["input", "change"]);
+    clearLink.click();
+    expect(events).toEqual(["input", "change"]);
     expect(form.querySelector('input[type="hidden"][name="date_facets"]')).toBeNull();
     expect(form.querySelector('input[type="hidden"][name="tag_facets"]')).toBeNull();
     expect(form.querySelector('input[type="hidden"][name="category_facets"]')).toBeNull();
@@ -319,6 +333,52 @@ describe("cast-search-modal", () => {
       '[data-cast-facet-group="tag_facets"] a.cast-facet-all-option'
     ) as HTMLAnchorElement;
     expect(tagAllLink.classList.contains("selected")).toBe(true);
+  });
+
+  it.each(["option", "optgroup"])("Clear all skips a disabled ordering default (%s)", (disabledAt) => {
+    const defaultOption = '<option value="-visible_date">Date desc</option>';
+    const unavailable = disabledAt === "option"
+      ? '<option value="-visible_date" disabled>Date desc</option>'
+      : `<optgroup disabled label="Unavailable">${defaultOption}</optgroup>`;
+    document.body.innerHTML = buildModalMarkup().replace(defaultOption, unavailable);
+    const form = document.querySelector("form")!;
+    const select = form.querySelector("select")!;
+    const ascPill = form.querySelector<HTMLButtonElement>('[data-order-value="visible_date"]')!;
+    ascPill.click();
+    expect(select.value).toBe("visible_date");
+    const events: string[] = [];
+    for (const type of ["input", "change"]) {
+      form.addEventListener(type, (event) => {
+        if (event.target === select) events.push(type);
+      });
+    }
+    const clear = form.querySelector<HTMLAnchorElement>(".cast-btn-clear")!;
+    clear.click();
+    expect(select.value).toBe("");
+    expect(form.querySelector('.cast-ordering-pills [aria-pressed="true"]')).toBeNull();
+    expect(ascPill.classList.contains("active")).toBe(false);
+    expect(events).toEqual(["input", "change"]);
+    clear.click();
+    expect(events).toEqual(["input", "change"]);
+  });
+
+  it("Clear all preserves a disabled ordering select without selection events", () => {
+    const form = document.querySelector("form")!;
+    const select = form.querySelector("select")!;
+    const ascPill = form.querySelector<HTMLButtonElement>('[data-order-value="visible_date"]')!;
+    ascPill.click();
+    select.disabled = true;
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+    const input = vi.fn();
+    const change = vi.fn();
+    select.addEventListener("input", input);
+    select.addEventListener("change", change);
+    form.querySelector<HTMLAnchorElement>(".cast-btn-clear")!.click();
+    expect(select.value).toBe("visible_date");
+    expect(ascPill.getAttribute("aria-pressed")).toBe("true");
+    expect(ascPill.disabled).toBe(true);
+    expect(input).not.toHaveBeenCalled();
+    expect(change).not.toHaveBeenCalled();
   });
 
   it("builds ordering pills and syncs selected value", () => {

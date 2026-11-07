@@ -3,11 +3,14 @@
   <meta charset="utf-8">
   <title>Focus trap fixture</title>
   <button id="before">Before</button>
-  <div id="modal" tabindex="-1"></div>
+  <div id="modal"></div>
   <button id="after">After</button>
+  <button id="deactivate">Deactivate trap</button>
   <script type="module">
     import { createFocusTrap } from "/src/utils/focus-trap.ts";
-    createFocusTrap(document.getElementById("modal")).activate();
+    const trap = createFocusTrap(document.getElementById("modal"));
+    trap.activate();
+    document.getElementById("deactivate").addEventListener("click", () => trap.deactivate());
     document.body.dataset.ready = "true";
   </script>
 </html>

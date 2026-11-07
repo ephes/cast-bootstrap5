@@ -1,3 +1,5 @@
+import { isOrderingOptionDisabled } from "@/utils/ordering-options";
+
 const CONTAINER_SELECTOR = "#div_id_o";
 
 function availableId(base: string): string {
@@ -60,8 +62,7 @@ export function enhanceOrderingDropdown(container: HTMLElement): void {
   const options = Array.from(select.options);
   const itemButtons: HTMLButtonElement[] = [];
   const isDisabled = (option: HTMLOptionElement): boolean =>
-    select.matches(":disabled") || option.disabled ||
-    (option.parentElement instanceof HTMLOptGroupElement && option.parentElement.disabled);
+    isOrderingOptionDisabled(select, option);
   options.forEach((option) => {
     const item = document.createElement("li");
     const itemButton = document.createElement("button");
