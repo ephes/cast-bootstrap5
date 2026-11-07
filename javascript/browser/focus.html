@@ -1,0 +1,13 @@
+<!doctype html>
+<html lang="en">
+  <meta charset="utf-8">
+  <title>Focus trap fixture</title>
+  <button id="before">Before</button>
+  <div id="modal" tabindex="-1"></div>
+  <button id="after">After</button>
+  <script type="module">
+    import { createFocusTrap } from "/src/utils/focus-trap.ts";
+    createFocusTrap(document.getElementById("modal")).activate();
+    document.body.dataset.ready = "true";
+  </script>
+</html>

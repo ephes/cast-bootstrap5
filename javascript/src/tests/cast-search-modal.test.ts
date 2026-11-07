@@ -2,13 +2,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import CastSearchModal, { buildOrderingPills, initModalFacetToggles, FACET_DEBOUNCE_MS } from "@/search/cast-search-modal";
 
+// jsdom has no layout; browser/focus.e2e.ts covers native geometry.
 function markVisible(element: HTMLElement): void {
-  Object.defineProperty(element, "offsetParent", {
-    configurable: true,
-    get() {
-      return document.body;
-    },
-  });
+  vi.spyOn(element, "getClientRects").mockReturnValue([{} as DOMRect] as unknown as DOMRectList);
 }
 
 type MarkupOptions = {
