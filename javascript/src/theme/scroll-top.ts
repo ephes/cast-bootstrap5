@@ -3,6 +3,7 @@ const MIN_SCROLLABLE_DISTANCE = 300;
 const MAX_VISIBILITY_THRESHOLD = 400;
 const VISIBILITY_FRACTION = 0.5;
 
+let cancelViewportUpdate: (() => void) | null = null;
 let trackedButton: HTMLElement | null = null;
 let scrollHandler: ((event: Event) => void) | null = null;
 let resizeHandler: ((event: Event) => void) | null = null;
@@ -51,6 +52,8 @@ function updateButtonState(button: HTMLElement): void {
 }
 
 function unbindButtonListeners(): void {
+  cancelViewportUpdate?.();
+  cancelViewportUpdate = null;
   const win = getWindow();
   if (!win) {
     trackedButton = null;
@@ -89,15 +92,23 @@ function bindButtonListeners(button: HTMLElement): void {
   }
 
   let ticking = false;
+  let active = true;
+  let frame: number | null = null;
+  cancelViewportUpdate = () => {
+    active = false;
+    if (frame !== null) win.cancelAnimationFrame(frame);
+  };
   const viewportHandler = () => {
     if (ticking) {
       return;
     }
-    win.requestAnimationFrame(() => {
-      updateButtonState(button);
-      ticking = false;
-    });
     ticking = true;
+    frame = win.requestAnimationFrame(() => {
+      frame = null;
+      ticking = false;
+      if (!active || trackedButton !== button || !button.isConnected) return;
+      updateButtonState(button);
+    });
   };
   scrollHandler = viewportHandler;
   resizeHandler = viewportHandler;

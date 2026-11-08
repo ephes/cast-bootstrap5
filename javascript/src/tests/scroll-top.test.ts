@@ -129,6 +129,58 @@ describe("scroll-top", () => {
     expect(button.tabIndex).toBe(-1);
   });
 
+  it.each([false, true])("invalidates queued frames on teardown (replacement: %s)", (replace) => {
+    const frames: FrameRequestCallback[] = [];
+    vi.mocked(window.requestAnimationFrame).mockImplementation(callback => {
+      frames.push(callback);
+      return frames.length;
+    });
+    const cancel = vi.spyOn(window, "cancelAnimationFrame").mockImplementation(() => {});
+    setViewport({ scrollY: 0, innerHeight: 900, scrollHeight: 2000 });
+    initScrollTop();
+    const original = document.querySelector<HTMLButtonElement>("button")!;
+    window.dispatchEvent(new Event("scroll"));
+    window.dispatchEvent(new Event("resize"));
+    expect(frames).toHaveLength(1);
+    if (replace) {
+      original.replaceWith(original.cloneNode());
+      document.dispatchEvent(new CustomEvent("htmx:afterSwap"));
+    } else {
+      destroyScrollTop();
+      initScrollTop();
+    }
+    expect(cancel).toHaveBeenCalledWith(1);
+    const retiredState = original.outerHTML;
+    setViewport({ scrollY: 600, innerHeight: 900, scrollHeight: 2000 });
+    frames[0](0);
+    expect(original.outerHTML).toBe(retiredState);
+    window.dispatchEvent(new Event("scroll"));
+    expect(frames).toHaveLength(2);
+    frames[1](0);
+    expect(document.querySelector("button")!.getAttribute("aria-hidden")).toBe("false");
+  });
+
+  it("resumes viewport updates after the same button is temporarily detached", () => {
+    const frames: FrameRequestCallback[] = [];
+    vi.mocked(window.requestAnimationFrame).mockImplementation(callback => {
+      frames.push(callback);
+      return frames.length;
+    });
+    setViewport({ scrollY: 0, innerHeight: 900, scrollHeight: 2000 });
+    initScrollTop();
+    const button = document.querySelector<HTMLButtonElement>("button")!;
+    window.dispatchEvent(new Event("scroll"));
+    button.remove();
+    setViewport({ scrollY: 600, innerHeight: 900, scrollHeight: 2000 });
+    frames[0](0);
+    expect(button.getAttribute("aria-hidden")).toBe("true");
+    document.body.append(button);
+    window.dispatchEvent(new Event("resize"));
+    expect(frames).toHaveLength(2);
+    frames[1](0);
+    expect(button.getAttribute("aria-hidden")).toBe("false");
+  });
+
   it("is a no-op when button is missing from DOM", () => {
     document.body.innerHTML = "";
     expect(() => initScrollTop()).not.toThrow();
