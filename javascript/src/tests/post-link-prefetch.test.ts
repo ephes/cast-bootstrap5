@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { destroyPostLinkPrefetch, initPostLinkPrefetch } from "@/theme/post-link-prefetch";
 
@@ -203,6 +203,73 @@ describe("post-link-prefetch", () => {
     const prefetchLinks = getPrefetchLinks();
     expect(prefetchLinks).toHaveLength(1);
     expect(prefetchLinks[0].href).toBe(new URL("/blogs/ephes_blog/post-2/", window.location.href).href);
+  });
+
+  it("bounds ownership across 1000 swaps and refetches evicted URLs", () => {
+    const foreign = document.createElement("link");
+    foreign.rel = "prefetch";
+    foreign.href = "/foreign/";
+    document.head.append(foreign);
+    initPostLinkPrefetch();
+    let first: HTMLLinkElement | undefined;
+    for (let index = 0; index < 1000; index++) {
+      document.body.innerHTML = `<a href="/synthetic/${index}/#section" data-cast-prefetch>Post</a>`;
+      initPostLinkPrefetch();
+      const anchor = document.querySelector("a")!;
+      const event = new Event("focusin", { bubbles: true, cancelable: true });
+      anchor.dispatchEvent(event);
+      if (index === 0) first = getPrefetchLinks()[1];
+      expect(getPrefetchLinks().length).toBeLessThanOrEqual(33);
+      expect(event.defaultPrevented).toBe(false);
+      expect(anchor.getAttribute("href")).toBe(`/synthetic/${index}/#section`);
+    }
+    expect(first!.isConnected).toBe(false);
+    const anchor = document.querySelector("a")!;
+    anchor.href = "/synthetic/0/";
+    anchor.dispatchEvent(new Event("focusin", { bubbles: true }));
+    expect(getPrefetchLinks()).toHaveLength(33);
+    expect(getPrefetchLinks().at(-1)!.href).toBe(anchor.href);
+    expect(getPrefetchLinks().at(-1)).not.toBe(first);
+    destroyPostLinkPrefetch();
+    expect(getPrefetchLinks()).toEqual([foreign]);
+    initPostLinkPrefetch();
+    anchor.dispatchEvent(new Event("focusin", { bubbles: true }));
+    expect(getPrefetchLinks()).toHaveLength(2);
+  });
+
+  it("allows one retry after error without duplicates or an error storm", () => {
+    document.body.innerHTML = '<a href="/retry/#section" data-cast-prefetch>Post</a>';
+    initPostLinkPrefetch();
+    const anchor = document.querySelector("a")!;
+    const trigger = () => anchor.dispatchEvent(new Event("focusin", { bubbles: true }));
+    trigger();
+    const first = getPrefetchLinks()[0];
+    first.dispatchEvent(new Event("error"));
+    expect(first.isConnected).toBe(false);
+    expect(getPrefetchLinks()).toHaveLength(0);
+    for (let i = 0; i < 10; i++) trigger();
+    const retry = getPrefetchLinks()[0];
+    expect(getPrefetchLinks()).toHaveLength(1);
+    expect(retry).not.toBe(first);
+    first.dispatchEvent(new Event("error"));
+    expect(getPrefetchLinks()).toEqual([retry]);
+    retry.dispatchEvent(new Event("load"));
+    trigger();
+    expect(getPrefetchLinks()).toEqual([retry]);
+  });
+
+  it("stops retrying repeated errors until the URL leaves the bounded cache", () => {
+    document.body.innerHTML = '<a href="/failed/" data-cast-prefetch>Post</a>';
+    initPostLinkPrefetch();
+    const append = vi.spyOn(document.head, "appendChild");
+    const anchor = document.querySelector("a")!;
+    for (let i = 0; i < 100; i++) {
+      anchor.dispatchEvent(new Event("touchstart", { bubbles: true }));
+      getPrefetchLinks().forEach(link => link.dispatchEvent(new Event("error")));
+    }
+    expect(append).toHaveBeenCalledTimes(2);
+    expect(getPrefetchLinks()).toHaveLength(0);
+    append.mockRestore();
   });
 
   it("removes listeners on destroy", () => {
