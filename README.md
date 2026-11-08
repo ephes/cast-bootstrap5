@@ -65,8 +65,16 @@ Suggestion destinations must resolve against the current origin to HTTP(S) URLs
 on that same origin, without credentials. Relative post links remain supported;
 invalid destinations (including executable schemes and foreign origins) reject
 the whole response before caching or rendering, leaving ordinary search usable.
+Suggestion IDs must be positive safe integers and unique within each response,
+so keyboard focus always identifies exactly one option. Invalid identities reject
+the whole response before caching or rendering.
+Each suggestion request accumulates at most 64 KiB of response-body bytes through a
+standard stream reader before JSON parsing, independently of Content-Length
+(including absent or understated lengths). Exceeding the budget cancels the body
+and uses the same unavailable/fallback behavior; oversized responses are never
+cached. This also bounds large suggestion titles and each cached response.
 Each suggestion request has a five-second total deadline, including reading the
-JSON response. A timeout clears the loading indicator and announces that
+JSON response. Cancellation also cancels the body reader. A timeout clears the loading indicator and announces that
 suggestions are unavailable; ordinary Enter and submit-button searches remain
 usable. Superseded requests are cancelled silently. Removing the modal element from
 the page disconnects typeahead and cancels its request and deadline timer.

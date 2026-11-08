@@ -108,10 +108,7 @@ function getModalElement(): CastSearchModal {
 }
 
 function jsonResponse(payload: unknown): Promise<Response> {
-  return Promise.resolve({
-    ok: true,
-    json: async () => payload,
-  } as Response);
+  return Promise.resolve(new Response(JSON.stringify(payload)));
 }
 
 function modalResponse(overrides: Partial<Record<"result_count", number>> = {}): object {
@@ -1056,15 +1053,26 @@ describe("cast-search-modal", () => {
     document.body.innerHTML = buildModalMarkup({ dynamic: true, suggestions: true });
     const signals: AbortSignal[] = [];
     const complete: (() => void)[] = [];
+    const cancelledBodies = vi.fn();
     vi.stubGlobal("fetch", vi.fn((url: string, init: RequestInit) => {
       signals.push(init.signal as AbortSignal);
       const payload = url.includes("search-suggestions")
         ? { query: "py", suggestions: [{ id: 1, title: "Synthetic post", url: "/blog/synthetic/" }] }
         : modalResponse();
       if (phase === "body") {
-        return Promise.resolve({ ok: true, json: () => new Promise((resolve) => complete.push(() => resolve(payload))) });
+        let cancelled = false;
+        return Promise.resolve(new Response(new ReadableStream({
+          start(stream) {
+            complete.push(() => {
+              if (cancelled) return;
+              stream.enqueue(new TextEncoder().encode(JSON.stringify(payload)));
+              stream.close();
+            });
+          },
+          cancel() { cancelled = true; cancelledBodies(); },
+        })));
       }
-      return new Promise((resolve) => complete.push(() => resolve({ ok: true, json: async () => payload })));
+      return new Promise((resolve) => complete.push(() => resolve(new Response(JSON.stringify(payload)))));
     }));
     const modal = getModalElement();
     modal.openModal();
@@ -1075,6 +1083,7 @@ describe("cast-search-modal", () => {
     expect(signals).toHaveLength(2);
     modal.closeModal();
     expect(signals.every((signal) => signal.aborted)).toBe(true);
+    if (phase === "body") expect(cancelledBodies).toHaveBeenCalledOnce();
     const facets = document.querySelector(".cast-search-modal-body")!.innerHTML;
     const suggestionStatus = document.querySelector("[data-cast-suggestion-status]")!.textContent;
     complete.forEach((resolve) => resolve());

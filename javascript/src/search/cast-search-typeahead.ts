@@ -1,6 +1,7 @@
 const TYPEAHEAD_DEBOUNCE_MS = 225;
 const TYPEAHEAD_LOADING_DELAY_MS = 300;
 const TYPEAHEAD_REQUEST_DEADLINE_MS = 5000;
+const TYPEAHEAD_MAX_RESPONSE_BYTES = 64 * 1024;
 const TYPEAHEAD_MIN_QUERY_LENGTH = 2;
 const TYPEAHEAD_CACHE_MAX_ENTRIES = 50;
 const FACET_NAMES = ["date_facets", "tag_facets", "category_facets"] as const;
@@ -67,7 +68,7 @@ function isSuggestion(value: unknown): value is SearchSuggestion {
   }
   const candidate = value as Partial<SearchSuggestion>;
   return (
-    typeof candidate.id === "number" &&
+    typeof candidate.id === "number" && Number.isSafeInteger(candidate.id) && candidate.id > 0 &&
     typeof candidate.title === "string" &&
     typeof candidate.url === "string" &&
     navigationUrl(candidate.url) !== null
@@ -82,8 +83,37 @@ function isSuggestionsResponse(value: unknown): value is SearchSuggestionsRespon
   return (
     typeof candidate.query === "string" &&
     Array.isArray(candidate.suggestions) &&
-    candidate.suggestions.every(isSuggestion)
+    candidate.suggestions.every(isSuggestion) &&
+    new Set(candidate.suggestions.map(suggestion => suggestion.id)).size === candidate.suggestions.length
   );
+}
+
+async function readSuggestionsBody(response: Response, signal: AbortSignal): Promise<unknown> {
+  if (!response.body) throw new Error("Missing suggestion body");
+  const reader = response.body.getReader();
+  const cancel = () => { void reader.cancel().catch(() => undefined); };
+  signal.addEventListener("abort", cancel, { once: true });
+  try {
+    // Bound decoded network bytes independently of Content-Length or compression.
+    const bytes = new Uint8Array(TYPEAHEAD_MAX_RESPONSE_BYTES);
+    let size = 0;
+    while (true) {
+      if (signal.aborted) throw new DOMException("Aborted", "AbortError");
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (value.byteLength > bytes.byteLength - size) throw new Error("Suggestion body too large");
+      bytes.set(value, size);
+      size += value.byteLength;
+    }
+    if (signal.aborted) throw new DOMException("Aborted", "AbortError");
+    return JSON.parse(new TextDecoder().decode(bytes.subarray(0, size)));
+  } catch (error) {
+    cancel();
+    throw error;
+  } finally {
+    signal.removeEventListener("abort", cancel);
+    reader.releaseLock();
+  }
 }
 
 export default class CastSearchTypeahead {
@@ -383,7 +413,7 @@ export default class CastSearchTypeahead {
           if (!response.ok) {
             throw new Error(`HTTP ${response.status}`);
           }
-          return response.json();
+          return readSuggestionsBody(response, controller.signal);
         })(),
         aborted,
       ]);
