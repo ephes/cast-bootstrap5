@@ -115,6 +115,7 @@ describe("theme-switcher", () => {
     (document.querySelector('[data-cast-theme-value="mode:dark"]') as HTMLButtonElement).click();
     expect(write).toHaveBeenCalledTimes(1);
     expect(document.querySelector('[data-cast-theme-label]')?.textContent).toBe('Dark');
+    window.dispatchEvent(new StorageEvent("storage", { key: "cast-theme" }));
     matchMediaMock.dispatch(false);
     expect(document.documentElement.getAttribute('data-bs-theme')).toBe('dark');
     const target = document.createElement('div');
@@ -124,6 +125,31 @@ describe("theme-switcher", () => {
     module.initThemeSwitcher(target);
     for (const label of document.querySelectorAll('[data-cast-theme-label]')) expect(label.textContent).toBe('Dark');
     expect(document.documentElement.getAttribute('data-bs-theme')).toBe('dark');
+  });
+
+  it("syncs cross-tab storage changes once and unregisters on destroy", async () => {
+    document.body.innerHTML = createSwitcherMarkup("a") + createSwitcherMarkup("b");
+    const module = await loadModule();
+    module.initThemeSwitcher();
+    const rootChange = vi.spyOn(document.documentElement, "setAttribute");
+    const dispatch = (key: string | null) => window.dispatchEvent(new StorageEvent("storage", { key }));
+    storageMock.setItem("cast-theme", "dark");
+    dispatch("unrelated");
+    expect(rootChange).not.toHaveBeenCalled();
+    dispatch("cast-theme");
+    expect(rootChange).toHaveBeenCalledTimes(1);
+    expect(document.documentElement.getAttribute("data-bs-theme")).toBe("dark");
+    for (const label of document.querySelectorAll("[data-cast-theme-label]")) expect(label.textContent).toBe("Dark");
+    storageMock.clear();
+    dispatch(null);
+    expect(document.documentElement.getAttribute("data-bs-theme")).toBe("light");
+    matchMediaMock.dispatch(true);
+    expect(document.documentElement.getAttribute("data-bs-theme")).toBe("dark");
+    module.destroyThemeSwitcher();
+    rootChange.mockClear();
+    storageMock.setItem("cast-theme", "light");
+    dispatch("cast-theme");
+    expect(rootChange).not.toHaveBeenCalled();
   });
 
   it("returns to stored preferences once a later write succeeds", async () => {

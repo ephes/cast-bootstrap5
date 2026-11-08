@@ -403,6 +403,8 @@ at activation: reduced motion jumps immediately; otherwise it scrolls smoothly.
 Template overrides using a link keep native link navigation. Ordinary scrolling
 never moves focus, and a focused scroll-to-top button stays visible and exposed
 to assistive technology until focus leaves it.
+Viewport updates own at most one animation frame. Teardown or a button
+replacement cancels and invalidates that frame; rebinding starts fresh.
 
 ## Post content enhancements
 
@@ -425,7 +427,9 @@ The color mode (Auto, Light, or Dark) is stored in localStorage under
 exceeded quota), the choice still applies for the rest of the page session,
 including system color-scheme changes and HTMX swaps; the next full page load
 falls back to the stored value, or Auto when none is readable. Other open tabs
-do not update live; they pick up a stored change on their next page load.
+synchronize on localStorage changes (including clearing storage), updating the
+root and all switchers. A denied-write session choice remains authoritative.
+Destroying the switcher unregisters storage synchronization.
 
 Every element marked `data-cast-theme-switcher` (the navigation menu and the
 styleguide's floating toggle) is driven by `src/theme/theme-switcher.ts`, so all

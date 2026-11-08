@@ -16,6 +16,7 @@ let listenersBound = false;
 let mediaQueryList: MediaQueryList | null = null;
 let bodyClickHandler: ((event: Event) => void) | null = null;
 let mediaChangeHandler: ((event: MediaQueryListEvent) => void) | null = null;
+let storageHandler: ((event: StorageEvent) => void) | null = null;
 let afterSwapHandler: ((event: Event) => void) | null = null;
 
 function isThemeMode(value: string | null): value is ThemeMode {
@@ -243,6 +244,17 @@ function bindListeners(): void {
     };
   }
 
+  storageHandler = (event) => {
+    if (event.key !== null && event.key !== THEME_STORAGE_KEY) return;
+    try {
+      if (event.storageArea && event.storageArea !== win.localStorage) return;
+    } catch {
+      return;
+    }
+    applyTheme(getCurrentMode());
+    syncThemeSwitchers(doc);
+  };
+  win.addEventListener("storage", storageHandler);
   doc.body.addEventListener("click", bodyClickHandler);
   doc.body.addEventListener("htmx:afterSwap", afterSwapHandler);
   if (mediaQueryList && mediaChangeHandler) {
@@ -264,6 +276,9 @@ export function initThemeSwitcher(root: ParentNode | Element = getDocument() as 
 
 export function destroyThemeSwitcher(): void {
   sessionMode = null;
+  const win = getWindow();
+  if (win && storageHandler) win.removeEventListener("storage", storageHandler);
+  storageHandler = null;
   const doc = getDocument();
   if (!doc || !listenersBound) {
     listenersBound = false;
