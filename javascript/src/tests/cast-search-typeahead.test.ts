@@ -9,10 +9,7 @@ type Suggestion = {
 };
 
 function response(query: string, suggestions: Suggestion[]): Promise<Response> {
-  return Promise.resolve({
-    ok: true,
-    json: async () => ({ query, suggestions }),
-  } as Response);
+  return Promise.resolve(new Response(JSON.stringify({ query, suggestions })));
 }
 
 function setup(
@@ -106,6 +103,88 @@ describe("CastSearchTypeahead", () => {
       controller.disconnect();
     }
   );
+
+  it.each([
+    ["chunked body", "x".repeat(100_000), 8192, undefined],
+    ["understated length", "x".repeat(100_000), 8192, "10"],
+    ["oversized title chunk", "x".repeat(100_000), 200_000, undefined],
+    ["UTF-8 bytes", "é".repeat(40_000), 8192, undefined],
+  ])("cancels an oversized %s before parsing or caching", async (_label, title, chunkSize, length) => {
+    const bytes = new TextEncoder().encode(JSON.stringify({
+      query: "py", suggestions: [{ id: 1, title, url: "/post/" }],
+    }));
+    let offset = 0;
+    const cancel = vi.fn();
+    const pull = vi.fn((stream: ReadableStreamDefaultController<Uint8Array>) => {
+      if (offset === bytes.length) return stream.close();
+      const end = Math.min(offset + chunkSize, bytes.length);
+      stream.enqueue(bytes.slice(offset, end));
+      offset = end;
+    });
+    const body = new ReadableStream<Uint8Array>({ pull, cancel }, { highWaterMark: 0 });
+    const oversized = new Response(body, { headers: length ? { "Content-Length": length } : {} });
+    const fetchMock = vi.fn().mockResolvedValueOnce(oversized)
+      .mockImplementation(() => response("py", pythonSuggestions));
+    vi.stubGlobal("fetch", fetchMock);
+    const { controller, input, listbox, status } = setup();
+    input.value = "py";
+    input.dispatchEvent(new Event("input"));
+    await vi.advanceTimersByTimeAsync(225);
+    expect(cancel).toHaveBeenCalledOnce();
+    expect(pull.mock.calls.length).toBeLessThanOrEqual(9);
+    expect(listbox.children).toHaveLength(0);
+    expect(status.textContent).toContain("unavailable");
+    input.value = "p";
+    input.dispatchEvent(new Event("input"));
+    input.value = "py";
+    input.dispatchEvent(new Event("input"));
+    await vi.advanceTimersByTimeAsync(225);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(listbox.children).toHaveLength(2);
+    controller.disconnect();
+  });
+
+  it.each([[1, 1], [0], [-1], [1.5], [Number.MAX_SAFE_INTEGER + 1]])(
+    "rejects malformed option identities %j before caching", async (...ids) => {
+      const fetchMock = vi.fn().mockImplementationOnce(() => response("py", ids.map(id => ({
+        id, title: "Synthetic post", url: "/post/",
+      })))).mockImplementation(() => response("py", pythonSuggestions));
+      vi.stubGlobal("fetch", fetchMock);
+      const { controller, input, listbox, status } = setup();
+      input.value = "py";
+      input.dispatchEvent(new Event("input"));
+      await vi.advanceTimersByTimeAsync(225);
+      expect(listbox.children).toHaveLength(0);
+      expect(status.textContent).toContain("unavailable");
+      expect(input.hasAttribute("aria-activedescendant")).toBe(false);
+      input.value = "p";
+      input.dispatchEvent(new Event("input"));
+      input.value = "py";
+      input.dispatchEvent(new Event("input"));
+      await vi.advanceTimersByTimeAsync(225);
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      input.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown" }));
+      const active = input.getAttribute("aria-activedescendant");
+      expect(Array.from(listbox.children).filter(option => option.id === active)).toHaveLength(1);
+      controller.disconnect();
+    }
+  );
+
+  it("supports abort signals without the optional throwIfAborted helper", async () => {
+    const descriptor = Object.getOwnPropertyDescriptor(AbortSignal.prototype, "throwIfAborted")!;
+    Object.defineProperty(AbortSignal.prototype, "throwIfAborted", { configurable: true, value: undefined });
+    try {
+      vi.stubGlobal("fetch", vi.fn(() => response("py", pythonSuggestions)));
+      const { controller, input, listbox } = setup();
+      input.value = "py";
+      input.dispatchEvent(new Event("input"));
+      await vi.advanceTimersByTimeAsync(225);
+      expect(listbox.children).toHaveLength(2);
+      controller.disconnect();
+    } finally {
+      Object.defineProperty(AbortSignal.prototype, "throwIfAborted", descriptor);
+    }
+  });
 
   beforeEach(() => {
     vi.useFakeTimers();
@@ -632,11 +711,22 @@ describe("CastSearchTypeahead", () => {
   it.each(["fetch", "body"])("settles a stalled %s at the total request deadline", async (stage) => {
     let requestSignal: AbortSignal | undefined;
     let resolveBody: ((payload: unknown) => void) | undefined;
-    const body = new Promise((resolve) => { resolveBody = resolve; });
-    const json = vi.fn(() => body);
+    const cancelBody = vi.fn();
+    const body = new ReadableStream<Uint8Array>({
+      start(stream) {
+        resolveBody = payload => {
+          // Cancellation retires this source, as a network body would be retired.
+          if (cancelBody.mock.calls.length) return;
+          stream.enqueue(new TextEncoder().encode(JSON.stringify(payload)));
+          stream.close();
+        };
+      },
+      cancel: cancelBody,
+    });
+    const getReader = vi.spyOn(body, "getReader");
     vi.stubGlobal("fetch", vi.fn((_: string, init: RequestInit) => {
       requestSignal = init.signal as AbortSignal;
-      return stage === "fetch" ? new Promise(() => {}) : Promise.resolve({ ok: true, json });
+      return stage === "fetch" ? new Promise(() => {}) : Promise.resolve(new Response(body));
     }));
     const { input, listbox, status, loading, form } = setup();
     input.value = "py";
@@ -645,9 +735,10 @@ describe("CastSearchTypeahead", () => {
     await vi.advanceTimersByTimeAsync(4999);
     expect(loading.hidden).toBe(false);
     expect(requestSignal?.aborted).toBe(false);
-    if (stage === "body") expect(json).toHaveBeenCalledOnce();
+    if (stage === "body") expect(getReader).toHaveBeenCalledOnce();
     await vi.advanceTimersByTimeAsync(1);
     expect(requestSignal?.aborted).toBe(true);
+    if (stage === "body") expect(cancelBody).toHaveBeenCalledOnce();
     expect(status.textContent).toBe("Suggestions unavailable. You can still search.");
     expect(listbox.hidden).toBe(true);
     expect(listbox.getAttribute("aria-busy")).toBe("false");
@@ -671,7 +762,7 @@ describe("CastSearchTypeahead", () => {
     input.value = "py";
     input.dispatchEvent(new Event("input", { bubbles: true }));
     await vi.advanceTimersByTimeAsync(225 + 4000);
-    resolveFetch?.({ ok: true, json: () => new Promise(() => {}) } as Response);
+    resolveFetch?.(new Response(new ReadableStream()));
     await vi.advanceTimersByTimeAsync(999);
     expect(status.textContent).toBe("");
     await vi.advanceTimersByTimeAsync(1);
