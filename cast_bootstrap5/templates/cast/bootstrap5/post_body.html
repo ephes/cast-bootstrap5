@@ -8,16 +8,16 @@
       layout keeps an h2, so overview pages don't emit multiple h1s).
     {% endcomment %}
     {% if render_detail %}
-    <h1 class="post-title">
-      <a href="{{ page.page_url }}">{{ page.title }}</a>
-      {% if render_for_feed and comments_are_enabled %}
-        {% translate "(click here to comment)" %}
-      {% endif %}
-    </h1>
+      <h1 class="post-title">
+        <a href="{{ page.page_url }}">{{ page.title }}</a>
+        {% if render_for_feed and comments_are_enabled %}
+          {% translate "(click here to comment)" %}
+        {% endif %}
+      </h1>
     {% else %}
-    <h2 class="post-card-title">
-      <a href="{{ page.page_url }}" data-cast-prefetch>{{ page.title }}</a>
-    </h2>
+      <h2 class="post-card-title">
+        <a href="{{ page.page_url }}" data-cast-prefetch>{{ page.title }}</a>
+      </h2>
     {% endif %}
     <!-- link is on one line to avoid underlined whitespace -->
     <div class="post-card-meta">

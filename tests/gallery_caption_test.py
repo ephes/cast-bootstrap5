@@ -29,7 +29,9 @@ def render_gallery(template_name, *, captions=None, string_if_invalid=""):
         "gallery_token": GALLERY_TOKEN,
     }
     if captions is not None:
-        context["gallery_entries"] = [{"image": current, "caption": caption} for current, caption in zip(images, captions)]
+        context["gallery_entries"] = [
+            {"image": current, "caption": caption} for current, caption in zip(images, captions)
+        ]
     image.caption = "Global caption must not leak"
     image.image = "Global image attribute must not replace the legacy image"
     engine = Engine(dirs=[TEMPLATES], string_if_invalid=string_if_invalid)
