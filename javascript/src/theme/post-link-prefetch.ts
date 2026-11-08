@@ -4,7 +4,19 @@ let mouseOverHandler: ((event: Event) => void) | null = null;
 let focusInHandler: ((event: Event) => void) | null = null;
 let touchStartHandler: ((event: Event) => void) | null = null;
 
-const prefetchedUrls = new Set<string>();
+const PREFETCH_MAX_ENTRIES = 32;
+const PREFETCH_MAX_ATTEMPTS = 2;
+type PrefetchEntry = { link: HTMLLinkElement | null; attempts: number };
+// Insertion order bounds both owned nodes and retry/dedup state across swaps.
+const prefetchedUrls = new Map<string, PrefetchEntry>();
+
+function retireLink(entry: PrefetchEntry): void {
+  if (entry.link) {
+    entry.link.onerror = null;
+    entry.link.remove();
+    entry.link = null;
+  }
+}
 
 function getDocument(): Document | null {
   return typeof document === "undefined" ? null : document;
@@ -90,17 +102,31 @@ function prefetchUrl(url: string): void {
     return;
   }
 
-  if (prefetchedUrls.has(url) || hasExistingPrefetchLink(doc, url)) {
-    prefetchedUrls.add(url);
-    return;
-  }
+  let entry = prefetchedUrls.get(url);
+  if (entry?.link || (entry && entry.attempts >= PREFETCH_MAX_ATTEMPTS)) return;
+  if (hasExistingPrefetchLink(doc, url)) return;
 
+  if (!entry) {
+    if (prefetchedUrls.size >= PREFETCH_MAX_ENTRIES) {
+      const oldest = prefetchedUrls.keys().next().value!;
+      retireLink(prefetchedUrls.get(oldest)!);
+      prefetchedUrls.delete(oldest);
+    }
+    entry = { link: null, attempts: 0 };
+    prefetchedUrls.set(url, entry);
+  }
+  const ownedEntry = entry;
   const link = doc.createElement("link");
   link.rel = "prefetch";
   link.as = "document";
   link.href = url;
+  ownedEntry.link = link;
+  ownedEntry.attempts += 1;
+  link.onerror = () => {
+    if (prefetchedUrls.get(url) !== ownedEntry || ownedEntry.link !== link) return;
+    retireLink(ownedEntry);
+  };
   doc.head.appendChild(link);
-  prefetchedUrls.add(url);
 }
 
 function handlePrefetchEvent(event: Event): void {
@@ -166,6 +192,7 @@ export function destroyPostLinkPrefetch(): void {
   mouseOverHandler = null;
   focusInHandler = null;
   touchStartHandler = null;
+  prefetchedUrls.forEach(retireLink);
   prefetchedUrls.clear();
 }
 

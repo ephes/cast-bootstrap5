@@ -159,7 +159,15 @@ focus or touch. Only same-origin HTTP(S) URLs without a username or password
 are eligible; the current page is excluded. Prefetch identity ignores fragments
 (including when checking existing prefetch links), while paths and query strings
 remain distinct. Anchor destinations, including fragments, and ordinary browser
-navigation are unchanged. The focused regressions run with
+navigation are unchanged. The theme retains at most 32 owned prefetch nodes/cache
+entries across HTMX swaps, evicting the oldest entry before admitting a new URL.
+Eviction and teardown remove only theme-owned nodes; foreign head links stay in
+place and are reused without adding cache entries. Revisiting an evicted URL may
+prefetch it again. A failed owned fetch removes its node and allows one further
+user-triggered attempt, with no automatic retry. After two attempts, failures
+remain suppressed until eviction or teardown resets that URL's budget. In-flight
+and successful retained nodes deduplicate further triggers.
+The focused regressions run with
 `cd javascript && npx vitest run src/tests/post-link-prefetch.test.ts src/tests/paging-content-visibility.test.ts`.
 
 ## Dynamic search facets
