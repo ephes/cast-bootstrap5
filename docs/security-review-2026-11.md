@@ -20,13 +20,7 @@ HTML-Attribute bleiben im normalen Django-Escaping. Fremde Core-/Site-Templates,
 CDN-/Player-Code und manuell eingebundene Vendor-Dateien sind nicht durch das
 npm-Lockfile-Audit abgedeckt; keine pauschale Sicherheitsfreigabe dafür.
 
-Validierung: Node 24, strikte TypeScript-Prüfung, Vitest, pytest,
-Asset-Neubau/Driftprüfung und Katalogprüfung erfolgreich. Native Chromium-Tests
-sind blockiert: alle drei scheitern beim Browserstart mit SIGTRAP im Sandboxlauf,
-bevor ihre Assertions ausgeführt werden
-(`MachPortRendezvousServer`, `bootstrap_check_in`: Permission denied 1100). Keine Actions als Ersatz gestartet.
+Validierung (Node 24): npm-Audit 0 Advisories, strikte TypeScript-Prüfung,
+Vitest (383 Tests), native Chromium-Tests (3 Tests, Playwright), pytest
+(26 Tests), Asset-Neubau ohne Drift und Katalogprüfung erfolgreich.
 Dieser Slice dokumentiert die Prüfung; keine Verhaltensänderung.
-
-Review-Gate: Opus 5.5 / high angefordert; Harness vor Reviewer-Start mit
-`TypeError: sequence item 0: expected str instance, int found` abgestürzt
-(`CRASHED`, kein Urteil). Deshalb nur Feature-Branch geparkt, kein Merge.
