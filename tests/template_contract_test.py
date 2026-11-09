@@ -175,3 +175,17 @@ def test_base_html_lang_follows_active_language(monkeypatch):
 
 def test_base_html_lang_falls_back_to_language_code_without_i18n():
     assert render_base_html_tag() == f'<html lang="{settings.LANGUAGE_CODE}">'
+
+
+def test_inline_script_translation_is_javascript_escaped():
+    template = (TEMPLATE_DIR / "post.html").read_text()
+
+    # A translation inside a JavaScript string literal needs escapejs, not only
+    # HTML autoescaping (quotes, backslashes, newlines, U+2028).
+    assert "{% trans \"Link copied\" as cast_link_copied %}{{ cast_link_copied|escapejs }}" in template
+    assert "'{% trans \"Link copied\" %}'" not in template
+    engine = Engine(libraries={"i18n": "django.templatetags.i18n"})
+    rendered = engine.from_string(
+        "'{% load i18n %}{% trans \"It's\" as label %}{{ label|escapejs }}'"
+    ).render(Context())
+    assert rendered == "'It\\u0027s'"

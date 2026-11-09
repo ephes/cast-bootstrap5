@@ -116,7 +116,7 @@
               navigator.clipboard.writeText(url).then(function () {
                 if (timer) clearTimeout(timer);
                 btn.classList.add('copied');
-                if (copyStatus) copyStatus.textContent = '{% trans "Link copied" %}';
+                if (copyStatus) copyStatus.textContent = '{% trans "Link copied" as cast_link_copied %}{{ cast_link_copied|escapejs }}';
                 timer = setTimeout(function () {
                   btn.classList.remove('copied');
                   if (copyStatus) copyStatus.textContent = '';
