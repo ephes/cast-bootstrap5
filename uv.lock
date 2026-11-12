@@ -339,7 +339,7 @@ wheels = [
 
 [[package]]
 name = "cast-bootstrap5"
-version = "0.0.77"
+version = "0.0.78"
 source = { editable = "." }
 dependencies = [
     { name = "crispy-bootstrap5" },
