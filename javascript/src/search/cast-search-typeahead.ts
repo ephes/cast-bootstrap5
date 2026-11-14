@@ -264,7 +264,11 @@ export default class CastSearchTypeahead {
       if (this.suggestions.length === 0) {
         if (this.elements.input.value.trim().length >= TYPEAHEAD_MIN_QUERY_LENGTH) {
           event.preventDefault();
-          this.schedule();
+          // Never restart pending work: arrowing while a debounce or request for the
+          // current query is outstanding must let that work answer.
+          if (this.debounceTimer === null && this.inFlight === null) {
+            this.schedule();
+          }
         }
         return;
       }
@@ -372,6 +376,7 @@ export default class CastSearchTypeahead {
     }
 
     this.debounceTimer = setTimeout(() => {
+      this.debounceTimer = null;
       void this.fetchSuggestions(key);
     }, TYPEAHEAD_DEBOUNCE_MS);
   }

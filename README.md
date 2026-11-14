@@ -56,7 +56,8 @@ When a longer query refreshes an open list, the settled destinations remain
 visible but temporarily non-selectable until the matching response arrives.
 Escape dismisses the list and retires queued and in-flight suggestion work;
 late success or failure cannot reopen it or announce results. New input or an
-arrow key can deliberately request suggestions again. Returned queries must match
+arrow key can deliberately request suggestions again; an arrow key never restarts
+a debounce or request that is still pending. Returned queries must match
 Cast's normalization: remove NUL, fold whitespace and ASCII hyphens to spaces,
 trim, then cap at 500 Unicode code points and remove trailing spaces. A mismatched
 query is unavailable and is never cached.

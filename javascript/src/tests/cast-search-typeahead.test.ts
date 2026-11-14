@@ -137,6 +137,49 @@ describe("CastSearchTypeahead", () => {
     controller.disconnect();
   });
 
+  it("keeps an in-flight request when arrowing before it answers", async () => {
+    let finish!: (value: Response) => void;
+    let signal!: AbortSignal;
+    const fetchMock = vi.fn().mockImplementation((_url: string, options: RequestInit) => {
+      signal = options.signal as AbortSignal;
+      return new Promise<Response>(resolve => { finish = resolve; });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const { controller, input, listbox } = setup();
+    input.value = "py";
+    input.dispatchEvent(new Event("input"));
+    await vi.advanceTimersByTimeAsync(225);
+    expect(fetchMock).toHaveBeenCalledOnce();
+    for (let press = 0; press < 3; press += 1) {
+      input.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", cancelable: true }));
+      await vi.advanceTimersByTimeAsync(225);
+    }
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(signal.aborted).toBe(false);
+    finish(await response("py", pythonSuggestions));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(listbox.hidden).toBe(false);
+    expect(listbox.children).toHaveLength(2);
+    controller.disconnect();
+  });
+
+  it("retries with an arrow key after a transient failure", async () => {
+    const fetchMock = vi.fn().mockRejectedValueOnce(new Error("transient"))
+      .mockImplementation(() => response("py", pythonSuggestions));
+    vi.stubGlobal("fetch", fetchMock);
+    const { controller, input, listbox, status } = setup();
+    input.value = "py";
+    input.dispatchEvent(new Event("input"));
+    await vi.advanceTimersByTimeAsync(225);
+    expect(status.textContent).toContain("unavailable");
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", cancelable: true }));
+    await vi.advanceTimersByTimeAsync(225);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(listbox.hidden).toBe(false);
+    expect(listbox.children).toHaveLength(2);
+    controller.disconnect();
+  });
+
   it("admits split Unicode at the exact suggestion byte ceiling and caches it", async () => {
     const text = JSON.stringify({ query: "py", suggestions: [{ id: 1, title: "😀", url: "/post/" }] });
     const { controller, input, listbox } = setup();

@@ -8,7 +8,8 @@
   loading failures, with native disabled controls and endpoint focus fallback.
 
 - Bind suggestions to Cast-normalized queries and retire pending publications on
-  Escape; deliberate input or arrow navigation can resume suggestions.
+  Escape; deliberate input or arrow navigation can resume suggestions. Arrow keys
+  never restart a pending debounce or in-flight request for the current query.
 
 - Reject malformed UTF-8 and redirected or foreign-endpoint search responses before
   caching suggestions or changing facets; keep ordinary form search available.
