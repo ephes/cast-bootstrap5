@@ -433,23 +433,29 @@ export default class ImageGalleryBs5 extends HTMLElement {
         this.applyAspectRatioFromThumbnail(img, modalImage);
         this.syncImageLoadingState(resolvedModal, modalImage);
 
-        let buttons = "";
-        // prev button
-        const prev = modalImage.getAttribute("data-prev");
-        if (prev !== "false") {
-            buttons = buttons + '<button id="data-prev" type="button" class="btn btn-primary">Prev</button>'
-        } else {
-            buttons = buttons + '<button id="data-prev" type="button" class="btn btn-primary disabled">Prev</button>'
+        const focused = document.activeElement;
+        const focusedNavigation = focused instanceof HTMLButtonElement && modalFooter.contains(focused)
+            && (focused.id === "data-prev" || focused.id === "data-next") ? focused : null;
+        const controls = ["data-prev", "data-next"].map(direction => {
+            let button = modalFooter.querySelector<HTMLButtonElement>(`#${direction}`);
+            if (!button) {
+                button = document.createElement("button");
+                button.id = direction;
+                button.type = "button";
+                button.className = "btn btn-primary";
+                button.textContent = direction === "data-prev" ? "Prev" : "Next";
+                modalFooter.appendChild(button);
+            }
+            const reference = modalImage.getAttribute(direction);
+            button.disabled = !reference || reference === "false";
+            button.classList.toggle("disabled", button.disabled);
+            return button;
+        });
+        if (focusedNavigation?.disabled) {
+            const fallback = controls.find(button => !button.disabled) ?? resolvedModal;
+            if (fallback === resolvedModal && !fallback.hasAttribute("tabindex")) fallback.setAttribute("tabindex", "-1");
+            fallback.focus({ preventScroll: true });
         }
-
-        // next button
-        const next = modalImage.getAttribute("data-next");
-        if (next !== "false") {
-            buttons = buttons + '<button id="data-next" type="button" class="btn btn-primary">Next</button>'
-        } else {
-            buttons = buttons + '<button id="data-next" type="button" class="btn btn-primary disabled">Next</button>'
-        }
-        modalFooter.innerHTML = buttons;
         return true;
     }
 

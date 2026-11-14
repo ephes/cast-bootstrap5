@@ -16,7 +16,7 @@ export async function readBoundedJson(response: Response, signal: AbortSignal, m
       size += value.byteLength;
     }
     if (signal.aborted) throw new DOMException("Aborted", "AbortError");
-    return JSON.parse(new TextDecoder().decode(bytes.subarray(0, size)));
+    return JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes.subarray(0, size)));
   } catch (error) {
     cancel();
     throw error;
