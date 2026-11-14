@@ -3,7 +3,8 @@
 ## Unreleased
 
 - Fence HTMX paging masks and transitions by request identity, including replaced
-  paging elements and late errors or settle timers.
+  paging elements and late errors or settle timers; requests cancelled in
+  `htmx:beforeRequest` do not take ownership.
 - Keep enhanced ordering menus synchronized with live native options and release
   their listeners, observers and reset work during HTMX cleanup.
 - Preserve gallery image loading when Bootstrap hide is vetoed, isolate retiring
@@ -12,4 +13,5 @@
   caching or changing filters, and preserve keyboard focus across facet refresh.
 - Preserve ordinary gallery links for unusable markup or modal targets, resolve
   image navigation IDs literally within their gallery, and share search/Bootstrap
-  body scroll ownership while restoring the prior inline overflow value.
+  body scroll ownership while restoring the prior inline overflow value; shown
+  modals removed without hiding no longer keep the page scroll locked.

@@ -181,7 +181,9 @@ export function initPagingContentVisibility(): void {
 
   if (!beforeRequestHandler) {
     beforeRequestHandler = (event: Event) => {
-      if (!eventTargetsPagingArea(event)) {
+      // A source-level listener may cancel the request; HTMX then never sends
+      // it or fires its terminal events, so it must not take ownership.
+      if (event.defaultPrevented || !eventTargetsPagingArea(event)) {
         return;
       }
       clearPagingMaskTimeout();

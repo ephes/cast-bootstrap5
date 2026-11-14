@@ -1401,4 +1401,17 @@ describe('search body scroll ownership', () => {
     first.closeModal(); second.closeModal();
     expect(document.body.style.overflow).toBe('scroll');
   });
+  it('releases a shown Bootstrap modal that was detached without hiding', () => {
+    document.body.style.overflow = 'scroll';
+    document.body.innerHTML = buildModalMarkup();
+    const search = getModalElement();
+    const other = document.createElement('div');
+    other.className = 'modal';
+    document.body.append(other);
+    search.openModal();
+    other.dispatchEvent(new Event('show.bs.modal', { bubbles: true, cancelable: true }));
+    other.remove();
+    search.closeModal();
+    expect(document.body.style.overflow).toBe('scroll');
+  });
 });

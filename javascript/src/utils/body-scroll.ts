@@ -10,6 +10,10 @@ function capture(): void {
 }
 
 function restore(): void {
+  // A shown modal removed without hiding never fires hidden.bs.modal.
+  for (const modal of bootstrapOwners) {
+    if (!modal.isConnected) bootstrapOwners.delete(modal);
+  }
   if (searchOwners.size || bootstrapOwners.size) {
     document.body.style.overflow = "hidden";
   } else if (priorOverflow !== null) {

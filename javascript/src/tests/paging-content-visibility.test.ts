@@ -125,6 +125,27 @@ describe("paging-content-visibility", () => {
     expect(pagingArea.getAttribute("data-cast-podlove-present")).toBeNull();
   });
 
+  it("does not adopt a beforeRequest cancelled by a source listener", () => {
+    vi.useFakeTimers();
+    const pagingArea = document.getElementById("paging-area")!;
+    pagingArea.innerHTML = "<podlove-player></podlove-player>";
+    initPagingContentVisibility();
+    const a = new XMLHttpRequest();
+    const b = new XMLHttpRequest();
+    const emit = (type: string, xhr: XMLHttpRequest) => {
+      const event = new CustomEvent(type, { bubbles: true, cancelable: true, detail: { target: pagingArea, xhr } });
+      pagingArea.dispatchEvent(event);
+    };
+    emit("htmx:beforeRequest", a);
+    const cancel = (event: Event) => event.preventDefault();
+    pagingArea.addEventListener("htmx:beforeRequest", cancel);
+    emit("htmx:beforeRequest", b);
+    pagingArea.removeEventListener("htmx:beforeRequest", cancel);
+    emit("htmx:afterSettle", a);
+    vi.advanceTimersByTime(300);
+    expect(pagingArea.hasAttribute("data-cast-paging-mask-active")).toBe(false);
+  });
+
   it("activates a podlove paging mask on beforeRequest and clears it after settle delay", () => {
     vi.useFakeTimers();
     const pagingArea = document.querySelector("#paging-area") as HTMLElement;
