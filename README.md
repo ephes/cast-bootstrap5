@@ -131,14 +131,33 @@ loading player”. Activate it with a pointer or keyboard to try again; hover an
 focus do not automatically retry failed loads while the facade remains connected.
 Keyboard focus returns to the retry action when its button triggered the load
 and focus has not moved to another element in the meantime; focus is never
-taken away from elsewhere on the page. If a theme change reinitializes a facade
-player that was still being revealed and that attempt fails, the facade is shown
-again with the retry action. Both facade modes allow one
+taken away from elsewhere on the page. Both facade modes allow one
 initialization at a time. Failed or unusable embed scripts are discarded so the
 next attempt can fetch them again. A timeout fails every waiting player and
 removes the attempt's script and event handlers; late events from it cannot
 settle or remove a retry's script. A failed initializer discards its partial
 player host, and recovery from an older attempt cannot reset a newer player.
+
+Color-mode changes preserve the current iframe, playhead and playing/paused
+state, including while it is being revealed. The embed skin stays at its initial
+color mode for that instance; the next player load uses the current theme.
+The theme does not attempt to replace an embed to update its cosmetics.
+
+A document accepts one canonical `data-embed` implementation URL. Relative URLs
+resolve against the document base and fragments are ignored; paths and query
+strings remain distinct. Matching requests share pending script loads and retries.
+A conflicting URL gets the same visible, retryable player failure and never uses
+the other implementation. Correct its `data-embed` to the accepted URL before
+retrying, or navigate to a new document to select another implementation. A
+preinstalled global initializer is associated with the first requested URL (or an
+existing marked embed script's URL); sites must configure that URL consistently.
+
+Removing a player invalidates pending load callbacks and removes its embed host
+and iframe browsing context. Reconnecting creates a fresh host and instance;
+playback does not survive removal. A facade player that was already revealed gets
+its original server-rendered facade (cover, title, play button) back on removal,
+so the reattached player can be started again by keyboard. Window-load observation belongs only to the
+current connection, so a detached player cannot be observed by a late callback.
 
 ## HTMX pagination with Podlove players
 
@@ -214,6 +233,15 @@ limit (twelve by default), including after a dynamic refresh. Use “All” to r
 the group's selected filter. “Show all” / “Show fewer” controls only the remaining
 overflow options, with matching `aria-expanded`; the toggle is hidden when no
 options need collapsing.
+
+Outside the search modal, re-enhancement (including an inner HTMX swap target)
+refreshes the group's current items and toggle, releases the old click handler,
+and preserves expanded state and selected-option visibility. A child observer
+also refreshes replaced items/toggles and restores native visibility when the
+toggle disappears or becomes disabled. HTMX cleanup releases that observer and
+handler. Collapsing requires an enabled, non-inert `button type="button"` marked
+`data-cast-facet-toggle`; absent or unusable controls leave every native facet
+link visible. Inserting a usable toggle enables enhancement later.
 
 Search overlays acquire and release a shared body scroll lock. The first owner
 saves the previous inline overflow value; closing or disconnecting releases only
@@ -362,12 +390,21 @@ the templates, regenerate the catalog with GNU gettext installed:
 
 ```shell
 just messages        # makemessages + compilemessages for the theme package
-just check-messages  # fail if django.po no longer matches the templates (CI)
+just check-messages  # compare the generated PO/MO pair without modifying sources (CI)
 ```
 
+Both commands extract and compile in an isolated temporary copy of the package.
+`just check-messages` compares both PO and MO bytes with the working catalogs and
+never writes to them, including on extraction/compilation failure or interruption.
+The existing POT creation timestamp is retained before compiling for deterministic
+comparison; translator edits are compared as part of the current source catalog.
 `just messages` keeps existing translations, adds new msgids untranslated (no
-fuzzy guesses) and drops strings the templates no longer use. The pytest suite
-checks that `django.mo` matches the translated entries in `django.po`.
+fuzzy guesses) and drops strings the templates no longer use. Only after the full
+catalog set compiles does it publish each file with an atomic replacement. A
+caught publication error or interruption restores files already replaced; an
+uncatchable process termination during publication can still require rerunning
+`just messages`. The pytest suite checks that `django.mo` matches the translated
+entries in `django.po`.
 
 ### Run development server
 
@@ -467,7 +504,10 @@ replacement cancels and invalidates that frame; rebinding starts fresh.
 
 Consecutive plain blockquotes merge into one quote with lines in their original
 order. Only blockquotes without semantic attributes, separated by ASCII HTML whitespace,
-are eligible. The editor’s `data-block-key` and the enhancement’s own
+are eligible. Partially enhanced quotes retain existing line wrappers and wrap
+all remaining nodes, including appended text, paragraphs, links, images and
+comments, before merging; repeated enhancement preserves those nodes. The editor’s
+`data-block-key` and the enhancement’s own
 `data-cast-blockquote-merged` marker are allowed; intervening prose, comments, and other quote attributes (including cite,
 id, class, and language) keep quotes separate and preserve attribution and anchors.
 

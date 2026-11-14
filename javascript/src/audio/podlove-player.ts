@@ -12,6 +12,7 @@ declare global {
 
 export {};
 
+let embedScriptUrl: string | null = null;
 let embedScriptPromise: Promise<void> | null = null;
 let playerInstanceCounter = 0;
 let pageLoadPromise: Promise<void> | null = null;
@@ -87,6 +88,24 @@ function getSharedObserver(): IntersectionObserver {
   }
 
   return sharedObserver;
+}
+
+// One global initializer means one implementation per document. Fragments do
+// not identify a different script; paths and query strings do.
+function bindEmbedUrl(embedUrl: string): string {
+  const requested = new URL(embedUrl, document.baseURI);
+  requested.hash = "";
+  const existing = document.querySelector<HTMLScriptElement>(`script[${EMBED_SCRIPT_ATTR}]`);
+  if (embedScriptUrl === null && existing) {
+    const registered = new URL(existing.src, document.baseURI);
+    registered.hash = "";
+    embedScriptUrl = registered.href;
+  }
+  if (embedScriptUrl !== null && embedScriptUrl !== requested.href) {
+    throw new Error("A different Podlove embed implementation already owns this document.");
+  }
+  embedScriptUrl = requested.href;
+  return requested.href;
 }
 
 function loadEmbedScript(embedUrl: string): Promise<void> {
@@ -272,8 +291,12 @@ class PodlovePlayerElement extends HTMLElement {
   iframeRevealTimeoutId: number | null;
   iframeRevealShieldTimeoutId: number | null;
   facadeAbortController: AbortController | null;
+  private connectionVersion = 0;
   private retryShouldFocus = false;
   private originalFacadeButton: { button: Element; html: string; label: string | null } | null = null;
+  // Pristine server-rendered facade markup, captured on first connection so a
+  // reconnect after a completed reveal can offer the play control again.
+  private facadeSnapshot: Node[] | null = null;
 
   constructor() {
     super();
@@ -314,10 +337,12 @@ class PodlovePlayerElement extends HTMLElement {
   }
 
   connectedCallback() {
+    const connectionVersion = ++this.connectionVersion;
     this.renderPlaceholder();
 
     if (this.isFacadeMode()) {
       // Facade containers are styled by SCSS — no need for applyLoadingTheme.
+      this.captureFacadeSnapshot();
       this.setupFacadeInteraction();
       return;
     }
@@ -327,10 +352,14 @@ class PodlovePlayerElement extends HTMLElement {
       return;
     }
 
-    waitForPageLoad().then(() => this.observeElement());
+    void waitForPageLoad().then(() => {
+      if (this.isConnected && this.connectionVersion === connectionVersion) this.observeElement();
+    });
   }
 
   disconnectedCallback() {
+    this.connectionVersion += 1;
+    this.initVersion += 1;
     if (this.observer) {
       this.observer.unobserve(this);
     }
@@ -363,9 +392,34 @@ class PodlovePlayerElement extends HTMLElement {
       container.style.removeProperty("min-height");
     }
     this.style.removeProperty("min-height");
-    // Invalidate any in-flight async init and allow re-init on reattach
-    this.initVersion += 1;
+    // Removing the iframe host retires its browsing context. The external
+    // initializer may still hold this detached host; it cannot own the next one.
+    this.playerDiv?.remove();
+    this.playerDiv = null;
+    this.restoreFacadeSnapshot();
+    delete this.dataset.playerInstanceId;
+    // Allow re-init on reattach; async work was invalidated before teardown.
     this.isInitialized = false;
+  }
+
+  captureFacadeSnapshot() {
+    if (this.facadeSnapshot) return;
+    const container = this.querySelector(".podlove-player-container");
+    if (!container?.querySelector(".podlove-facade-play")) return;
+    this.facadeSnapshot = Array.from(container.childNodes, (node) => node.cloneNode(true));
+  }
+
+  // A completed reveal removes the facade overlay and its play button. Without
+  // them a reattached facade player has no keyboard-reachable control, so
+  // restore the original markup once the retired host is gone.
+  restoreFacadeSnapshot() {
+    if (!this.isFacadeMode() || !this.facadeSnapshot) return;
+    const container = this.querySelector(".podlove-player-container");
+    if (!(container instanceof HTMLElement) || container.querySelector(".podlove-facade-play")) return;
+    container.replaceChildren(...this.facadeSnapshot.map((node) => node.cloneNode(true)));
+    container.style.removeProperty("border");
+    container.style.removeProperty("border-radius");
+    container.style.removeProperty("color-scheme");
   }
 
   clearIframeMasking() {
@@ -504,6 +558,7 @@ class PodlovePlayerElement extends HTMLElement {
     };
 
     const revealWithDelay = (iframe: HTMLIFrameElement) => {
+      if (this.initVersion !== expectedVersion || !this.isConnected) return;
       if (this.iframeRevealDelayTimeoutId !== null) {
         window.clearTimeout(this.iframeRevealDelayTimeoutId);
       }
@@ -762,6 +817,7 @@ class PodlovePlayerElement extends HTMLElement {
   }
 
   observeElement() {
+    if (!this.isConnected) return;
     this.observer = getSharedObserver();
     this.observer.observe(this);
   }
@@ -899,8 +955,6 @@ class PodlovePlayerElement extends HTMLElement {
     const podloveTemplate = this.getAttribute('data-template');
     let embedUrl = this.getAttribute('data-embed') || 'https://cdn.podlove.org/web-player/5.x/embed.js';
 
-    // If host is localhost use local embed url
-    const { hostname, port } = window.location;
     const playerHost = this.getOrCreatePlayerDiv(container, playerId, podloveTemplate);
 
     const initialize = () => {
@@ -920,14 +974,15 @@ class PodlovePlayerElement extends HTMLElement {
       }
     };
 
+    try {
+      embedUrl = bindEmbedUrl(embedUrl);
+    } catch {
+      this.recoverInitialization(container, currentVersion);
+      return;
+    }
     if (typeof podlovePlayer === 'function') {
       initialize();
     } else {
-      // If in dev mode on localhost and embedUrl starts with a slash, use the local embedUrl
-      // otherwise the vite url 5173 will be used -> which will not work
-      if (hostname === 'localhost' && embedUrl.startsWith("/")) {
-        embedUrl = `http://localhost:${port}${embedUrl}`;
-      }
       void loadEmbedScript(embedUrl).then(initialize, () => {
         this.recoverInitialization(container, currentVersion);
       });
@@ -1044,7 +1099,8 @@ class PodlovePlayerElement extends HTMLElement {
 
 customElements.define('podlove-player', PodlovePlayerElement);
 
-// Watch for dark mode toggle and reinitialize players
+// Keep the embed skin and playback instance until its lifecycle ends. Only
+// uninitialized placeholders follow cosmetic theme changes.
 lastKnownColorScheme = getColorScheme();
 const themeObserver = new MutationObserver(() => {
   const newScheme = getColorScheme();
@@ -1054,7 +1110,10 @@ const themeObserver = new MutationObserver(() => {
   lastKnownColorScheme = newScheme;
   document.querySelectorAll('podlove-player').forEach((el) => {
     if (el instanceof PodlovePlayerElement) {
-      el.reinitializePlayer();
+      if (!el.isInitialized) {
+        const container = el.querySelector(".podlove-player-container");
+        if (container && !el.isFacadeMode()) el.applyLoadingTheme(container);
+      }
     }
   });
 });

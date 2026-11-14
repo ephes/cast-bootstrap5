@@ -10,6 +10,24 @@ describe("post-content-enhancements", () => {
   beforeEach(() => destroyPostContentEnhancements());
   afterEach(() => { destroyPostContentEnhancements(); vi.restoreAllMocks(); });
 
+  it("keeps every node of partially enhanced quotes, including unwrapped tails", () => {
+    document.body.innerHTML = '<blockquote>First</blockquote><blockquote><div class="cast-blockquote-line">Wrapped</div> tail <p>Paragraph <a href="/source">link</a></p><!--keep--><img src="/synthetic.png" alt="image"></blockquote><blockquote cite="/attribution">Separate</blockquote>';
+    const source = document.querySelectorAll('blockquote')[1];
+    const nodes = Array.from(source.childNodes);
+    const link = source.querySelector('a');
+    const image = source.querySelector('img');
+    mergeConsecutiveBlockquotes();
+    const merged = document.querySelector('blockquote')!;
+    expect(merged.textContent).toBe('FirstWrapped tail Paragraph link');
+    for (const node of nodes) expect(merged.contains(node)).toBe(true);
+    expect(merged.querySelector('a')).toBe(link);
+    expect(merged.querySelector('img')).toBe(image);
+    const html = document.body.innerHTML;
+    mergeConsecutiveBlockquotes();
+    expect(document.body.innerHTML).toBe(html);
+    expect(document.querySelectorAll('blockquote')).toHaveLength(2);
+  });
+
   it.each([
     '<blockquote>A</blockquote> prose <blockquote>B</blockquote>',
     '<blockquote>A</blockquote><!-- boundary --><blockquote>B</blockquote>',
