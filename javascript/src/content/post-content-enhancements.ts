@@ -4,19 +4,20 @@ let pendingInitialize: (() => void) | null = null;
 let afterSwapHandler: ((event: Event) => void) | null = null;
 
 function ensureLineWrapper(blockquote: HTMLElement): void {
-  if (blockquote.firstElementChild?.classList.contains(LINE_CLASS)) {
-    return;
+  let line: HTMLDivElement | null = null;
+  for (const child of Array.from(blockquote.childNodes)) {
+    if (child instanceof HTMLElement && child.classList.contains(LINE_CLASS)) {
+      line = null;
+      continue;
+    }
+    if (!line) {
+      line = document.createElement("div");
+      line.className = LINE_CLASS;
+      line.style.whiteSpace = "pre-line";
+      blockquote.insertBefore(line, child);
+    }
+    line.appendChild(child);
   }
-
-  const line = document.createElement("div");
-  line.className = LINE_CLASS;
-  line.style.whiteSpace = "pre-line";
-
-  while (blockquote.firstChild) {
-    line.appendChild(blockquote.firstChild);
-  }
-
-  blockquote.appendChild(line);
 }
 
 function applyLineSpacing(blockquote: HTMLElement): void {

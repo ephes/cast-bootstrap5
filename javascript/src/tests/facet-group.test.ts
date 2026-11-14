@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { runFilterEnhancements } from "@/filters/filter-enhancements-bootstrap";
 import { initFacetGroups } from "@/facets/facet-group";
 
 function buildFacetGroup(selectedIndex?: number): string {
@@ -76,6 +77,80 @@ describe("facet-group", () => {
 
     toggle.click();
     expect(toggle.getAttribute("aria-expanded")).toBe("false");
+  });
+
+  it("refreshes child ownership through the real filter entry point", () => {
+    document.body.innerHTML = buildFacetGroup();
+    runFilterEnhancements();
+    const group = document.querySelector<HTMLElement>("[data-cast-facet-group]")!;
+    const oldToggle = group.querySelector<HTMLButtonElement>("button")!;
+    const oldItems = Array.from(group.querySelectorAll("li"));
+    group.innerHTML = buildFacetGroup(3);
+    const replacement = group.firstElementChild!;
+    group.replaceChildren(...Array.from(replacement.childNodes));
+    runFilterEnhancements(group.querySelector("ul")!);
+    const toggle = group.querySelector<HTMLButtonElement>("button")!;
+    expect(group.querySelectorAll(".cast-facet-item-hidden")).toHaveLength(1);
+    expect(group.querySelectorAll("li")[3].classList.contains("cast-facet-item-hidden")).toBe(false);
+    oldToggle.click();
+    expect(group.dataset.expanded).toBeUndefined();
+    expect(oldItems.every((item) => !item.classList.contains("cast-facet-item-hidden"))).toBe(true);
+    runFilterEnhancements(group);
+    toggle.click();
+    expect(group.querySelectorAll(".cast-facet-item-hidden")).toHaveLength(0);
+    toggle.click();
+    expect(group.querySelectorAll(".cast-facet-item-hidden")).toHaveLength(1);
+  });
+
+  it.each(['absent', 'disabled', 'noninteractive'])('keeps native links visible with %s toggle and enhances later', (kind) => {
+    document.body.innerHTML = buildFacetGroup();
+    const group = document.querySelector<HTMLElement>("[data-cast-facet-group]")!;
+    const original = group.querySelector<HTMLButtonElement>("button")!;
+    if (kind === 'absent') original.remove();
+    if (kind === 'disabled') original.disabled = true;
+    if (kind === 'noninteractive') original.outerHTML = '<span data-cast-facet-toggle>Show all</span>';
+    runFilterEnhancements(group);
+    expect(group.querySelectorAll(".cast-facet-item-hidden")).toHaveLength(0);
+    group.querySelector("[data-cast-facet-toggle]")?.remove();
+    original.disabled = false;
+    group.append(original);
+    runFilterEnhancements(group);
+    expect(group.querySelectorAll(".cast-facet-item-hidden")).toHaveLength(2);
+    original.click();
+    expect(group.querySelectorAll(".cast-facet-item-hidden")).toHaveLength(0);
+  });
+
+  it("restores native links when the toggle is removed after enhancement", async () => {
+    document.body.innerHTML = buildFacetGroup();
+    runFilterEnhancements();
+    document.querySelector("[data-cast-facet-toggle]")!.remove();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(document.querySelectorAll(".cast-facet-item-hidden")).toHaveLength(0);
+  });
+
+  it("observes replaced children, preserves expansion, and releases ownership on cleanup", async () => {
+    document.body.innerHTML = buildFacetGroup();
+    runFilterEnhancements();
+    const group = document.querySelector<HTMLElement>("[data-cast-facet-group]")!;
+    const toggle = group.querySelector<HTMLButtonElement>("button")!;
+    toggle.click();
+    group.querySelector("ul")!.innerHTML = '<li class="cast-date-facet-item"><a href="#">New 1</a></li><li class="cast-date-facet-item"><a href="#">New 2</a></li><li class="cast-date-facet-item"><a href="#">New 3</a></li>';
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(group.dataset.expanded).toBe("true");
+    toggle.click();
+    expect(group.querySelectorAll(".cast-facet-item-hidden")).toHaveLength(1);
+    toggle.disabled = true;
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(group.querySelectorAll(".cast-facet-item-hidden")).toHaveLength(0);
+    toggle.disabled = false;
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(group.querySelectorAll(".cast-facet-item-hidden")).toHaveLength(1);
+    group.dispatchEvent(new CustomEvent("htmx:beforeCleanupElement", { bubbles: true }));
+    toggle.click();
+    expect(group.querySelectorAll(".cast-facet-item-hidden")).toHaveLength(0);
+    expect(group.dataset.castFacetReady).toBeUndefined();
+    runFilterEnhancements(group);
+    expect(group.querySelectorAll(".cast-facet-item-hidden")).toHaveLength(1);
   });
 
   it("skips groups inside search modal", () => {

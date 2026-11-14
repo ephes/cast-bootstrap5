@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- Preserve initialized Podlove playback through theme changes, retaining the
+  instance's original skin; bind script loading/retries to one canonical embed
+  URL per document and show a retryable error for conflicting implementations.
+- Fence delayed player observation by connection generation and remove retired
+  iframe hosts on disconnect so reconnect starts with one fresh instance.
+- Refresh facet ownership after inner swaps, release old listeners, and keep all
+  native links visible when a usable toggle is absent or removed.
+- Preserve unwrapped tails of partially enhanced blockquotes during merging.
+- Generate translation catalogs in isolation: checks never modify source PO/MO
+  files, and updates stage the complete set before publication with rollback on
+  caught publication failures.
+
 - Fence HTMX paging masks and transitions by request identity, including replaced
   paging elements and late errors or settle timers; requests cancelled in
   `htmx:beforeRequest` do not take ownership.

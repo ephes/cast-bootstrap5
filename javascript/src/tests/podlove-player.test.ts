@@ -920,7 +920,7 @@ describe('PodlovePlayerElement', () => {
   });
 
   describe('dark mode toggle', () => {
-    it('should reinitialize with new config URL when data-bs-theme changes', async () => {
+    it('should retain the initial skin when data-bs-theme changes', async () => {
       document.documentElement.setAttribute('data-bs-theme', 'light');
       await new Promise((r) => setTimeout(r, 0));
       const playerHost = setupAndTrigger();
@@ -937,10 +937,7 @@ describe('PodlovePlayerElement', () => {
       // MutationObserver fires asynchronously
       await new Promise((r) => setTimeout(r, 0));
 
-      expect(global.podlovePlayer).toHaveBeenCalledTimes(2);
-      const lastCall = vi.mocked(global.podlovePlayer!).mock.calls[1];
-      expect(lastCall[1]).toBe('/api/audios/podlove/63/post/75/');
-      expect(lastCall[2]).toBe('/api/audios/player_config/?color_scheme=dark');
+      expect(global.podlovePlayer).toHaveBeenCalledTimes(1);
     });
 
     it('should not reinitialize when color scheme has not changed', async () => {
@@ -959,7 +956,7 @@ describe('PodlovePlayerElement', () => {
       expect(global.podlovePlayer).toHaveBeenCalledTimes(1);
     });
 
-    it('should replace the old player host element after reinitialization', async () => {
+    it('should keep the same player host after a cosmetic theme change', async () => {
       document.documentElement.setAttribute('data-bs-theme', 'light');
       await new Promise((r) => setTimeout(r, 0));
       const element = document.createElement('podlove-player');
@@ -982,12 +979,11 @@ describe('PodlovePlayerElement', () => {
 
       const newHost = element.querySelector('.podlove-player-host');
       expect(newHost).not.toBeNull();
-      expect(newHost).not.toBe(oldHost);
-      // Old host should no longer be in the DOM
-      expect(oldHost!.parentElement).toBeNull();
+      expect(newHost).toBe(oldHost);
+      expect(oldHost!.isConnected).toBe(true);
     });
 
-    it('should discard stale async callback when theme toggles during embed script load', async () => {
+    it('should keep one initialization when theme toggles during embed script load', async () => {
       // Remove the global podlovePlayer so the async loadEmbedScript path is taken
       const originalPodlovePlayer = global.podlovePlayer;
       delete global.podlovePlayer;
@@ -996,7 +992,6 @@ describe('PodlovePlayerElement', () => {
         const element = document.createElement('podlove-player');
         element.setAttribute('id', 'audio_race');
         element.setAttribute('data-url', '/api/audios/podlove/1/post/1/');
-        element.setAttribute('data-embed', '/embed.js');
         document.documentElement.setAttribute('data-bs-theme', 'light');
         await new Promise((r) => setTimeout(r, 0));
         document.body.appendChild(element);
@@ -1024,14 +1019,12 @@ describe('PodlovePlayerElement', () => {
         }
         await new Promise((r) => setTimeout(r, 0));
 
-        // The stale first init should have been discarded by the version guard.
-        // Only the second init (dark theme) should have called podlovePlayer.
+        // The pending initialization keeps its original skin.
         const calls = (global.podlovePlayer as ReturnType<typeof vi.fn>).mock.calls;
-        expect(calls.length).toBeGreaterThan(0);
+        expect(calls.length).toBe(1);
         for (const call of calls) {
           const configArg = call[2] as string;
-          expect(configArg).toContain('color_scheme=dark');
-          expect(configArg).not.toContain('color_scheme=light');
+          expect(configArg).toContain('color_scheme=light');
         }
       } finally {
         global.podlovePlayer = originalPodlovePlayer;
@@ -1046,7 +1039,6 @@ describe('PodlovePlayerElement', () => {
         const element = document.createElement('podlove-player');
         element.setAttribute('id', 'audio_disconnect');
         element.setAttribute('data-url', '/api/audios/podlove/1/post/1/');
-        element.setAttribute('data-embed', '/embed.js');
         document.body.appendChild(element);
 
         const observerInstance = getObserver(element);
