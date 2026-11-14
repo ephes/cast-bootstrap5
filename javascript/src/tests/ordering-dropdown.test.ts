@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import "@testing-library/jest-dom/vitest";
 
 import { initOrderingDropdowns } from "@/ordering/ordering-dropdown";
@@ -17,6 +17,49 @@ function buildOrderingMarkup(withLabelId = false): string {
 }
 
 describe("ordering-dropdown", () => {
+  it("reconciles live option identities, labels, order and disabled groups", async () => {
+    document.body.innerHTML = `<form>${buildOrderingMarkup()}</form>`;
+    initOrderingDropdowns();
+    const select = document.querySelector('select')!;
+    const retired = document.querySelector<HTMLButtonElement>('[data-order-value="visible_date"]')!;
+    select.innerHTML = '<optgroup disabled><option value="new">New</option></optgroup><option value="last" selected>Last</option>';
+    retired.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(select.value).toBe('last');
+    await Promise.resolve();
+    expect(Array.from(document.querySelectorAll('.dropdown-item'), el => el.textContent)).toEqual(['New', 'Last']);
+    expect(document.querySelector<HTMLButtonElement>('[data-order-value="new"]')!.disabled).toBe(true);
+    select.querySelector('optgroup')!.disabled = false;
+    select.options[0].label = 'Renamed';
+    select.append(select.options[0]);
+    await Promise.resolve();
+    expect(Array.from(document.querySelectorAll('.dropdown-item'), el => el.textContent)).toEqual(['Last', 'Renamed']);
+    document.querySelector<HTMLButtonElement>('[data-order-value="new"]')!.click();
+    expect(select.selectedIndex).toBe(1);
+    expect(new FormData(document.querySelector('form')!).get('o')).toBe('new');
+  });
+
+  it("releases listeners and pending reset work on HTMX cleanup and reenhances once", async () => {
+    vi.useFakeTimers();
+    document.body.innerHTML = `<form>${buildOrderingMarkup()}</form>`;
+    initOrderingDropdowns();
+    const container = document.getElementById('div_id_o')!;
+    const select = document.querySelector('select')!;
+    const remove = vi.spyOn(document.querySelector('form')!, 'removeEventListener');
+    document.querySelector('form')!.reset();
+    expect(vi.getTimerCount()).toBe(1);
+    container.dispatchEvent(new CustomEvent('htmx:beforeCleanupElement', { bubbles: true, detail: { elt: container } }));
+    expect(vi.getTimerCount()).toBe(0);
+    expect(remove).toHaveBeenCalledWith('reset', expect.any(Function));
+    expect(select.style.display).toBe('');
+    initOrderingDropdowns();
+    initOrderingDropdowns();
+    expect(container.querySelectorAll('.dropdown')).toHaveLength(1);
+    document.querySelector('form')!.reset();
+    expect(vi.getTimerCount()).toBe(1);
+    vi.runAllTimers();
+    vi.useRealTimers();
+  });
+
   it("names the button with the field label and current value through change and reset", async () => {
     document.body.innerHTML = `<form>${buildOrderingMarkup()}</form>`;
     initOrderingDropdowns();

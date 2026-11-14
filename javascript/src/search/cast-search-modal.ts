@@ -1,3 +1,5 @@
+import { acquireBodyScroll, observeBootstrapScroll } from "@/utils/body-scroll";
+import { readBoundedJson } from "@/utils/bounded-json";
 import { isOrderingOptionDisabled } from "@/utils/ordering-options";
 import { createFocusTrap, type FocusTrapController } from "@/utils/focus-trap";
 import CastSearchTypeahead from "@/search/cast-search-typeahead";
@@ -5,6 +7,9 @@ import CastSearchTypeahead from "@/search/cast-search-typeahead";
 const DEFAULT_TRIGGER_SELECTOR = "[data-cast-search-trigger]";
 const ORDERING_DEFAULT = "-visible_date";
 export const FACET_DEBOUNCE_MS = 300;
+const FACET_MAX_RESPONSE_BYTES = 256 * 1024;
+const FACET_MAX_GROUP_OPTIONS = 500;
+const FACET_MAX_TOTAL_OPTIONS = 1000;
 const FACET_CACHE_MAX_ENTRIES = 50;
 const FACET_REQUEST_DEADLINE_MS = 5000;
 const FACET_GROUP_NAMES = ["date_facets", "tag_facets", "category_facets"] as const;
@@ -263,11 +268,14 @@ function parseModalFacetResponse(payload: unknown): ModalFacetResponse | null {
   }
 
   const groups: ModalFacetResponse["groups"] = {};
+  let totalOptions = 0;
   for (const [name, group] of Object.entries(payload.groups)) {
     if (!isFacetGroupName(name) || !isRecord(group) || typeof group.selected !== "string" ||
         !isFacetCount(group.all_count) || !Array.isArray(group.options)) {
       return null;
     }
+    totalOptions += group.options.length;
+    if (group.options.length > FACET_MAX_GROUP_OPTIONS || totalOptions > FACET_MAX_TOTAL_OPTIONS) return null;
     const options: ModalFacetOption[] = [];
     for (const option of group.options) {
       if (!isRecord(option) || typeof option.slug !== "string" || typeof option.name !== "string" || !isFacetCount(option.count)) {
@@ -300,6 +308,7 @@ function dedupeFacetOptions(options: ModalFacetOption[]): ModalFacetOption[] {
 }
 
 export default class CastSearchModal extends HTMLElement {
+  private releaseBodyScroll: (() => void) | null = null;
   private trigger: HTMLElement | null;
   private overlay: HTMLElement | null;
   private modal: HTMLElement | null;
@@ -373,6 +382,7 @@ export default class CastSearchModal extends HTMLElement {
   }
 
   connectedCallback(): void {
+    observeBootstrapScroll();
     this.resolveElements();
     if (!this.overlay || !this.modal) {
       return;
@@ -392,8 +402,9 @@ export default class CastSearchModal extends HTMLElement {
   disconnectedCallback(): void {
     if (this.overlay && !this.overlay.hidden) {
       this.overlay.hidden = true;
-      document.body.style.overflow = "";
     }
+    this.releaseBodyScroll?.();
+    this.releaseBodyScroll = null;
     this.clearDebounceTimer();
     this.clearLoadingTimer();
     this.state.requestSeq += 1;
@@ -411,7 +422,7 @@ export default class CastSearchModal extends HTMLElement {
     }
 
     this.overlay.hidden = false;
-    document.body.style.overflow = "hidden";
+    this.releaseBodyScroll = acquireBodyScroll();
     this.typeahead?.connect();
     this.typeahead?.resume();
     this.focusTrap?.activate();
@@ -434,7 +445,8 @@ export default class CastSearchModal extends HTMLElement {
     this.abortInFlightRequest();
     this.typeahead?.disconnect();
     this.overlay.hidden = true;
-    document.body.style.overflow = "";
+    this.releaseBodyScroll?.();
+    this.releaseBodyScroll = null;
     this.focusTrap?.deactivate();
     this.trigger?.focus();
   }
@@ -777,7 +789,7 @@ export default class CastSearchModal extends HTMLElement {
           if (!response.ok) {
             throw new Error(`HTTP ${response.status}`);
           }
-          return response.json();
+          return readBoundedJson(response, controller.signal, FACET_MAX_RESPONSE_BYTES);
         })(),
         aborted,
       ]);
@@ -874,6 +886,12 @@ export default class CastSearchModal extends HTMLElement {
       return;
     }
 
+    const focused = document.activeElement;
+    const focusedLink = focused instanceof HTMLAnchorElement && this.modal.contains(focused) ? focused : null;
+    const focusedGroup = focusedLink?.closest<HTMLElement>("[data-cast-facet-group]");
+    const focusedName = focusedGroup ? getFacetGroupName(focusedGroup) : null;
+    const focusedSlug = focusedLink && focusedName ? getFacetValueFromLink(focusedLink, focusedName) : null;
+
     Object.entries(payload.groups).forEach(([groupName, groupData]) => {
       if (!isFacetGroupName(groupName) || !groupData) {
         return;
@@ -893,6 +911,16 @@ export default class CastSearchModal extends HTMLElement {
     initModalFacetToggles(this.modal);
     this.expandActivePanels();
     this.applyNoResultsState(payload.result_count);
+    // Restore only focus lost by this commit, after collapsed options are known.
+    if (focusedLink && !focusedLink.isConnected && focusedName && focusedSlug !== null
+        && document.activeElement === document.body) {
+      const group = findFacetGroupElement(this.modal, focusedName);
+      const links = Array.from(group?.querySelectorAll<HTMLAnchorElement>("a[href]") ?? [])
+        .filter(link => !link.closest("[hidden]"));
+      const replacement = links.find(link => getFacetValueFromLink(link, focusedName) === focusedSlug)
+        ?? links.find(link => getFacetValueFromLink(link, focusedName) === "");
+      replacement?.focus({ preventScroll: true });
+    }
   }
 
   private renderFacetGroup(groupName: FacetGroupName, groupData: ModalFacetGroup): void {
@@ -946,6 +974,7 @@ export default class CastSearchModal extends HTMLElement {
     if (panel) {
       panel.open = panelWasOpen;
     }
+
   }
 
   private createFacetOptionItem({

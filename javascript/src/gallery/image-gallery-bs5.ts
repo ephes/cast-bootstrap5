@@ -1,3 +1,5 @@
+import { observeBootstrapScroll } from "@/utils/body-scroll";
+
 export default class ImageGalleryBs5 extends HTMLElement {
     currentImage: HTMLElement | null;
     currentModal: HTMLElement | null;
@@ -13,12 +15,22 @@ export default class ImageGalleryBs5 extends HTMLElement {
     private closingModal: HTMLElement | null = null;
     private openingTrigger: HTMLAnchorElement | null = null;
     private boundModalHide = (event: Event) => {
-        this.closingModal = event.currentTarget as HTMLElement;
-        this.cancelImageLoading();
+        const modal = event.currentTarget as HTMLElement;
+        this.closingModal = modal;
+        const sequence = this.loadingSequence;
+        // Bootstrap checks defaultPrevented after every hide listener has run.
+        queueMicrotask(() => {
+            if (event.defaultPrevented) {
+                if (this.closingModal === modal) this.closingModal = null;
+                return;
+            }
+            if (this.currentModal === modal && this.loadingSequence === sequence) this.cancelImageLoading();
+        });
     };
     private boundModalHidden = (event: Event) => {
         if (this.closingModal === event.currentTarget) this.closingModal = null;
         if (event.currentTarget !== this.currentModal) return;
+        this.cancelImageLoading();
         const trigger = this.openingTrigger;
         this.openingTrigger = null;
         const anotherModal = document.querySelector('.modal.show, .modal[aria-modal="true"]');
@@ -41,30 +53,38 @@ export default class ImageGalleryBs5 extends HTMLElement {
             customElements.define(tagName || "image-gallery-bs5", ImageGalleryBs5);
         }
     }
-    replaceImage (direction: string):void {
+    replaceImage (direction: string):boolean {
         if (this.currentImage) {
             const which = this.currentImage.getAttribute(direction);
-            if (which === "false") {
-                return;
+            if (!which || which === "false") {
+                return false;
             }
-            const targetElement:HTMLElement|null = this.querySelector("#" + which)
+            const targetElement = Array.from(this.querySelectorAll<HTMLImageElement>("img[id]"))
+                .find(image => image.id === which && image.closest("image-gallery-bs5") === this);
             if (targetElement) {
-                this.setModalImage(targetElement);
+                return this.setModalImage(targetElement);
             }
         }
+        return false;
     }
     private resolveModal(link?: HTMLElement): HTMLElement | null {
         if (link) {
             const target = link.getAttribute("data-bs-target");
             if (target) {
-                const modal = document.querySelector<HTMLElement>(target);
-                if (modal) {
-                    return modal;
+                try {
+                    const modal = document.querySelector<HTMLElement>(target);
+                    return modal && this.ownsModal(modal) ? modal : null;
+                } catch {
+                    return null;
                 }
             }
         }
 
         return this.querySelector<HTMLElement>(".modal");
+    }
+
+    private ownsModal(modal: HTMLElement): boolean {
+        return modal.matches(".modal") && (modal.closest("image-gallery-bs5") === this || modal === this.currentModal);
     }
 
     private showModal(modal: HTMLElement | null): void {
@@ -297,10 +317,18 @@ export default class ImageGalleryBs5 extends HTMLElement {
 
     private cleanupModal(): void {
         this.cancelImageLoading();
-        const ownerId = this.id;
-        const selector = ownerId ? `.modal[data-gallery-owner="${ownerId}"]` : null;
-        const modal = selector ? document.querySelector<HTMLElement>(selector) : this.currentModal;
+        const modal = this.currentModal;
         if (modal && modal.parentElement === document.body) {
+            // Retire this node permanently. Reconnection gets an unbound copy with
+            // the original target ID; old transition callbacks only own the old node.
+            const replacement = modal.cloneNode(true) as HTMLElement;
+            replacement.classList.remove("show");
+            replacement.style.display = "none";
+            replacement.removeAttribute("aria-modal");
+            replacement.setAttribute("aria-hidden", "true");
+            replacement.removeAttribute("data-gallery-owner");
+            modal.removeAttribute("id");
+            this.append(replacement);
             this.unbindModalEvents(modal);
             const modalApi = (window as unknown as { bootstrap?: any }).bootstrap?.Modal;
             const instance = modalApi?.getInstance(modal);
@@ -337,38 +365,27 @@ export default class ImageGalleryBs5 extends HTMLElement {
             }
         }
         this.currentModal = null;
+        this.showingModal = null;
+        this.currentImage = null;
     }
 
-    setModalImage(img: HTMLElement, modal?: HTMLElement | null):void {
-        this.currentImage = img;
-        if (!img.parentNode) {
-            console.error("No parent node for image: ", img);
-            return;
-        }
-        const thumbnailPicture = img.parentNode;
-        const fullUrl = img.closest("a[data-full]")?.getAttribute("data-full") ?? "";
-        const thumbnailSource = thumbnailPicture.querySelector("source");
-        if (!thumbnailSource) {
-            console.error("No thumbnail source for picture: ", thumbnailPicture);
-            return;
-        }
+    setModalImage(img: HTMLElement, modal?: HTMLElement | null):boolean {
+        if (img.closest("image-gallery-bs5") !== this || !img.matches("img")) return false;
+        const thumbnailPicture = img.parentElement;
+        const thumbnailSource = thumbnailPicture?.querySelector("source");
         const resolvedModal = modal ?? this.currentModal ?? this.resolveModal();
-        if (!resolvedModal) {
-            console.error("No modal for image gallery: ", this);
-            return;
-        }
-        this.ensureModalInBody(resolvedModal);
-        this.currentModal = resolvedModal;
+        if (!thumbnailSource || !resolvedModal || !this.ownsModal(resolvedModal)) return false;
         const modalBody = resolvedModal.querySelector(".modal-body");
-        if (!modalBody) {
-            console.error("No modal body for modal: ", this);
-            return;
-        }
         const modalFooter = resolvedModal.querySelector(".modal-footer");
-        if (!modalFooter) {
-            console.error("No modal footer for modal: ", this);
-            return;
-        }
+        const modalSource = modalBody?.querySelector("source");
+        const modalImage = modalBody?.querySelector("img");
+        const modalLink = modalImage?.closest("a");
+        if (!modalBody || !modalFooter || !modalSource || !modalImage || !modalLink) return false;
+        const fullUrl = img.closest("a[data-full]")?.getAttribute("data-full") ?? "";
+        // Commit ownership only after the whole thumbnail/modal shape is usable.
+        this.ensureModalInBody(resolvedModal);
+        this.currentImage = img;
+        this.currentModal = resolvedModal;
 
         const sourceAttributes = [
             { attr: "data-modal-srcset", prop: "srcset" },
@@ -377,11 +394,6 @@ export default class ImageGalleryBs5 extends HTMLElement {
             { attr: "data-modal-sizes", prop: "sizes" },
         ];
 
-        const modalSource = modalBody.querySelector("source");
-        if (!modalSource) {
-            console.error("No modal source for modal body: ", modalBody);
-            return;
-        }
         for (const { attr, prop } of sourceAttributes) {
             const value = thumbnailSource.getAttribute(attr);
             if (value !== null) {
@@ -402,12 +414,7 @@ export default class ImageGalleryBs5 extends HTMLElement {
             { attr: "data-modal-width", prop: "width"},
         ];
 
-        const modalImage = modalBody.querySelector("img");
-        if (!modalImage) {
-            console.error("No modal image for modal body: ", modalBody);
-            return;
-        }
-        (modalImage.parentNode?.parentNode as Element).setAttribute("href", fullUrl);
+        modalLink.setAttribute("href", fullUrl);
         for (const { attr, prop } of imgAttributes) {
             const value = img.getAttribute(attr);
             if (value !== null) {
@@ -443,6 +450,7 @@ export default class ImageGalleryBs5 extends HTMLElement {
             buttons = buttons + '<button id="data-next" type="button" class="btn btn-primary disabled">Next</button>'
         }
         modalFooter.innerHTML = buttons;
+        return true;
     }
 
     private handleThumbnailClick(event: Event) {
@@ -452,18 +460,13 @@ export default class ImageGalleryBs5 extends HTMLElement {
             || link.hasAttribute("download") || (link.target && link.target.toLowerCase() !== "_self")) {
             return;
         }
+        const img = link.querySelector("img");
+        const modal = this.resolveModal(link);
+        if (!img || !modal || !this.setModalImage(img, modal)) return;
         event.preventDefault();
         event.stopPropagation();
-        // Find the img element within the clicked link
-        const img = link.querySelector('img');
-        if (img) {
-            const modal = this.resolveModal(link);
-            this.setModalImage(img, modal);
-            this.openingTrigger = link;
-            this.showModalImmediately(modal);
-        } else {
-            console.error("No img element found in clicked thumbnail");
-        }
+        this.openingTrigger = link;
+        this.showModalImmediately(modal);
     }
 
     private handleFooterClick(event: Event) {
@@ -474,15 +477,16 @@ export default class ImageGalleryBs5 extends HTMLElement {
     }
 
     private handleKeydown(event: KeyboardEvent) {
-        if (event.key === "ArrowLeft") {
-            this.replaceImage("data-prev");
-        }
-        if (event.key === "ArrowRight") {
-            this.replaceImage("data-next");
-        }
+        if (event.defaultPrevented || event.isComposing || event.keyCode === 229
+            || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+        const target = event.target;
+        if (target instanceof Element && target.closest('input, textarea, select, button, a[href], summary, [contenteditable]:not([contenteditable="false"]), [role="textbox"], [role="slider"], [role="spinbutton"]')) return;
+        const direction = event.key === "ArrowLeft" ? "data-prev" : event.key === "ArrowRight" ? "data-next" : null;
+        if (direction && this.replaceImage(direction)) event.preventDefault();
     }
 
     connectedCallback() {
+        observeBootstrapScroll();
         // Add event listeners to thumbnail links - click -> open modal image
         let thumbnailLinks = this.querySelectorAll(".cast-gallery-container > a");
         thumbnailLinks.forEach((link) => {

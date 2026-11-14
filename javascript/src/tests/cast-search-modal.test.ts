@@ -830,7 +830,7 @@ describe("cast-search-modal", () => {
 
     pythonLink.click();
     expect(firstSignalState.value?.aborted).toBe(true);
-    resolveFirst?.({ ok: true, json: async () => stalePayload } as Response);
+    resolveFirst?.(new Response(JSON.stringify(stalePayload)));
     await Promise.resolve();
     await Promise.resolve();
 
@@ -886,10 +886,7 @@ describe("cast-search-modal", () => {
 
     expect(firstSignalState.value?.aborted).toBe(true);
 
-    resolveSecondState.value?.({
-      ok: true,
-      json: async () => modalResponse(),
-    } as Response);
+    resolveSecondState.value?.(new Response(JSON.stringify(modalResponse())));
     await Promise.resolve();
     await Promise.resolve();
 
@@ -979,7 +976,7 @@ describe("cast-search-modal", () => {
     const fetchMock = vi.fn().mockImplementationOnce((_: string, init: RequestInit) => {
       signals.push(init.signal as AbortSignal);
       const pending = new Promise<Response>(() => undefined);
-      return phase === "fetch" ? pending : Promise.resolve({ ok: true, json: () => pending } as Response);
+      return phase === "fetch" ? pending : Promise.resolve(new Response(new ReadableStream({ pull: () => new Promise(() => undefined) })));
     }).mockImplementation(() => jsonResponse(modalResponse()));
     vi.stubGlobal("fetch", fetchMock);
     const input = document.querySelector<HTMLInputElement>('input[name="search"]')!;
@@ -1083,7 +1080,7 @@ describe("cast-search-modal", () => {
     expect(signals).toHaveLength(2);
     modal.closeModal();
     expect(signals.every((signal) => signal.aborted)).toBe(true);
-    if (phase === "body") expect(cancelledBodies).toHaveBeenCalledOnce();
+    if (phase === "body") expect(cancelledBodies).toHaveBeenCalledTimes(2);
     const facets = document.querySelector(".cast-search-modal-body")!.innerHTML;
     const suggestionStatus = document.querySelector("[data-cast-suggestion-status]")!.textContent;
     complete.forEach((resolve) => resolve());
@@ -1293,5 +1290,128 @@ describe("cast-search-modal", () => {
       const element = document.querySelector("cast-search-modal") as CastSearchModal;
       document.body.appendChild(element);
     }).not.toThrow();
+  });
+});
+
+describe('bounded facet refresh and focus', () => {
+  afterEach(() => {
+    document.body.replaceChildren();
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  it.each([undefined, '1'])('caps actual streamed bytes despite Content-Length %s without caching', async (length) => {
+    vi.useFakeTimers();
+    document.body.innerHTML = buildModalMarkup({ dynamic: true });
+    const cancel = vi.fn();
+    const json = vi.fn();
+    const fetchMock = vi.fn().mockImplementation(() => {
+      const response = new Response(new ReadableStream({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode(' '.repeat(256 * 1024 + 1)));
+        }, cancel,
+      }), { headers: length ? { 'Content-Length': length } : {} });
+      response.json = json;
+      return Promise.resolve(response);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const input = document.querySelector<HTMLInputElement>('input[name="search"]')!;
+    const group = document.querySelector('[data-cast-facet-group="tag_facets"]')!;
+    const original = group.innerHTML;
+    for (const query of ['same', 'other', 'same']) {
+      input.value = query;
+      input.dispatchEvent(new Event('input'));
+      await vi.advanceTimersByTimeAsync(FACET_DEBOUNCE_MS + 10);
+      expect(group.innerHTML).toBe(original);
+      expect(document.querySelector('[data-cast-facet-status]')!.textContent).toContain('Could not refresh');
+    }
+    expect(cancel).toHaveBeenCalledTimes(3);
+    expect(json).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(document.querySelector<HTMLButtonElement>('[type="submit"]')!.disabled).toBe(false);
+  });
+
+  it.each(['group', 'total', 'boundary'])('admits %s option budget atomically', async (mode) => {
+    vi.useFakeTimers();
+    document.body.innerHTML = buildModalMarkup({ dynamic: true });
+    const options = (n: number) => Array.from({ length: n }, (_, i) => ({ slug: `${i}`, name: `${i}`, count: 1 }));
+    const group = (n: number) => ({ selected: '', all_count: 1, options: options(n) });
+    const payload = { mode: 'modal', result_count: 1, groups: {
+      date_facets: group(mode === 'group' ? 501 : 500),
+      tag_facets: group(500), category_facets: group(mode === 'total' ? 1 : 0),
+    } };
+    vi.stubGlobal('fetch', vi.fn(() => jsonResponse(payload)));
+    const groups = document.querySelectorAll('[data-cast-facet-group]');
+    const before = Array.from(groups, el => el.innerHTML);
+    const input = document.querySelector<HTMLInputElement>('input[name="search"]')!;
+    input.value = 'budget'; input.dispatchEvent(new Event('input'));
+    await vi.advanceTimersByTimeAsync(FACET_DEBOUNCE_MS + 10);
+    if (mode === 'boundary') {
+      expect(groups[0].querySelectorAll('a')).toHaveLength(501);
+      expect(document.querySelector('[data-cast-facet-status]')!.textContent).toBe('Filters updated.');
+    } else {
+      expect(Array.from(groups, el => el.innerHTML)).toEqual(before);
+      expect(document.querySelector<HTMLInputElement>('input[name="tag_facets"]')!.value).toBe('python');
+      expect(document.querySelector('[data-cast-facet-status]')!.textContent).toContain('Could not refresh');
+    }
+  });
+
+  it.each(['kept', 'removed', 'moved'])('preserves owned facet focus: %s', async (mode) => {
+    vi.useFakeTimers();
+    document.body.innerHTML = buildModalMarkup({ dynamic: true });
+    let resolve!: (response: Response) => void;
+    vi.stubGlobal('fetch', vi.fn(() => new Promise<Response>(done => { resolve = done; })));
+    getModalElement().openModal();
+    const group = document.querySelector('[data-cast-facet-group="tag_facets"]')!;
+    const link = group.querySelector<HTMLAnchorElement>('a')!;
+    link.focus(); link.click();
+    await vi.advanceTimersByTimeAsync(FACET_DEBOUNCE_MS);
+    const input = document.querySelector<HTMLInputElement>('input[name="search"]')!;
+    if (mode === 'moved') input.focus();
+    const payload = { mode: 'modal', result_count: 1, groups: { tag_facets: {
+      selected: '', all_count: 1, options: mode === 'removed' ? [] : [{ slug: 'python', name: 'Python', count: 1 }],
+    } } };
+    resolve(new Response(JSON.stringify(payload)));
+    await vi.advanceTimersByTimeAsync(10);
+    if (mode === 'moved') expect(document.activeElement).toBe(input);
+    else {
+      expect(document.activeElement?.isConnected).toBe(true);
+      expect(group.contains(document.activeElement)).toBe(true);
+      expect(new URL((document.activeElement as HTMLAnchorElement).href).searchParams.get('tag_facets')).toBe(mode === 'removed' ? null : 'python');
+    }
+  });
+});
+
+describe('search body scroll ownership', () => {
+  afterEach(() => { document.body.replaceChildren(); document.body.removeAttribute('style'); vi.useRealTimers(); });
+  it.each(['first', 'second', 'detach'])('restores prior scroll state after overlapping search instances: %s', (order) => {
+    document.body.style.overflow = 'scroll';
+    document.body.innerHTML = buildModalMarkup();
+    const first = getModalElement();
+    const second = first.cloneNode(true) as CastSearchModal;
+    document.body.append(second);
+    first.openModal(); second.openModal();
+    expect(document.body.style.overflow).toBe('hidden');
+    if (order === 'first') first.closeModal();
+    else if (order === 'second') second.closeModal();
+    else first.remove();
+    expect(document.body.style.overflow).toBe('hidden');
+    if (order === 'second') first.closeModal(); else second.closeModal();
+    expect(document.body.style.overflow).toBe('scroll');
+    first.closeModal(); second.closeModal();
+    expect(document.body.style.overflow).toBe('scroll');
+  });
+  it('releases a shown Bootstrap modal that was detached without hiding', () => {
+    document.body.style.overflow = 'scroll';
+    document.body.innerHTML = buildModalMarkup();
+    const search = getModalElement();
+    const other = document.createElement('div');
+    other.className = 'modal';
+    document.body.append(other);
+    search.openModal();
+    other.dispatchEvent(new Event('show.bs.modal', { bubbles: true, cancelable: true }));
+    other.remove();
+    search.closeModal();
+    expect(document.body.style.overflow).toBe('scroll');
   });
 });

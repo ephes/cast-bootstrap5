@@ -1,4 +1,5 @@
 import { afterEach, expect, test, vi } from "vitest";
+import CastSearchModal from "@/search/cast-search-modal";
 import ImageGalleryBs5 from "@/gallery/image-gallery-bs5";
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
@@ -322,4 +323,156 @@ test("cancelled opening retires pending image listeners and deadline", () => {
     modal.querySelector("img")!.dispatchEvent(new Event("error"));
     expect(body.querySelector('[role="alert"]')).toBeNull();
     expect(vi.getTimerCount()).toBe(0);
+});
+
+test("vetoed Bootstrap hide preserves the pending image deadline and retry", async () => {
+    vi.useFakeTimers();
+    const Modal = bootstrapModal();
+    const gallery = fixture();
+    const modal = open(gallery);
+    vi.advanceTimersByTime(30);
+    modal.addEventListener('hide.bs.modal', event => event.preventDefault(), { once: true });
+    Modal.getInstance(modal).hide();
+    await Promise.resolve();
+    expect(modal.classList.contains('show')).toBe(true);
+    expect(modal.querySelector('.modal-body')!.getAttribute('aria-busy')).toBe('true');
+    vi.advanceTimersByTime(10000);
+    expect(modal.querySelector('[role="alert"]')).not.toBeNull();
+    modal.querySelector<HTMLButtonElement>('.cast-gallery-error button')!.click();
+    gallery.replaceImage('data-next');
+    modal.querySelector('img')!.dispatchEvent(new Event('load'));
+    Modal.getInstance(modal).hide();
+    vi.advanceTimersByTime(30);
+    expect(modal.classList.contains('show')).toBe(false);
+});
+
+test.each(['opening', 'closing'])("reconnect during %s cannot adopt a retiring Bootstrap modal", (phase) => {
+    vi.useFakeTimers();
+    const Modal = bootstrapModal();
+    const gallery = fixture();
+    const retired = open(gallery);
+    if (phase === 'closing') {
+        vi.advanceTimersByTime(30);
+        Modal.getInstance(retired).hide();
+    }
+    gallery.remove();
+    document.body.append(gallery);
+    const replacement = open(gallery);
+    expect(replacement).not.toBe(retired);
+    expect(replacement).not.toBeNull();
+    vi.advanceTimersByTime(50);
+    expect(retired.isConnected).toBe(false);
+    expect(Modal.getInstance(retired)).toBeNull();
+    expect(gallery.currentModal).toBe(replacement);
+    expect(replacement.isConnected).toBe(true);
+    expect(replacement.classList.contains('show')).toBe(true);
+    expect(document.querySelectorAll('.modal-backdrop')).toHaveLength(1);
+    Modal.getInstance(replacement).hide();
+    vi.advanceTimersByTime(30);
+    expect(document.body.style.overflow).toBe('');
+});
+
+test.each(['input', 'textarea', 'select', 'button', 'a', 'editable', 'modified', 'composing', 'cancelled', 'image'])("arrow key ownership at %s", (kind) => {
+    const gallery = fixture();
+    const modal = open(gallery);
+    const el = document.createElement(kind === 'editable' ? 'div' : ['modified', 'composing', 'cancelled', 'image'].includes(kind) ? 'span' : kind);
+    if (kind === 'editable') el.setAttribute('contenteditable', 'true');
+    if (kind === 'a') el.setAttribute('href', '#native');
+    modal.querySelector('.modal-body')!.append(el);
+    const event = new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true, ctrlKey: kind === 'modified', isComposing: kind === 'composing' });
+    if (kind === 'cancelled') event.preventDefault();
+    el.dispatchEvent(event);
+    expect(gallery.currentImage!.id).toBe(kind === 'image' ? 'second' : 'first');
+    expect(event.defaultPrevented).toBe(kind === 'image' || kind === 'cancelled');
+    if (kind === 'image') {
+        const end = new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true });
+        el.dispatchEvent(end);
+        expect(end.defaultPrevented).toBe(false);
+    }
+});
+
+test.each(['img', 'thumbnail-source', 'body', 'footer', 'modal-source', 'modal-image', 'target'])("malformed %s preserves native navigation and prior modal", (missing) => {
+    const gallery = fixture();
+    const modal = open(gallery);
+    const current = gallery.currentImage;
+    const before = modal.innerHTML;
+    const link = gallery.querySelector<HTMLAnchorElement>('.cast-gallery-container > a')!;
+    link.href = '#native';
+    const old = link.cloneNode(true) as HTMLAnchorElement;
+    // Rebind after constructing an additional broken thumbnail.
+    gallery.querySelector('.cast-gallery-container')!.append(old);
+    gallery.connectedCallback();
+    if (missing === 'img') old.querySelector('img')!.remove();
+    if (missing === 'thumbnail-source') old.querySelector('source')!.remove();
+    if (missing === 'target') old.setAttribute('data-bs-target', '#does-not-exist');
+    if (['body', 'footer', 'modal-source', 'modal-image'].includes(missing)) {
+        const broken = modal.cloneNode(true) as HTMLElement;
+        broken.id = 'broken-modal';
+        gallery.append(broken);
+        const selector = { body: '.modal-body', footer: '.modal-footer', 'modal-source': 'source', 'modal-image': 'img' }[missing]!;
+        broken.querySelector(selector)!.remove();
+        old.setAttribute('data-bs-target', '#broken-modal');
+    }
+    const event = new MouseEvent('click', { bubbles: true, cancelable: true });
+    old.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(false);
+    expect(gallery.currentImage).toBe(current);
+    expect(gallery.currentModal).toBe(modal);
+    expect(modal.innerHTML).toBe(before);
+});
+
+test.each(['photo:2', 'photo[2]', '2photo'])("navigation resolves literal owned ID %s", (id) => {
+    const gallery = fixture();
+    const second = gallery.querySelector<HTMLElement>('#second')!;
+    second.id = id;
+    gallery.querySelector('#first')!.setAttribute('data-next', id);
+    open(gallery);
+    expect(() => gallery.replaceImage('data-next')).not.toThrow();
+    expect(gallery.currentImage).toBe(second);
+});
+
+test.each(['[invalid', '#foreign-modal'])("invalid or foreign target %s falls back without state changes", (target) => {
+    const gallery = fixture();
+    const other = fixture();
+    other.id = 'other-gallery';
+    other.querySelector('.modal')!.id = 'foreign-modal';
+    const link = gallery.querySelector('a')!;
+    link.setAttribute('data-bs-target', target);
+    const event = new MouseEvent('click', { bubbles: true, cancelable: true });
+    const errors: Event[] = [];
+    const onError = (event: Event) => { errors.push(event); event.preventDefault(); };
+    window.addEventListener('error', onError);
+    link.dispatchEvent(event);
+    window.removeEventListener('error', onError);
+    expect(errors).toHaveLength(0);
+    expect(event.defaultPrevented).toBe(false);
+    expect(gallery.currentModal).toBeNull();
+    expect(other.currentModal).toBeNull();
+});
+
+
+test.each(['search-first', 'bootstrap-first', 'detach', 'veto'])("search and real Bootstrap share scroll ownership: %s", async (order) => {
+    vi.useFakeTimers();
+    const Modal = bootstrapModal();
+    document.body.style.overflow = 'scroll';
+    const search = new CastSearchModal();
+    search.innerHTML = '<div data-cast-search-overlay hidden><div class="cast-search-modal"><form><input name="search"></form></div></div>';
+    document.body.append(search);
+    const gallery = fixture();
+    let modal: HTMLElement;
+    if (order === 'bootstrap-first') { modal = open(gallery); search.openModal(); }
+    else { search.openModal(); modal = open(gallery); }
+    vi.advanceTimersByTime(30);
+    if (order === 'veto') {
+        modal.addEventListener('hide.bs.modal', event => event.preventDefault(), { once: true });
+        Modal.getInstance(modal).hide();
+        await Promise.resolve();
+    }
+    if (order === 'search-first' || order === 'veto') search.closeModal();
+    else if (order === 'detach') search.remove();
+    else { Modal.getInstance(modal).hide(); vi.advanceTimersByTime(30); }
+    expect(document.body.style.overflow).toBe('hidden');
+    if (order === 'bootstrap-first') search.closeModal();
+    else { Modal.getInstance(modal).hide(); vi.advanceTimersByTime(30); }
+    expect(document.body.style.overflow).toBe('scroll');
 });
