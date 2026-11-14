@@ -294,6 +294,9 @@ class PodlovePlayerElement extends HTMLElement {
   private connectionVersion = 0;
   private retryShouldFocus = false;
   private originalFacadeButton: { button: Element; html: string; label: string | null } | null = null;
+  // Pristine server-rendered facade markup, captured on first connection so a
+  // reconnect after a completed reveal can offer the play control again.
+  private facadeSnapshot: Node[] | null = null;
 
   constructor() {
     super();
@@ -339,6 +342,7 @@ class PodlovePlayerElement extends HTMLElement {
 
     if (this.isFacadeMode()) {
       // Facade containers are styled by SCSS — no need for applyLoadingTheme.
+      this.captureFacadeSnapshot();
       this.setupFacadeInteraction();
       return;
     }
@@ -392,9 +396,30 @@ class PodlovePlayerElement extends HTMLElement {
     // initializer may still hold this detached host; it cannot own the next one.
     this.playerDiv?.remove();
     this.playerDiv = null;
+    this.restoreFacadeSnapshot();
     delete this.dataset.playerInstanceId;
     // Allow re-init on reattach; async work was invalidated before teardown.
     this.isInitialized = false;
+  }
+
+  captureFacadeSnapshot() {
+    if (this.facadeSnapshot) return;
+    const container = this.querySelector(".podlove-player-container");
+    if (!container?.querySelector(".podlove-facade-play")) return;
+    this.facadeSnapshot = Array.from(container.childNodes, (node) => node.cloneNode(true));
+  }
+
+  // A completed reveal removes the facade overlay and its play button. Without
+  // them a reattached facade player has no keyboard-reachable control, so
+  // restore the original markup once the retired host is gone.
+  restoreFacadeSnapshot() {
+    if (!this.isFacadeMode() || !this.facadeSnapshot) return;
+    const container = this.querySelector(".podlove-player-container");
+    if (!(container instanceof HTMLElement) || container.querySelector(".podlove-facade-play")) return;
+    container.replaceChildren(...this.facadeSnapshot.map((node) => node.cloneNode(true)));
+    container.style.removeProperty("border");
+    container.style.removeProperty("border-radius");
+    container.style.removeProperty("color-scheme");
   }
 
   clearIframeMasking() {

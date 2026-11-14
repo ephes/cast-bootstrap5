@@ -154,7 +154,9 @@ existing marked embed script's URL); sites must configure that URL consistently.
 
 Removing a player invalidates pending load callbacks and removes its embed host
 and iframe browsing context. Reconnecting creates a fresh host and instance;
-playback does not survive removal. Window-load observation belongs only to the
+playback does not survive removal. A facade player that was already revealed gets
+its original server-rendered facade (cover, title, play button) back on removal,
+so the reattached player can be started again by keyboard. Window-load observation belongs only to the
 current connection, so a detached player cannot be observed by a late callback.
 
 ## HTMX pagination with Podlove players

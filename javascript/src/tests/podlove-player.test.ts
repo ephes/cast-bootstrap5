@@ -1638,6 +1638,50 @@ describe('PodlovePlayerElement', () => {
       }
     });
 
+    it('should restore the facade play control when reconnecting after a completed reveal', () => {
+      vi.useFakeTimers();
+      const originalPodlovePlayer = global.podlovePlayer;
+      global.podlovePlayer = vi.fn((playerHost: HTMLElement | string) => {
+        if (!(playerHost instanceof HTMLElement)) throw new Error('Expected player host element');
+        const iframe = document.createElement('iframe');
+        playerHost.appendChild(iframe);
+      });
+
+      try {
+        const element = createFacadeElement({ withCover: true });
+        document.body.appendChild(element);
+        const container = element.querySelector('.podlove-player-container') as HTMLElement;
+
+        (element.querySelector('.podlove-facade-play') as HTMLButtonElement).click();
+        const firstIframe = element.querySelector('iframe') as HTMLIFrameElement;
+        firstIframe.dispatchEvent(new Event('load'));
+        vi.advanceTimersByTime(1000);
+        expect(element.querySelector('.podlove-facade-inner')).toBeNull();
+        expect(element.querySelector('.podlove-facade-play')).toBeNull();
+
+        document.body.removeChild(element);
+        document.body.appendChild(element);
+
+        // The retired host is gone and the original facade markup is back.
+        expect(element.querySelector('iframe')).toBeNull();
+        expect(element.querySelector('.podlove-facade-inner')).not.toBeNull();
+        expect(element.querySelector('.podlove-facade-cover')).not.toBeNull();
+        expect(container.classList.contains('podlove-facade')).toBe(true);
+        expect(container.style.border).toBe('');
+        const playBtn = element.querySelector('.podlove-facade-play') as HTMLButtonElement;
+        expect(playBtn).not.toBeNull();
+
+        // The restored control is keyboard reachable and starts one fresh player.
+        playBtn.click();
+        expect(global.podlovePlayer).toHaveBeenCalledTimes(2);
+        expect(element.querySelectorAll('iframe')).toHaveLength(1);
+        expect(element.querySelector('iframe')).not.toBe(firstIframe);
+      } finally {
+        global.podlovePlayer = originalPodlovePlayer;
+        vi.useRealTimers();
+      }
+    });
+
     it('should use dark-mode reveal timings in facade mode', () => {
       vi.useFakeTimers();
       const originalPodlovePlayer = global.podlovePlayer;

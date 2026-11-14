@@ -6,7 +6,8 @@
   instance's original skin; bind script loading/retries to one canonical embed
   URL per document and show a retryable error for conflicting implementations.
 - Fence delayed player observation by connection generation and remove retired
-  iframe hosts on disconnect so reconnect starts with one fresh instance.
+  iframe hosts on disconnect so reconnect starts with one fresh instance;
+  revealed facade players restore their original facade markup and play button.
 - Refresh facet ownership after inner swaps, release old listeners, and keep all
   native links visible when a usable toggle is absent or removed.
 - Preserve unwrapped tails of partially enhanced blockquotes during merging.
