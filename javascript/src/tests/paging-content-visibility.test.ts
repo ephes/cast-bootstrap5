@@ -19,6 +19,29 @@ describe("paging-content-visibility", () => {
     vi.restoreAllMocks();
   });
 
+  it.each(["htmx:afterSettle", "htmx:sendError", "htmx:beforeTransition"])("fences stale %s by actual request identity after replacement", (terminal) => {
+    vi.useFakeTimers();
+    const old = document.getElementById("paging-area")!;
+    old.innerHTML = "<podlove-player></podlove-player>";
+    initPagingContentVisibility();
+    const a = new XMLHttpRequest();
+    const b = new XMLHttpRequest();
+    const emit = (type: string, xhr: XMLHttpRequest, target: Element) =>
+      document.dispatchEvent(new CustomEvent(type, { cancelable: true, detail: { target, xhr } }));
+    emit("htmx:beforeRequest", a, old);
+    emit("htmx:afterSettle", a, old);
+    const next = old.cloneNode(true) as Element;
+    old.replaceWith(next);
+    emit("htmx:beforeRequest", b, next);
+    emit(terminal, a, old);
+    vi.advanceTimersByTime(500);
+    expect(next.getAttribute("data-cast-paging-mask-active")).toBe("true");
+    expect(old.hasAttribute("data-cast-paging-mask-active")).toBe(false);
+    emit("htmx:afterSettle", b, next);
+    vi.advanceTimersByTime(300);
+    expect(next.hasAttribute("data-cast-paging-mask-active")).toBe(false);
+  });
+
   it("adds vt-active before transition and removes it after settle", () => {
     const pagingArea = document.querySelector("#paging-area") as HTMLElement;
     initPagingContentVisibility();

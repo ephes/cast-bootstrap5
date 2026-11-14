@@ -13,9 +13,26 @@ let pagingMaskTimeoutId: number | null = null;
 let historyScrollTimeoutId: number | null = null;
 
 type HtmxEventDetail = {
+  xhr?: XMLHttpRequest;
   target?: EventTarget | null;
   elt?: EventTarget | null;
 };
+
+let activeRequest: XMLHttpRequest | undefined;
+let requestGeneration = 0;
+const ownedAreas = new Set<HTMLElement>();
+
+function ownsRequest(event: Event): boolean {
+  return (event as CustomEvent<HtmxEventDetail>).detail?.xhr === activeRequest;
+}
+
+function retireAreas(): void {
+  for (const area of ownedAreas) {
+    area.classList.remove(VT_ACTIVE_CLASS);
+    area.removeAttribute(PAGING_MASK_ACTIVE_ATTR);
+  }
+  ownedAreas.clear();
+}
 
 function getDocument(): Document | null {
   return typeof document === "undefined" ? null : document;
@@ -82,6 +99,7 @@ function activatePagingArea(): void {
     return;
   }
 
+  ownedAreas.add(pagingArea);
   pagingArea.classList.add(VT_ACTIVE_CLASS);
 }
 
@@ -117,6 +135,7 @@ function activatePagingMask(): void {
   }
 
   clearPagingMaskTimeout();
+  ownedAreas.add(pagingArea);
   pagingArea.setAttribute(PAGING_MASK_ACTIVE_ATTR, "true");
 }
 
@@ -131,8 +150,12 @@ function deactivatePagingMask(): void {
 
 function schedulePagingMaskDeactivation(delayMs: number): void {
   clearPagingMaskTimeout();
+  const generation = requestGeneration;
   pagingMaskTimeoutId = window.setTimeout(() => {
+    if (generation !== requestGeneration) return;
+    retireAreas();
     deactivatePagingMask();
+    activeRequest = undefined;
     pagingMaskTimeoutId = null;
   }, delayMs);
 }
@@ -161,6 +184,10 @@ export function initPagingContentVisibility(): void {
       if (!eventTargetsPagingArea(event)) {
         return;
       }
+      clearPagingMaskTimeout();
+      retireAreas();
+      activeRequest = (event as CustomEvent<HtmxEventDetail>).detail?.xhr;
+      requestGeneration++;
       syncPagingAreaPodlovePresence();
       if (!pagingAreaContainsPodlovePlayer()) {
         return;
@@ -172,7 +199,7 @@ export function initPagingContentVisibility(): void {
 
   if (!beforeTransitionHandler) {
     beforeTransitionHandler = (event: Event) => {
-      if (!eventTargetsPagingArea(event)) {
+      if (!eventTargetsPagingArea(event) || !ownsRequest(event)) {
         return;
       }
       syncPagingAreaPodlovePresence();
@@ -189,7 +216,7 @@ export function initPagingContentVisibility(): void {
 
   if (!afterSettleHandler) {
     afterSettleHandler = (event: Event) => {
-      if (!eventTargetsPagingArea(event)) {
+      if (!eventTargetsPagingArea(event) || !ownsRequest(event)) {
         return;
       }
       deactivatePagingArea();
@@ -228,12 +255,15 @@ export function initPagingContentVisibility(): void {
 
   if (!cleanupHandler) {
     cleanupHandler = (event: Event) => {
-      if (!eventTargetsPagingArea(event)) {
+      if (!eventTargetsPagingArea(event) || !ownsRequest(event)) {
         return;
       }
       deactivatePagingArea();
       clearPagingMaskTimeout();
+      retireAreas();
       deactivatePagingMask();
+      activeRequest = undefined;
+      requestGeneration++;
       syncPagingAreaPodlovePresence();
     };
     for (const eventName of FAILED_REQUEST_EVENTS) {
@@ -268,6 +298,9 @@ export function destroyPagingContentVisibility(): void {
 
   clearPagingMaskTimeout();
   clearHistoryScrollTimeout();
+  retireAreas();
+  activeRequest = undefined;
+  requestGeneration++;
   beforeRequestHandler = null;
   beforeTransitionHandler = null;
   afterSettleHandler = null;

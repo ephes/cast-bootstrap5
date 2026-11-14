@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>Enhancement integration fixtures</title>
+<style>
+  [hidden] { display: none !important; }
+  .cast-search-overlay { position: fixed; inset: 0; background: white; }
+</style>
+<body>
+<script type="module">
+  import "/src/gallery/image-gallery-bs5.ts";
+  import "/src/search/cast-search-modal.ts";
+  import "/src/theme/paging-content-visibility.ts";
+  import "/src/filters/filter-enhancements-bootstrap.ts";
+  document.body.dataset.ready = "true";
+</script>
+</body>
+</html>

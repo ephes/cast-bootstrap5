@@ -152,6 +152,9 @@ makes the queued callback a no-op.
 While an HTMX pagination request for `#paging-area` is running, a list that
 contains Podlove players is masked so the players do not flash during the swap.
 The mask and the fade state are removed again when the new content has settled.
+Each request owns its state through HTMX's public `detail.xhr` identity. A late
+transition, settle, error or unmask timer from an older request cannot clear the
+newer request's state, even after the paging element is replaced.
 
 If the request does not complete, the current content is restored at once: the
 mask, the fade state and the pending unmask timer are cleared for an HTTP error
@@ -181,7 +184,10 @@ The focused regressions run with
 ## Dynamic search facets
 
 Dynamic facet requests have a five-second total deadline covering both fetch and
-JSON body parsing. Expiry clears loading and announces “Could not refresh filters.
+JSON body reading and parsing. Facets share the suggestion stream reader, with
+an independent 256 KiB limit on actual response bytes, regardless of
+Content-Length. Oversized or cancelled bodies are cancelled before JSON parsing
+and never cached. Expiry clears loading and announces “Could not refresh filters.
 You can still search.” The current filters and ordinary form submission remain
 usable, and a later filter or query change can retry. Superseding a request,
 closing the modal or removing it cancels pending work silently.
@@ -195,12 +201,26 @@ Each group requires a string `selected`, a finite nonnegative `all_count`, and a
 `count`. An invalid response leaves every group and hidden form input unchanged,
 is never cached, and uses the same failure announcement. Valid responses update
 all selections before building facet links so the links share the new state.
+Responses may contain at most 500 options per group and 1,000 options total,
+counting duplicate, zero-count and otherwise hidden rows before normalization.
+These limits are checked before caching, changing selections or building DOM.
+A refused update retains all current filters and ordinary form search; it does
+not silently truncate the result. A refreshed facet link keeps keyboard focus
+when that group still owns focus at commit. If the option disappears, focus
+returns to its “All” link. Focus moved to search or another control is preserved.
 
 Collapsed facet groups keep selected options visible even past the configured
 limit (twelve by default), including after a dynamic refresh. Use “All” to remove
 the group's selected filter. “Show all” / “Show fewer” controls only the remaining
 overflow options, with matching `aria-expanded`; the toggle is hidden when no
 options need collapsing.
+
+Search overlays acquire and release a shared body scroll lock. The first owner
+saves the previous inline overflow value; closing or disconnecting releases only
+that instance. Overlapping search instances and Bootstrap modals keep scrolling
+locked until the last owner closes, then restore the saved value. Bootstrap
+coordination uses its public `show.bs.modal` and `hidden.bs.modal` lifecycle;
+Bootstrap continues to own its backdrops, scrollbar padding and focus traps.
 
 ## Keyboard focus in the search modal
 
@@ -359,10 +379,14 @@ npx vite
 
 Outside the search modal, the enhanced ordering dropdown preserves the native select's disabled options
 and disabled optgroups. Disabled selects (including those in disabled fieldsets)
-remain visible as native controls when disabled at initialization. The option list
-and disabled attributes should be established before enhancement; later attribute
-changes on an enhanced select require a native `input` or `change` event to refresh
-the dropdown state. A select disabled at initialization stays native until
+remain visible as native controls when disabled at initialization. The dropdown
+observes live option/optgroup additions,
+removals, reordering, labels, values, selected attributes and disabled attributes.
+It also rechecks native option node identity before every selection, so a stale
+menu item cannot select a replacement option. Programmatic selectedIndex/value
+changes still require native `input` or `change` events. Changes to an enclosing
+fieldset's disabled state are rechecked on native events and before selection.
+A select disabled at initialization stays native until
 enhancement is run again.
 Search-modal ordering pills share the same disabled-option policy and native
 event/reset synchronization. A disabled select remains native at initialization;
@@ -381,10 +405,23 @@ label and the current selected value, including after selection changes and rese
 and one HTMX swap listener. `destroyFilterEnhancementsBootstrap()` cancels pending
 initialization and removes the swap listener, leaving already rendered controls
 in place. Reinitialization is supported after teardown.
+Each ordering enhancement separately owns an `htmx:beforeCleanupElement`
+listener. HTMX cleanup disconnects its observer, removes form/control/menu
+listeners, cancels pending reset work and restores the native select. Reusing
+the container can then enhance it exactly once.
 
 ## Enlarged gallery images
 
 Ordinary primary clicks and keyboard activation open the enlarged-image modal.
+Enhancement first requires an owned thumbnail image/source and an owned modal
+with body, footer, source, image and original-image link. Missing or malformed
+markup, missing targets and invalid target selectors preserve ordinary link
+navigation without changing the last valid modal. Explicit Bootstrap target
+selectors must resolve to this gallery's modal. Previous/next image references
+are literal IDs scoped to the gallery, including punctuation and leading digits.
+Unmodified, noncomposing Left/Right keys navigate only from gallery-owned
+noninteractive content. A successful move prevents native scrolling; editing,
+interactive controls, modified keys and end-of-gallery keys retain native behavior.
 Modified clicks, non-primary clicks, cancelled events, and links with a download
 or another browsing target keep their native browser behavior. After Escape or
 the close button finishes hiding the modal, focus returns to the opening
@@ -396,7 +433,8 @@ load clears the spinner and busy state and announces “Could not load image.”
 Use “Retry loading image” to try the selected image again, or “Open original
 image” to follow its full-size link. Switching images, closing the modal, or
 removing the gallery cancels pending listeners and deadlines; old attempts cannot
-change a later image's state.
+change a later image's state. A vetoed Bootstrap hide keeps the pending load,
+spinner and deadline active, so error recovery remains available.
 
 The enlarged image copies the selected thumbnail's full-size image metadata,
 including empty alternative text. Attributes absent from the selected image are
@@ -409,7 +447,10 @@ through the public hide lifecycle, waits for an opening or closing transition
 to finish, then disposes the instance and removes the modal. Its backdrop and
 focus trap are released and Bootstrap restores scrolling. Without Bootstrap,
 the gallery removes its fallback modal and clears the body lock when no other
-modal is active. Teardown preserves an active modal's body lock.
+modal is active. Teardown preserves an active modal's body lock. Reconnecting
+during retirement
+uses a fresh modal node; the old transition's callbacks only dispose its retired
+node and cannot remove the new instance.
 
 ## Scroll to top
 

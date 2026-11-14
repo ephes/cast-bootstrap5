@@ -1,4 +1,8 @@
 {
+  "_body-scroll-DfnOmXsW.js": {
+    "file": "body-scroll-DfnOmXsW.js",
+    "name": "body-scroll"
+  },
   "_ordering-options-GpPxbNf_.js": {
     "file": "ordering-options-GpPxbNf_.js",
     "name": "ordering-options"
@@ -16,7 +20,7 @@
     "isEntry": true
   },
   "src/filters/filter-enhancements-bootstrap.ts": {
-    "file": "filterEnhancements-CTGojnSm.js",
+    "file": "filterEnhancements-Bfj5ysIZ.js",
     "name": "filterEnhancements",
     "src": "src/filters/filter-enhancements-bootstrap.ts",
     "isEntry": true,
@@ -25,22 +29,26 @@
     ]
   },
   "src/gallery/image-gallery-bs5.ts": {
-    "file": "main-BcQvDr6z.js",
+    "file": "main-DHTWA_CE.js",
     "name": "main",
     "src": "src/gallery/image-gallery-bs5.ts",
-    "isEntry": true
+    "isEntry": true,
+    "imports": [
+      "_body-scroll-DfnOmXsW.js"
+    ]
   },
   "src/search/cast-search-modal.ts": {
-    "file": "searchModal-aED-DCjq.js",
+    "file": "searchModal-Cp0GSpZl.js",
     "name": "searchModal",
     "src": "src/search/cast-search-modal.ts",
     "isEntry": true,
     "imports": [
+      "_body-scroll-DfnOmXsW.js",
       "_ordering-options-GpPxbNf_.js"
     ]
   },
   "src/theme/paging-content-visibility.ts": {
-    "file": "pagingContentVisibility-FnIBJrk8.js",
+    "file": "pagingContentVisibility-Cmme-5mG.js",
     "name": "pagingContentVisibility",
     "src": "src/theme/paging-content-visibility.ts",
     "isEntry": true
