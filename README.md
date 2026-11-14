@@ -54,6 +54,12 @@ the current filter combination has no matching posts. While destinations are
 visible, they take visual priority over the live full-text no-results message.
 When a longer query refreshes an open list, the settled destinations remain
 visible but temporarily non-selectable until the matching response arrives.
+Escape dismisses the list and retires queued and in-flight suggestion work;
+late success or failure cannot reopen it or announce results. New input or an
+arrow key can deliberately request suggestions again. Returned queries must match
+Cast's normalization: remove NUL, fold whitespace and ASCII hyphens to spaces,
+trim, then cap at 500 Unicode code points and remove trailing spaces. A mismatched
+query is unavailable and is never cached.
 IME input is supported: suggestions wait until composition ends, and composition
 keys retain their input-method behavior. This also means keyboards that keep
 Latin words in an active composition session show suggestions after the word
@@ -68,6 +74,11 @@ the whole response before caching or rendering, leaving ordinary search usable.
 Suggestion IDs must be positive safe integers and unique within each response,
 so keyboard focus always identifies exactly one option. Invalid identities reject
 the whole response before caching or rendering.
+Suggestion and dynamic-facet endpoints must be same-origin HTTP(S) URLs without
+credentials. Redirects, including same-origin login redirects, fail back to ordinary
+form search; configure the final endpoint directly. Both readers require valid
+UTF-8, including across stream chunks. Invalid bytes or a truncated character
+reject the whole response before caching or changing the page.
 Each suggestion request accumulates at most 64 KiB of response-body bytes through a
 standard stream reader before JSON parsing, independently of Content-Length
 (including absent or understated lengths). Exceeding the budget cancels the body
@@ -210,6 +221,13 @@ and never cached. Expiry clears loading and announces “Could not refresh filte
 You can still search.” The current filters and ordinary form submission remain
 usable, and a later filter or query change can retry. Superseding a request,
 closing the modal or removing it cancels pending work silently.
+
+Native form resets reconcile search text, ordering, facet selections and links
+with the controls after the browser applies their defaults. Hidden facet values
+follow native hidden-input semantics (their current value is also their default).
+Reset retires obsolete facet and suggestion work; a cancelled reset leaves that
+work alone. While closed, reset updates state without requesting data; reopening
+refreshes the reset state. Ordinary GET submission uses those same control values.
 
 Before caching or changing any filter selection, the modal validates the entire
 response: `mode` must be `"modal"`, `result_count` must be finite and nonnegative,
@@ -464,6 +482,12 @@ or another browsing target keep their native browser behavior. After Escape or
 the close button finishes hiding the modal, focus returns to the opening
 thumbnail if it is still connected. Removing the gallery clears that focus
 ownership; another active modal keeps its focus.
+
+Previous/next footer buttons retain their DOM identity during image changes.
+Keyboard focus stays on the activated button, moves to the available opposite
+button at an endpoint, or falls back to the modal if neither direction remains.
+Image-load failures do not move it, and navigation never takes focus from another
+control. Unavailable directions use native disabled buttons.
 
 Each enlarged image has a ten-second loading deadline. A failed or timed-out
 load clears the spinner and busy state and announces “Could not load image.”

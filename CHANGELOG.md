@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- Reconcile native search-form resets after defaults apply, cancel obsolete work
+  and defer refresh while closed; preserve cancelled resets.
+- Preserve gallery footer controls and keyboard focus through navigation and
+  loading failures, with native disabled controls and endpoint focus fallback.
+
+- Bind suggestions to Cast-normalized queries and retire pending publications on
+  Escape; deliberate input or arrow navigation can resume suggestions.
+
+- Reject malformed UTF-8 and redirected or foreign-endpoint search responses before
+  caching suggestions or changing facets; keep ordinary form search available.
+
 - Preserve initialized Podlove playback through theme changes, retaining the
   instance's original skin; bind script loading/retries to one canonical embed
   URL per document and show a retryable error for conflicting implementations.

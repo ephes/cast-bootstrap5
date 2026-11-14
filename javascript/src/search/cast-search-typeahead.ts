@@ -1,3 +1,4 @@
+import { fetchSearchResponse } from "@/utils/search-response";
 import { readBoundedJson } from "@/utils/bounded-json";
 
 const TYPEAHEAD_DEBOUNCE_MS = 225;
@@ -90,6 +91,14 @@ function isSuggestionsResponse(value: unknown): value is SearchSuggestionsRespon
   );
 }
 
+// Match django-cast's normalize_modelsearch_query: Python Unicode whitespace,
+// ASCII hyphens and NUL removal, then a 500-code-point cap and trailing-space trim.
+function normalizeQuery(query: string): string {
+  const folded = query.replace(/\0/g, "").replace(/[\u0009-\u000d\u001c-\u0020\u0085\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000-]+/g, " ")
+    .replace(/^ +| +$/g, "");
+  return Array.from(folded).slice(0, 500).join("").replace(/ +$/g, "");
+}
+
 export default class CastSearchTypeahead {
   private readonly url: string;
   private readonly elements: TypeaheadElements;
@@ -180,9 +189,9 @@ export default class CastSearchTypeahead {
     this.setBusy(false);
   }
 
-  facetStateChanged(): void {
+  facetStateChanged(refresh = true): void {
     this.invalidateSuggestions();
-    this.schedule();
+    if (refresh) this.schedule();
   }
 
   resume(): void {
@@ -238,7 +247,11 @@ export default class CastSearchTypeahead {
     if (event.key === "Escape" && this.isOpen()) {
       event.preventDefault();
       event.stopPropagation();
+      this.clearDebounce();
+      this.abortRequest();
       this.close();
+      this.setBusy(false);
+      this.announce("");
       return;
     }
 
@@ -249,6 +262,10 @@ export default class CastSearchTypeahead {
 
     if (event.key === "ArrowDown" || event.key === "ArrowUp") {
       if (this.suggestions.length === 0) {
+        if (this.elements.input.value.trim().length >= TYPEAHEAD_MIN_QUERY_LENGTH) {
+          event.preventDefault();
+          this.schedule();
+        }
         return;
       }
       event.preventDefault();
@@ -383,15 +400,12 @@ export default class CastSearchTypeahead {
       // Race the whole operation so even an uncooperative fetch/body settles.
       const payload: unknown = await Promise.race([
         (async () => {
-          const response = await fetch(this.buildUrl(key), { signal: controller.signal });
-          if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
-          }
+          const response = await fetchSearchResponse(this.buildUrl(key), controller.signal);
           return readBoundedJson(response, controller.signal, TYPEAHEAD_MAX_RESPONSE_BYTES);
         })(),
         aborted,
       ]);
-      if (!isSuggestionsResponse(payload)) {
+      if (!isSuggestionsResponse(payload) || payload.query !== normalizeQuery(new URLSearchParams(key).get("search") ?? "")) {
         throw new Error("Invalid suggestion response");
       }
       if (sequence !== this.requestSequence || key !== this.buildKey()) {

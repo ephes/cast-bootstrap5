@@ -48,6 +48,39 @@ test("navigation copies empty attributes and removes absent metadata", () => {
     expect(source.getAttribute("sizes")).toBe("");
 });
 
+test("footer navigation preserves keyboard focus, falls back at endpoints and ignores late loads", () => {
+    const gallery = fixture();
+    const modal = open(gallery);
+    const next = modal.querySelector<HTMLButtonElement>("#data-next")!;
+    next.focus();
+    next.click();
+    const prev = modal.querySelector<HTMLButtonElement>("#data-prev")!;
+    expect(document.activeElement).toBe(prev);
+    expect(modal.querySelector<HTMLButtonElement>("#data-next")!.disabled).toBe(true);
+    prev.click();
+    expect(document.activeElement).toBe(modal.querySelector("#data-next"));
+    modal.querySelector("img")!.dispatchEvent(new Event("error"));
+    expect(document.activeElement).toBe(modal.querySelector("#data-next"));
+    const input = document.createElement("input");
+    document.body.appendChild(input);
+    input.focus();
+    gallery.replaceImage("data-next");
+    expect(document.activeElement).toBe(input);
+});
+
+test("footer focus falls back to the modal when both directions disappear", () => {
+    const gallery = fixture();
+    const modal = open(gallery);
+    modal.removeAttribute("tabindex");
+    const next = modal.querySelector<HTMLButtonElement>("#data-next")!;
+    next.focus();
+    const second = gallery.querySelector<HTMLImageElement>("#second")!;
+    second.setAttribute("data-prev", "false");
+    next.click();
+    expect(document.activeElement).toBe(modal);
+    expect(modal.getAttribute("tabindex")).toBe("-1");
+});
+
 function bootstrapModal() {
     // Exercise the exact Bootstrap bundle shipped by this theme, including focus trap.
     window.eval(readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), "../../../cast_bootstrap5/static/cast_bootstrap5/js/bootstrap5/bootstrap.bundle.min.js"), "utf8"));

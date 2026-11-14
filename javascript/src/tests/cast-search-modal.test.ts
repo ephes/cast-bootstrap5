@@ -158,6 +158,76 @@ describe("cast-search-modal", () => {
     vi.useRealTimers();
   });
 
+  it.each(["open", "cancelled", "closed"])("reconciles native reset when %s", async mode => {
+    vi.useFakeTimers();
+    document.body.innerHTML = buildModalMarkup({ dynamic: true, suggestions: true });
+    const pending: { signal: AbortSignal; resolve: (value: Response) => void }[] = [];
+    const fetchMock = vi.fn((_url: string, options: RequestInit) => new Promise<Response>(resolve => {
+      pending.push({ signal: options.signal as AbortSignal, resolve });
+    }));
+    vi.stubGlobal("fetch", fetchMock);
+    document.querySelector<HTMLButtonElement>('[data-cast-search-trigger]')!.click();
+    const input = document.querySelector<HTMLInputElement>('[name="search"]')!;
+    const form = input.form!;
+    input.defaultValue = "default query";
+    input.value = "obsolete";
+    input.dispatchEvent(new Event("input"));
+    await vi.advanceTimersByTimeAsync(300);
+    expect(pending).toHaveLength(2);
+    if (mode === "closed") document.querySelector<HTMLButtonElement>('[data-cast-search-close]')!.click();
+    if (mode === "cancelled") form.addEventListener("reset", event => event.preventDefault(), { once: true });
+    form.reset();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(input.value).toBe(mode === "cancelled" ? "obsolete" : "default query");
+    expect(pending.every(request => request.signal.aborted)).toBe(mode !== "cancelled");
+    if (mode === "cancelled") return;
+    const selected = document.querySelector<HTMLAnchorElement>('[data-cast-facet-group="tag_facets"] a.selected')!;
+    expect(new URL(selected.href).searchParams.get("search")).toBe("default query");
+    expect(new FormData(form).get("search")).toBe("default query");
+    pending.forEach(request => request.resolve(new Response(JSON.stringify(modalResponse()))));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(document.querySelector('[data-cast-facet-status]')!.textContent).not.toBe("Filters updated.");
+    if (mode === "closed") {
+      await vi.advanceTimersByTimeAsync(300);
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      document.querySelector<HTMLButtonElement>('[data-cast-search-trigger]')!.click();
+    }
+    await vi.advanceTimersByTimeAsync(300);
+    expect(fetchMock).toHaveBeenCalledTimes(4);
+    for (const [url] of fetchMock.mock.calls.slice(2)) expect(new URL(url).searchParams.get("search")).toBe("default query");
+  });
+
+  it("reset reconciles native hidden facets and ordering with submitted and fetched values", async () => {
+    vi.useFakeTimers();
+    document.body.innerHTML = buildModalMarkup({ dynamic: true, suggestions: true });
+    const fetchMock = vi.fn((_url: string) => new Promise<Response>(() => undefined));
+    vi.stubGlobal("fetch", fetchMock);
+    document.querySelector<HTMLButtonElement>('[data-cast-search-trigger]')!.click();
+    const form = document.querySelector<HTMLFormElement>('form')!;
+    const input = form.querySelector<HTMLInputElement>('[name="search"]')!;
+    input.defaultValue = "defaults";
+    input.value = "dirty";
+    form.querySelector<HTMLInputElement>('[name="tag_facets"]')!.value = "legacy";
+    form.querySelector<HTMLSelectElement>('[name="o"]')!.value = "visible_date";
+    form.reset();
+    // A subsequent cancelled reset must not swallow the prior completed reset.
+    form.addEventListener("reset", event => event.preventDefault(), { once: true });
+    form.reset();
+    await vi.advanceTimersByTimeAsync(0);
+    const selected = form.querySelector<HTMLAnchorElement>('[data-cast-facet-group="tag_facets"] a.selected')!;
+    expect(new URL(selected.href).searchParams.get("tag_facets")).toBe("legacy");
+    expect(new FormData(form).get("tag_facets")).toBe("legacy");
+    expect(form.querySelector('[data-order-value="visible_date"]')!.getAttribute("aria-pressed")).toBe("false");
+    await vi.advanceTimersByTimeAsync(300);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    for (const [url] of fetchMock.mock.calls) {
+      const params = new URL(url).searchParams;
+      expect(params.get("tag_facets")).toBe("legacy");
+      expect(params.get("search")).toBe("defaults");
+      expect(params.has("o")).toBe(false);
+    }
+  });
+
   it("registers the custom element", () => {
     expect(customElements.get("cast-search-modal")).toBe(CastSearchModal);
   });
@@ -1298,6 +1368,65 @@ describe('bounded facet refresh and focus', () => {
     document.body.replaceChildren();
     vi.useRealTimers();
     vi.unstubAllGlobals();
+  });
+
+  it("admits split Unicode at the exact facet byte ceiling and caches it", async () => {
+    vi.useFakeTimers();
+    document.body.innerHTML = buildModalMarkup({ dynamic: true });
+    const payload = { mode: "modal", result_count: 1, groups: {
+      tag_facets: { selected: "python", all_count: 1, options: [{ slug: "python", name: "😀", count: 1 }] },
+    } };
+    const text = JSON.stringify(payload);
+    const input = document.querySelector<HTMLInputElement>('[name="search"]')!;
+    const group = document.querySelector('[data-cast-facet-group="tag_facets"]')!;
+    const encoded = new TextEncoder().encode(text);
+    const bytes = new Uint8Array(262144).fill(32);
+    bytes.set(encoded);
+    const split = new TextEncoder().encode(text.slice(0, text.indexOf("😀"))).length + 1;
+    const body = new ReadableStream<Uint8Array>({ start(stream) {
+      stream.enqueue(bytes.slice(0, split));
+      stream.enqueue(bytes.slice(split, split + 1));
+      stream.enqueue(bytes.slice(split + 1));
+      stream.close();
+    } });
+    const fetchMock = vi.fn().mockResolvedValue(new Response(body));
+    vi.stubGlobal("fetch", fetchMock);
+    input.value = "py";
+    input.dispatchEvent(new Event("input"));
+    await vi.advanceTimersByTimeAsync(FACET_DEBOUNCE_MS + 10);
+    expect(group.textContent).toContain("😀");
+    expect(body.locked).toBe(false);
+    input.dispatchEvent(new Event("input"));
+    await vi.advanceTimersByTimeAsync(FACET_DEBOUNCE_MS + 10);
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
+  it.each(["utf8", "truncated-utf8", "redirected", "foreign-url"])("refuses %s responses without caching", async (kind) => {
+    vi.useFakeTimers();
+    document.body.innerHTML = buildModalMarkup({ dynamic: true });
+    const text = JSON.stringify(modalResponse());
+    const bytes = new TextEncoder().encode(text);
+    const index = text.indexOf('django');
+    bytes[index] = kind === "truncated-utf8" ? 0xe2 : 0xff;
+    if (kind === "truncated-utf8") bytes[index + 1] = 0x82;
+    const bad = new Response(kind.endsWith("utf8") ? bytes : text);
+    if (kind === "redirected") Object.defineProperty(bad, "redirected", { value: true });
+    if (kind === "foreign-url") Object.defineProperty(bad, "url", { value: `${window.location.origin}/login/` });
+    const fetchMock = vi.fn().mockResolvedValueOnce(bad).mockImplementation(() => jsonResponse(modalResponse()));
+    vi.stubGlobal("fetch", fetchMock);
+    const input = document.querySelector<HTMLInputElement>('[name="search"]')!;
+    const group = document.querySelector('[data-cast-facet-group="tag_facets"]')!;
+    const original = group.innerHTML;
+    input.value = "py";
+    input.dispatchEvent(new Event("input"));
+    await vi.advanceTimersByTimeAsync(FACET_DEBOUNCE_MS + 10);
+    expect(group.innerHTML).toBe(original);
+    expect(document.querySelector('[data-cast-facet-status]')!.textContent).toContain("Could not refresh");
+    input.dispatchEvent(new Event("input"));
+    await vi.advanceTimersByTimeAsync(FACET_DEBOUNCE_MS + 10);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(group.textContent).toContain("django");
+    expect(fetchMock.mock.calls[0][1]).toMatchObject({ redirect: "error" });
   });
 
   it.each([undefined, '1'])('caps actual streamed bytes despite Content-Length %s without caching', async (length) => {

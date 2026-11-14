@@ -57,6 +57,137 @@ const pythonSuggestions: Suggestion[] = [
 ];
 
 describe("CastSearchTypeahead", () => {
+  it("rejects a response for another query before caching", async () => {
+    const fetchMock = vi.fn().mockImplementationOnce(() => response("wrong", pythonSuggestions))
+      .mockImplementation(() => response("py", pythonSuggestions));
+    vi.stubGlobal("fetch", fetchMock);
+    const { controller, input, listbox, status } = setup();
+    input.value = "py";
+    input.dispatchEvent(new Event("input"));
+    await vi.advanceTimersByTimeAsync(225);
+    expect(listbox.children).toHaveLength(0);
+    expect(status.textContent).toContain("unavailable");
+    input.dispatchEvent(new Event("input"));
+    await vi.advanceTimersByTimeAsync(225);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(listbox.children).toHaveLength(2);
+    controller.disconnect();
+  });
+
+  it.each([
+    ["  py--thon  ", "py thon"], ["py\0-thon", "py thon"],
+    ["py\u001c--thon", "py thon"], ["py\u0085thon", "py thon"],
+    ["😀".repeat(501), "😀".repeat(500)],
+    ["a".repeat(499) + "--more", "a".repeat(499)],
+    ["py\ufeffthon", "py\ufeffthon"],
+  ])("admits and caches Cast-normalized query %s", async (query, echoed) => {
+    const fetchMock = vi.fn(() => response(echoed, pythonSuggestions));
+    vi.stubGlobal("fetch", fetchMock);
+    const { controller, input, listbox } = setup();
+    input.value = query;
+    input.dispatchEvent(new Event("input"));
+    await vi.advanceTimersByTimeAsync(225);
+    expect(listbox.children).toHaveLength(2);
+    input.dispatchEvent(new Event("input"));
+    await vi.advanceTimersByTimeAsync(225);
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(listbox.hidden).toBe(false);
+    controller.disconnect();
+  });
+
+  it.each(["success", "failure", "debounce"])("Escape retires pending %s until deliberate input or arrow", async outcome => {
+    let finish!: (value: Response) => void;
+    let fail!: (error: Error) => void;
+    let signal!: AbortSignal;
+    const fetchMock = vi.fn().mockImplementationOnce(() => response("py", pythonSuggestions))
+      .mockImplementationOnce((_url: string, options: RequestInit) => {
+        signal = options.signal as AbortSignal;
+        return new Promise<Response>((resolve, reject) => { finish = resolve; fail = reject; });
+      }).mockImplementation(() => response("pyt", pythonSuggestions));
+    vi.stubGlobal("fetch", fetchMock);
+    const { controller, input, listbox, status, loading } = setup();
+    input.value = "py";
+    input.dispatchEvent(new Event("input"));
+    await vi.advanceTimersByTimeAsync(225);
+    input.value = "pyt";
+    input.dispatchEvent(new Event("input"));
+    if (outcome !== "debounce") await vi.advanceTimersByTimeAsync(525);
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", cancelable: true }));
+    if (outcome !== "debounce") {
+      expect(signal.aborted).toBe(true);
+      if (outcome === "success") finish(await response("pyt", pythonSuggestions));
+      else fail(new Error("late failure"));
+    }
+    await vi.advanceTimersByTimeAsync(6000);
+    expect(listbox.hidden).toBe(true);
+    expect(listbox.getAttribute("aria-busy")).toBe("false");
+    expect(loading.hidden).toBe(true);
+    expect(status.textContent).toBe("");
+    if (outcome === "debounce") {
+      expect(fetchMock).toHaveBeenCalledOnce();
+      // The next intentional action owns a fresh request.
+      fetchMock.mockReset().mockImplementation(() => response("pyt", pythonSuggestions));
+    }
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", cancelable: true }));
+    await vi.advanceTimersByTimeAsync(225);
+    expect(listbox.hidden).toBe(false);
+    input.dispatchEvent(new Event("input"));
+    await vi.advanceTimersByTimeAsync(225);
+    expect(listbox.children).toHaveLength(2);
+    controller.disconnect();
+  });
+
+  it("admits split Unicode at the exact suggestion byte ceiling and caches it", async () => {
+    const text = JSON.stringify({ query: "py", suggestions: [{ id: 1, title: "😀", url: "/post/" }] });
+    const { controller, input, listbox } = setup();
+    const encoded = new TextEncoder().encode(text);
+    const bytes = new Uint8Array(65536).fill(32);
+    bytes.set(encoded);
+    const split = new TextEncoder().encode(text.slice(0, text.indexOf("😀"))).length + 1;
+    const body = new ReadableStream<Uint8Array>({ start(stream) {
+      stream.enqueue(bytes.slice(0, split));
+      stream.enqueue(bytes.slice(split, split + 1));
+      stream.enqueue(bytes.slice(split + 1));
+      stream.close();
+    } });
+    const fetchMock = vi.fn().mockResolvedValue(new Response(body));
+    vi.stubGlobal("fetch", fetchMock);
+    input.value = "py";
+    input.dispatchEvent(new Event("input"));
+    await vi.advanceTimersByTimeAsync(225);
+    expect(listbox.textContent).toContain("😀");
+    expect(body.locked).toBe(false);
+    input.dispatchEvent(new Event("input"));
+    await vi.advanceTimersByTimeAsync(225);
+    expect(fetchMock).toHaveBeenCalledOnce();
+    controller.disconnect();
+  });
+
+  it.each(["utf8", "truncated-utf8", "redirected", "foreign-url"])("refuses %s responses without caching", async (kind) => {
+    const text = JSON.stringify({ query: "py", suggestions: pythonSuggestions });
+    const bytes = new TextEncoder().encode(text);
+    const index = text.indexOf('Python');
+    bytes[index] = kind === "truncated-utf8" ? 0xe2 : 0xff;
+    if (kind === "truncated-utf8") bytes[index + 1] = 0x82;
+    const bad = new Response(kind.endsWith("utf8") ? bytes : text);
+    if (kind === "redirected") Object.defineProperty(bad, "redirected", { value: true });
+    if (kind === "foreign-url") Object.defineProperty(bad, "url", { value: `${window.location.origin}/login/` });
+    const fetchMock = vi.fn().mockResolvedValueOnce(bad).mockImplementation(() => response("py", pythonSuggestions));
+    vi.stubGlobal("fetch", fetchMock);
+    const { controller, input, listbox, status } = setup();
+    input.value = "py";
+    input.dispatchEvent(new Event("input"));
+    await vi.advanceTimersByTimeAsync(225);
+    expect(listbox.children).toHaveLength(0);
+    expect(status.textContent).toContain("unavailable");
+    input.dispatchEvent(new Event("input"));
+    await vi.advanceTimersByTimeAsync(225);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(listbox.children).toHaveLength(2);
+    expect(fetchMock.mock.calls[0][1]).toMatchObject({ redirect: "error" });
+    controller.disconnect();
+  });
+
   it.each([
     "javascript:alert(1)", "data:text/html,hello", "https://foreign.invalid/post/",
     "//foreign.invalid/post/", `${window.location.origin.replace("://", "://user:password@")}/post/`,

@@ -1,3 +1,4 @@
+import { fetchSearchResponse } from "@/utils/search-response";
 import { acquireBodyScroll, observeBootstrapScroll } from "@/utils/body-scroll";
 import { readBoundedJson } from "@/utils/bounded-json";
 import { isOrderingOptionDisabled } from "@/utils/ordering-options";
@@ -326,6 +327,7 @@ export default class CastSearchModal extends HTMLElement {
   private focusTrap: FocusTrapController | null;
   private listenersBound: boolean;
   private refreshFacetsOnOpen = false;
+  private readonly resetTimers = new Set<ReturnType<typeof setTimeout>>();
   private readonly state: ModalState;
   private boundTriggerClick: () => void;
   private boundOverlayClick: (event: Event) => void;
@@ -510,6 +512,7 @@ export default class CastSearchModal extends HTMLElement {
     this.modal?.addEventListener("click", this.boundModalClick);
     this.searchInput?.addEventListener("input", this.boundSearchInput);
     this.searchInput?.addEventListener("search", this.boundSearchInput);
+    this.form?.addEventListener("reset", this.handleFormReset);
     document.addEventListener("keydown", this.boundDocumentKeydown);
 
     this.listenersBound = true;
@@ -526,10 +529,46 @@ export default class CastSearchModal extends HTMLElement {
     this.modal?.removeEventListener("click", this.boundModalClick);
     this.searchInput?.removeEventListener("input", this.boundSearchInput);
     this.searchInput?.removeEventListener("search", this.boundSearchInput);
+    this.form?.removeEventListener("reset", this.handleFormReset);
+    this.resetTimers.forEach(timer => clearTimeout(timer));
+    this.resetTimers.clear();
     document.removeEventListener("keydown", this.boundDocumentKeydown);
 
     this.listenersBound = false;
   }
+
+  private readonly handleFormReset = (event: Event): void => {
+    // Wait a task: a microtask from a native reset listener can run before the
+    // browser applies defaults or another listener cancels the reset.
+    const timer = setTimeout(() => {
+      this.resetTimers.delete(timer);
+      if (event.defaultPrevented || !this.isConnected || !this.form || !this.modal) return;
+      this.clearDebounceTimer();
+      this.state.requestSeq += 1;
+      this.abortInFlightRequest();
+      this.captureStateFromForm();
+      this.syncHiddenInputsFromState();
+      FACET_GROUP_NAMES.forEach(name => {
+        const group = findFacetGroupElement(this.modal!, name);
+        group?.querySelectorAll<HTMLAnchorElement>("a[href]").forEach(link => {
+          const slug = getFacetValueFromLink(link, name);
+          link.classList.toggle("selected", slug === this.state.selected[name]);
+          link.href = this.buildFacetHref(name, slug);
+        });
+        if (group) this.resetFacetToggleForGroup(group);
+      });
+      initModalFacetToggles(this.modal);
+      this.expandActivePanels();
+      this.latestResultCount = null;
+      this.updateNoResultsVisibility();
+      this.announceStatus("");
+      const open = this.overlay?.hidden === false;
+      this.typeahead?.facetStateChanged(open);
+      if (open) this.scheduleFacetRecalculation();
+      else this.refreshFacetsOnOpen = Boolean(this.dynamicFacetsUrl);
+    }, 0);
+    this.resetTimers.add(timer);
+  };
 
   private handleOverlayClick(event: Event): void {
     if (event.target === this.overlay) {
@@ -708,6 +747,9 @@ export default class CastSearchModal extends HTMLElement {
   private captureStateFromForm(): void {
     this.state.search = this.searchInput?.value ?? "";
     this.state.ordering = this.getOrderingValue();
+    FACET_GROUP_NAMES.forEach(name => {
+      this.state.selected[name] = this.form ? findManagedHiddenInputs(this.form, name)[0]?.value ?? "" : "";
+    });
   }
 
   private scheduleFacetRecalculation(): void {
@@ -785,10 +827,7 @@ export default class CastSearchModal extends HTMLElement {
       // Bound fetch and body parsing even if either ignores the abort signal.
       const payload: unknown = await Promise.race([
         (async () => {
-          const response = await fetch(this.buildRequestUrl().toString(), { signal: controller.signal });
-          if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
-          }
+          const response = await fetchSearchResponse(this.buildRequestUrl().toString(), controller.signal);
           return readBoundedJson(response, controller.signal, FACET_MAX_RESPONSE_BYTES);
         })(),
         aborted,
