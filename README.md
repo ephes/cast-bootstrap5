@@ -282,9 +282,12 @@ fixed-position controls are included. Positive tabindex values come first in
 ascending order (ties retain DOM order), then zero/default controls. When positive
 values or named radio groups are present, every Tab step follows this modal-local order so outside
 controls cannot intrude. Named radio groups share one Tab stop, grouped by their
-native form owner and literal name. An eligible checked member owns that stop;
-otherwise the currently focused eligible member, or the first eligible member
-in Tab order, represents the group. Radios without a nonempty name remain
+native form owner and literal name. A focused member owns that stop, so Tab
+and Shift+Tab leave the group from there (as in Chromium), even when another
+member is checked. Otherwise an eligible checked member owns it, or the first
+eligible member in Tab order. Checked members and the focused control are read
+from the trap's own document or shadow root, so traps inside a shadow root
+follow focus there. Radios without a nonempty name remain
 independent stops. Arrow keys retain native radio selection. Controls in closed
 details content are skipped. The trap
 rechecks layout, disabled state and tabindex on each keypress. A template override may therefore

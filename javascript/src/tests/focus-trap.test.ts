@@ -151,7 +151,13 @@ describe("focus-trap", () => {
       expect(document.activeElement).toBe(document.getElementById(id));
     }
     (document.getElementById("a") as HTMLInputElement).checked = true;
+    // Like native Chromium, Tab from the focused member leaves its group.
     expect(pressTab(b)).toBe(true);
+    expect(document.activeElement).toBe(document.getElementById("c"));
+    // The newly checked member is the group's entry stop once focus is elsewhere.
+    const f = document.getElementById("f")!;
+    f.focus();
+    expect(pressTab(f)).toBe(true);
     expect(document.activeElement).toBe(document.getElementById("a"));
   });
 
@@ -506,5 +512,68 @@ describe("focus-trap", () => {
 
     expect(preventedSpy).not.toHaveBeenCalled();
     expect(document.activeElement).toBe(last);
+  });
+
+  it("leaves a group from a focused unchecked member even when another member is checked", () => {
+    document.body.innerHTML = `<div id="modal">
+      <button id="before" type="button">Before</button>
+      <input id="a" type="radio" name="choice" checked>
+      <input id="b" type="radio" name="choice">
+      <button id="after" type="button">After</button>
+    </div>`;
+    const modal = document.getElementById("modal")!;
+    modal.querySelectorAll<HTMLElement>("input, button").forEach(markVisible);
+    createFocusTrap(modal).activate();
+    const b = document.getElementById("b")!;
+    b.focus();
+    expect(pressTab(b)).toBe(true);
+    expect(document.activeElement).toBe(document.getElementById("after"));
+    b.focus();
+    expect(pressTab(b, true)).toBe(true);
+    expect(document.activeElement).toBe(document.getElementById("before"));
+  });
+
+  it("finds the checked member of a group inside a shadow-root trap", () => {
+    document.body.innerHTML = `<div id="host"></div>`;
+    const shadow = document.getElementById("host")!.attachShadow({ mode: "open" });
+    shadow.innerHTML = `<div id="modal">
+      <input id="a" type="radio" name="choice">
+      <input id="b" type="radio" name="choice" checked>
+      <input id="c" type="radio" name="choice">
+    </div>`;
+    const modal = shadow.getElementById("modal")!;
+    modal.querySelectorAll<HTMLElement>("input").forEach(markVisible);
+    createFocusTrap(modal).activate();
+    const event = new KeyboardEvent("keydown", { key: "Tab", bubbles: true, composed: true, cancelable: true });
+    modal.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(true);
+    expect(shadow.activeElement).toBe(shadow.getElementById("b"));
+  });
+
+  it("moves through a shadow-root trap from focused controls", () => {
+    document.body.innerHTML = `<div id="host"></div><button id="outside">Outside</button>`;
+    const shadow = document.getElementById("host")!.attachShadow({ mode: "open" });
+    shadow.innerHTML = `<div id="modal">
+      <button id="first" type="button">First</button>
+      <input id="a" type="radio" name="choice">
+      <input id="b" type="radio" name="choice" checked>
+      <button id="last" type="button">Last</button>
+    </div>`;
+    const modal = shadow.getElementById("modal")!;
+    modal.querySelectorAll<HTMLElement>("input, button").forEach(markVisible);
+    createFocusTrap(modal).activate();
+    const press = (shiftKey = false): boolean => {
+      const event = new KeyboardEvent("keydown", { key: "Tab", shiftKey, bubbles: true, composed: true, cancelable: true });
+      (shadow.activeElement as HTMLElement).dispatchEvent(event);
+      return event.defaultPrevented;
+    };
+    shadow.getElementById("first")!.focus();
+    for (const id of ["b", "last", "first"]) {
+      expect(press()).toBe(true);
+      expect(shadow.activeElement).toBe(shadow.getElementById(id));
+    }
+    shadow.getElementById("a")!.focus();
+    expect(press(true)).toBe(true);
+    expect(shadow.activeElement).toBe(shadow.getElementById("first"));
   });
 });
