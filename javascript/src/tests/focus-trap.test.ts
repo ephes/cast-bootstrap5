@@ -115,6 +115,99 @@ describe("focus-trap", () => {
     return event.defaultPrevented;
   }
 
+  it.each([false, true])("contains a radio-only group (checked: %s)", (checked) => {
+    document.body.innerHTML = `<div id="modal">
+      <input id="a" type="radio" name="choice">
+      <input id="b" type="radio" name="choice" ${checked ? "checked" : ""}>
+      <input id="c" type="radio" name="choice">
+    </div><button>Outside</button>`;
+    const modal = document.getElementById("modal")!;
+    modal.querySelectorAll<HTMLElement>("input").forEach(markVisible);
+    createFocusTrap(modal).activate();
+    const selected = document.getElementById("b")!;
+    selected.focus();
+    expect(pressTab(selected)).toBe(true);
+    expect(document.activeElement).toBe(selected);
+    expect(pressTab(selected, true)).toBe(true);
+    expect(document.activeElement).toBe(selected);
+  });
+
+  it("groups radios by literal nonempty name and form owner in positive tabindex order", () => {
+    document.body.innerHTML = `<form id="one"></form><form id="two"></form><div id="modal">
+      <input id="a" type="radio" name='choice[]"' form="one" tabindex="2">
+      <input id="b" type="radio" name='choice[]"' form="one" tabindex="1" checked>
+      <input id="c" type="radio" name='choice[]"' form="two" tabindex="3" checked>
+      <input id="d" type="radio" name='choice[]"' tabindex="4" checked>
+      <input id="e" type="radio" tabindex="5">
+      <input id="f" type="radio" name="" tabindex="6">
+    </div>`;
+    const modal = document.getElementById("modal")!;
+    modal.querySelectorAll<HTMLElement>("input").forEach(markVisible);
+    createFocusTrap(modal).activate();
+    const b = document.getElementById("b")!;
+    b.focus();
+    for (const id of ["c", "d", "e", "f", "b"]) {
+      expect(pressTab(document.activeElement as HTMLElement)).toBe(true);
+      expect(document.activeElement).toBe(document.getElementById(id));
+    }
+    (document.getElementById("a") as HTMLInputElement).checked = true;
+    expect(pressTab(b)).toBe(true);
+    expect(document.activeElement).toBe(document.getElementById("a"));
+  });
+
+  it("skips unavailable radios and uses an eligible member when the checked one is unavailable", () => {
+    document.body.innerHTML = `<div id="modal">
+      <input type="radio" name="choice" checked disabled>
+      <input id="available" type="radio" name="choice" tabindex="1">
+      <input type="radio" name="choice" style="visibility:hidden">
+      <div inert><input type="radio" name="choice"></div>
+      <input type="radio" name="choice" tabindex="-1">
+    </div>`;
+    const modal = document.getElementById("modal")!;
+    modal.querySelectorAll<HTMLElement>("input").forEach(markVisible);
+    createFocusTrap(modal).activate();
+    const available = document.getElementById("available")!;
+    available.focus();
+    expect(pressTab(available)).toBe(true);
+    expect(document.activeElement).toBe(available);
+    expect(pressTab(available, true)).toBe(true);
+    expect(document.activeElement).toBe(available);
+  });
+
+  it("does not admit unchecked members of a group whose checked stop is outside", () => {
+    document.body.innerHTML = `<input type="radio" name="choice" checked>
+      <div id="modal"><input type="radio" name="choice"><button id="only">Only</button></div>`;
+    document.querySelectorAll<HTMLElement>("input, button").forEach(markVisible);
+    const modal = document.getElementById("modal")!;
+    createFocusTrap(modal).activate();
+    const only = document.getElementById("only")!;
+    only.focus();
+    expect(pressTab(only, true)).toBe(true);
+    expect(document.activeElement).toBe(only);
+  });
+
+  it("owns each Tab step when unchecked radio members surround other controls", () => {
+    document.body.innerHTML = `<div id="modal">
+      <input id="a" type="radio" name="choice"><button id="middle">Middle</button>
+      <input id="b" type="radio" name="choice">
+    </div>`;
+    const modal = document.getElementById("modal")!;
+    modal.querySelectorAll<HTMLElement>("input, button").forEach(markVisible);
+    createFocusTrap(modal).activate();
+    const a = document.getElementById("a")!;
+    const b = document.getElementById("b")!;
+    const middle = document.getElementById("middle")!;
+    b.focus();
+    expect(pressTab(b, true)).toBe(true);
+    expect(document.activeElement).toBe(middle);
+    expect(pressTab(middle, true)).toBe(true);
+    expect(document.activeElement).toBe(a);
+    expect(pressTab(a)).toBe(true);
+    expect(document.activeElement).toBe(middle);
+    expect(pressTab(middle)).toBe(true);
+    expect(document.activeElement).toBe(a);
+  });
+
   it("wraps at a textarea that is the last control", () => {
     document.body.innerHTML = `
       <div id="modal">
@@ -306,6 +399,86 @@ describe("focus-trap", () => {
     comment.focus();
     expect(pressTab(comment)).toBe(false);
     expect(document.activeElement).toBe(comment);
+  });
+
+  function overlappingTraps() {
+    document.body.innerHTML = `<div id="older"><button id="old-first">First</button>
+      <button id="old-last">Last</button></div>
+      <div id="newer"><button id="new-first">First</button><button id="new-last">Last</button></div>`;
+    document.querySelectorAll<HTMLElement>("button").forEach(markVisible);
+    const older = createFocusTrap(document.getElementById("older")!);
+    const newer = createFocusTrap(document.getElementById("newer")!);
+    older.activate();
+    newer.activate();
+    return { older, newer };
+  }
+
+  it("gives only the newest trap Tab ownership and restores its predecessor on close", () => {
+    const { older, newer } = overlappingTraps();
+    const oldFirst = document.getElementById("old-first")!;
+    const newFirst = document.getElementById("new-first")!;
+    const newLast = document.getElementById("new-last")!;
+    // Repeated activation of an already active trap cannot steal ownership.
+    older.activate();
+    newFirst.focus();
+    expect(pressTab(newFirst)).toBe(false);
+    expect(document.activeElement).toBe(newFirst);
+    newLast.focus();
+    expect(pressTab(newLast)).toBe(true);
+    expect(document.activeElement).toBe(newFirst);
+    expect(pressTab(newFirst, true)).toBe(true);
+    expect(document.activeElement).toBe(newLast);
+    newer.deactivate();
+    newer.deactivate();
+    expect(pressTab(newLast)).toBe(true);
+    expect(document.activeElement).toBe(oldFirst);
+    older.deactivate();
+    expect(pressTab(oldFirst)).toBe(false);
+  });
+
+  it("can retire a suspended trap without disturbing the current owner", () => {
+    const { older, newer } = overlappingTraps();
+    older.deactivate();
+    older.deactivate();
+    const newFirst = document.getElementById("new-first")!;
+    const newLast = document.getElementById("new-last")!;
+    newLast.focus();
+    expect(pressTab(newLast)).toBe(true);
+    expect(document.activeElement).toBe(newFirst);
+    newer.deactivate();
+    expect(pressTab(newFirst)).toBe(false);
+  });
+
+  it("skips disconnected owners and resumes the previous connected trap", () => {
+    const { newer } = overlappingTraps();
+    document.getElementById("newer")!.remove();
+    const oldFirst = document.getElementById("old-first")!;
+    document.getElementById("old-last")!.focus();
+    expect(pressTab(document.body)).toBe(true);
+    expect(document.activeElement).toBe(oldFirst);
+    newer.deactivate();
+    expect(document.getElementById("older")!.getAttribute("tabindex")).toBe("-1");
+  });
+
+  it("restores the nearest connected owner when a suspended container was removed", () => {
+    document.body.innerHTML = '<div id="base"><button id="base-stop">Base</button></div>';
+    const base = createFocusTrap(document.getElementById("base")!);
+    const stop = document.getElementById("base-stop")!;
+    markVisible(stop);
+    base.activate();
+    const removed = document.createElement("div");
+    document.body.append(removed);
+    createFocusTrap(removed).activate();
+    const current = document.createElement("div");
+    document.body.append(current);
+    const top = createFocusTrap(current);
+    top.activate();
+    removed.remove();
+    top.deactivate();
+    expect(pressTab(document.body)).toBe(true);
+    expect(document.activeElement).toBe(stop);
+    base.deactivate();
+    expect(pressTab(document.body)).toBe(false);
   });
 
   it("stops trapping when deactivated", () => {

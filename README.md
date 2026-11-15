@@ -280,9 +280,12 @@ inside a disabled `fieldset`) and controls with a negative `tabindex` are
 skipped, along with inert descendants and CSS visibility-hidden controls. Visible
 fixed-position controls are included. Positive tabindex values come first in
 ascending order (ties retain DOM order), then zero/default controls. When positive
-values are present, every Tab step follows this modal-local order so outside
-controls cannot intrude. In this mode, each enabled radio input is a separate
-stop; radio groups are not collapsed to a single stop. Controls in closed
+values or named radio groups are present, every Tab step follows this modal-local order so outside
+controls cannot intrude. Named radio groups share one Tab stop, grouped by their
+native form owner and literal name. An eligible checked member owns that stop;
+otherwise the currently focused eligible member, or the first eligible member
+in Tab order, represents the group. Radios without a nonempty name remain
+independent stops. Arrow keys retain native radio selection. Controls in closed
 details content are skipped. The trap
 rechecks layout, disabled state and tabindex on each keypress. A template override may therefore
 end the modal with any of these controls, including a textarea. This is a bounded
@@ -293,6 +296,13 @@ stops remain, Tab stays on the modal container until controls return. The trap
 makes an otherwise non-focusable container temporarily focusable while active
 and removes that attribute on deactivation. Focus on the dialog background
 also restarts at the first/last control on the next Tab/Shift+Tab.
+
+When theme focus traps overlap, only the most recently activated connected
+container handles Tab. Closing it restores the previous connected trap;
+deactivating an older trap leaves the current owner alone. Repeated activation
+or deactivation is idempotent. Disconnected containers are skipped, and the
+shared keyboard listener is removed when the last trap deactivates. This
+coordination covers theme traps; Bootstrap retains its own focus management.
 
 ## Development
 ### Install javascript dependencies
