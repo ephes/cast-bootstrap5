@@ -6,11 +6,25 @@
   <div id="modal"></div>
   <button id="after">After</button>
   <button id="deactivate">Deactivate trap</button>
+  <div id="newer" hidden><button id="new-first">New first</button><button id="new-last">New last</button></div>
+  <button id="activate-newer">Activate newer trap</button>
+  <button id="deactivate-newer">Deactivate newer trap</button>
   <script type="module">
     import { createFocusTrap } from "/src/utils/focus-trap.ts";
     const trap = createFocusTrap(document.getElementById("modal"));
+    const newerContainer = document.getElementById("newer");
+    const newer = createFocusTrap(newerContainer);
     trap.activate();
     document.getElementById("deactivate").addEventListener("click", () => trap.deactivate());
+    document.getElementById("activate-newer").addEventListener("click", () => {
+      newerContainer.hidden = false;
+      newer.activate();
+      document.getElementById("new-first").focus();
+    });
+    document.getElementById("deactivate-newer").addEventListener("click", () => {
+      newer.deactivate();
+      newerContainer.hidden = true;
+    });
     document.body.dataset.ready = "true";
   </script>
 </html>

@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- Keep named radio groups to one effective modal Tab stop, respecting form
+  ownership, checked state, eligibility and positive tabindex order; preserve
+  native arrow-key selection and independent unnamed radios. Tab from a focused
+  unchecked member leaves its group, and traps inside a shadow root read the
+  checked member and the focused control from that shadow root.
+- Give overlapping theme focus traps one active keyboard owner; closing the
+  current trap resumes the previous connected container without older traps
+  stealing Tab or retaining listeners after deactivation.
+
 - Reconcile native search-form resets after defaults apply, cancel obsolete work
   and defer refresh while closed; preserve cancelled resets.
 - Preserve gallery footer controls and keyboard focus through navigation and

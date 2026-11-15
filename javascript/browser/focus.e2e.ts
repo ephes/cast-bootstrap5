@@ -5,6 +5,96 @@ test.beforeEach(async ({ page }) => {
   await expect(page.locator("body")).toHaveAttribute("data-ready", "true");
 });
 
+for (const checked of [false, true]) {
+  test(`contains native Tab in a radio-only group (checked: ${checked})`, async ({ page }) => {
+    await page.locator("#modal").evaluate((modal, hasChecked) => {
+      modal.innerHTML = `<input id="a" type="radio" name="choice">
+        <input id="b" type="radio" name="choice" ${hasChecked ? "checked" : ""}>
+        <input id="c" type="radio" name="choice">`;
+    }, checked);
+    await page.locator(checked ? "#b" : "#a").focus();
+    for (const key of ["Tab", "Shift+Tab", "Tab", "Shift+Tab"]) {
+      await page.keyboard.press(key);
+      await expect(page.locator(checked ? "#b" : "#a")).toBeFocused();
+    }
+    // Arrow keys still select a different native group member.
+    await page.keyboard.press("ArrowRight");
+    const next = page.locator(checked ? "#c" : "#b");
+    await expect(next).toBeChecked();
+    await expect(next).toBeFocused();
+    await page.keyboard.press("Tab");
+    await expect(next).toBeFocused();
+    await page.keyboard.press("Shift+Tab");
+    await expect(next).toBeFocused();
+  });
+}
+
+test("keeps separate radio groups in form/name and positive tabindex order", async ({ page }) => {
+  await page.locator("#before").evaluate((control) => control.setAttribute("tabindex", "2"));
+  await page.locator("#modal").evaluate((modal) => {
+    modal.innerHTML = `<form id="one"><input type="radio" name="choice" tabindex="1">
+      <input id="first" type="radio" name="choice" checked tabindex="1"></form>
+      <form id="two"><input id="second" type="radio" name="choice" checked tabindex="2"></form>
+      <input id="third" type="radio" name="choice" checked>
+      <input id="fourth" type="radio"><input id="last" type="radio" name="">`;
+  });
+  await page.locator("#first").focus();
+  for (const id of ["second", "third", "fourth", "last", "first"]) {
+    await page.keyboard.press("Tab");
+    await expect(page.locator(`#${id}`)).toBeFocused();
+  }
+  for (const id of ["last", "fourth", "third", "second", "first"]) {
+    await page.keyboard.press("Shift+Tab");
+    await expect(page.locator(`#${id}`)).toBeFocused();
+  }
+});
+
+test("contains an unchecked group with interleaved controls after focus changed within it", async ({ page }) => {
+  await page.locator("#modal").evaluate((modal) => {
+    modal.innerHTML = `<input id="a" type="radio" name="choice"><button id="middle">Middle</button>
+      <input id="b" type="radio" name="choice">`;
+  });
+  await page.locator("#b").focus();
+  for (const id of ["middle", "a", "middle", "a"]) {
+    await page.keyboard.press("Shift+Tab");
+    await expect(page.locator(`#${id}`)).toBeFocused();
+  }
+  await page.keyboard.press("Tab");
+  await expect(page.locator("#middle")).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(page.locator("#a")).toBeFocused();
+});
+
+test("lets the latest trap own native Tab and restores the previous one on close", async ({ page }) => {
+  await page.locator("#modal").evaluate((modal) => {
+    modal.innerHTML = '<button id="old-first">Old first</button><button id="old-last">Old last</button>';
+  });
+  await page.locator("#activate-newer").click();
+  for (const id of ["new-last", "new-first"]) {
+    await page.keyboard.press("Tab");
+    await expect(page.locator(`#${id}`)).toBeFocused();
+  }
+  for (const id of ["new-last", "new-first"]) {
+    await page.keyboard.press("Shift+Tab");
+    await expect(page.locator(`#${id}`)).toBeFocused();
+  }
+  await page.locator("#deactivate-newer").click();
+  await page.keyboard.press("Tab");
+  await expect(page.locator("#old-first")).toBeFocused();
+  await page.keyboard.press("Shift+Tab");
+  await expect(page.locator("#old-last")).toBeFocused();
+});
+
+test("resumes the connected trap after the newer container is removed", async ({ page }) => {
+  await page.locator("#modal").evaluate((modal) => {
+    modal.innerHTML = '<button id="only">Only</button>';
+  });
+  await page.locator("#activate-newer").click();
+  await page.locator("#newer").evaluate((modal) => modal.remove());
+  await page.keyboard.press("Tab");
+  await expect(page.locator("#only")).toBeFocused();
+});
+
 test("wraps through native visible controls including fixed-position controls", async ({ page }) => {
   await page.locator("#modal").evaluate((modal) => {
     modal.innerHTML = `
