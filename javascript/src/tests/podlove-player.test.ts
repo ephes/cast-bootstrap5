@@ -151,6 +151,28 @@ describe('PodlovePlayerElement', () => {
     }
   });
 
+  it.each([false, true])('treats upgrade-time attributes as the initial source, not a change (facade: %s)', async facade => {
+    const proto = customElements.get('podlove-player')!.prototype as any;
+    const retire = vi.spyOn(proto, 'retirePlayer');
+    try {
+      const mode = facade ? ' data-load-mode="facade"' : '';
+      const wrapper = document.createElement('div');
+      document.body.append(wrapper);
+      // innerHTML parsing upgrades the element: attributeChangedCallback(null -> value)
+      // runs while connected, before connectedCallback.
+      wrapper.innerHTML = `<podlove-player data-url="/synthetic/upgrade/" data-config="/synthetic/config/"${mode}></podlove-player>`;
+      await Promise.resolve();
+      await Promise.resolve();
+      expect(retire).not.toHaveBeenCalled();
+      const element = wrapper.querySelector('podlove-player')!;
+      element.setAttribute('data-url', '/synthetic/upgrade-2/');
+      await Promise.resolve();
+      expect(retire).toHaveBeenCalledTimes(1);
+    } finally {
+      retire.mockRestore();
+    }
+  });
+
   it('keeps an untouched facade lazy through configuration changes and cancels detached resets', async () => {
     const element = document.createElement('podlove-player');
     element.dataset.url = '/synthetic/initial/';

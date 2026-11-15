@@ -72,12 +72,17 @@ for (const selector of ['[data-cast-facet-group] a:last-child', '.cast-btn-clear
       event.preventDefault();
     }));
     const href = await link.getAttribute('href');
-    for (const modifier of ['Control', 'Meta', 'Shift', 'Alt'] as const) {
+    // macOS turns Control+click into a contextmenu gesture without a click event.
+    const modifiers = (['Control', 'Meta', 'Shift', 'Alt'] as const)
+      .filter(modifier => !(modifier === 'Control' && process.platform === 'darwin'));
+    for (const modifier of modifiers) {
+      await page.evaluate(() => { delete (window as any).lastLinkClick; });
       await link.click({ modifiers: [modifier] });
       expect(await page.evaluate(() => (window as any).lastLinkClick.prevented)).toBe(false);
       await expect(page.locator('#a [name="tag_facets"]')).toHaveCount(0);
       await expect(link).toHaveAttribute('href', href!);
     }
+    await page.evaluate(() => { delete (window as any).lastLinkClick; });
     await link.click();
     expect(await page.evaluate(() => (window as any).lastLinkClick.prevented)).toBe(true);
   });

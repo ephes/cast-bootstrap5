@@ -305,6 +305,9 @@ class PodlovePlayerElement extends HTMLElement {
   private sourceUpdateVersion = 0;
   private sourceUpdatePending = false;
   private restartAfterSourceUpdate = false;
+  // Upgrades deliver attributeChangedCallback(null -> value) while connected but
+  // before connectedCallback; only changes after connection are source updates.
+  private connectionStarted = false;
   private retryShouldFocus = false;
   private originalFacadeButton: { button: Element; html: string; label: string | null } | null = null;
   // Pristine server-rendered facade markup, captured on first connection so a
@@ -354,7 +357,7 @@ class PodlovePlayerElement extends HTMLElement {
   }
 
   attributeChangedCallback(_name: string, oldValue: string | null, newValue: string | null) {
-    if (oldValue === newValue || !this.isConnected) return;
+    if (oldValue === newValue || !this.isConnected || !this.connectionStarted) return;
     // Fence completions immediately, before the coalesced reset task runs.
     this.restartAfterSourceUpdate ||= this.isInitialized;
     this.sourceUpdatePending = true;
@@ -374,6 +377,7 @@ class PodlovePlayerElement extends HTMLElement {
   }
 
   connectedCallback() {
+    this.connectionStarted = true;
     this.connectPlayer();
   }
 
@@ -399,6 +403,7 @@ class PodlovePlayerElement extends HTMLElement {
   }
 
   disconnectedCallback() {
+    this.connectionStarted = false;
     this.retirePlayer();
   }
 

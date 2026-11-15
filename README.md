@@ -290,7 +290,8 @@ when no Bootstrap owners remain, and other open owners keep their scroll lock.
 Facet and Clear links enhance only an unmodified primary click in the current
 browsing context. Ctrl/Meta/Shift/Alt clicks, non-primary clicks, download links
 and other targets keep native navigation using their complete filter URLs.
-Disabled facet and Clear links stay inert for every gesture.
+Disabled facet and Clear links stay inert for primary, modified and middle clicks;
+only a context-menu "open in new tab" still follows their `href`.
 
 ## Keyboard focus in the search modal
 

@@ -7,10 +7,13 @@
 - Preserve newer search overlay focus when closing older instances and restore
   focus only to an eligible connected trigger within the remaining trap.
 - Preserve native facet/Clear link gestures and give search shortcuts and Escape
-  one eligible overlay owner, respecting already handled key events.
+  one eligible overlay owner, respecting already handled key events. Disabled
+  links also ignore middle clicks (auxclick), and a backdrop click that moved
+  focus to the page body still returns focus to the trigger.
 - Reset connected Podlove players once for synchronous source/config/template/embed
   changes, fencing old initialization and iframe work while retaining the
-  document's embed implementation identity.
+  document's embed implementation identity. Attributes delivered during
+  custom-element upgrade are the initial source, not a change.
 - Retire stale player intersection deliveries across removal/reconnection while
   preserving queued records and observation for other players.
 

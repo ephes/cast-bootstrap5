@@ -313,6 +313,21 @@ describe("cast-search-modal", () => {
     expect(document.activeElement).toBe(trigger);
   });
 
+  it("returns focus to the trigger after a backdrop click moved focus to body", () => {
+    const trigger = document.querySelector("[data-cast-search-trigger]") as HTMLButtonElement;
+    const overlay = document.querySelector("[data-cast-search-overlay]") as HTMLElement;
+
+    trigger.click();
+    expect(overlay.hidden).toBe(false);
+    // A mousedown on the non-focusable backdrop blurs the modal's focus to <body>.
+    (document.activeElement as HTMLElement | null)?.blur();
+    expect(document.activeElement).toBe(document.body);
+    overlay.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+    expect(overlay.hidden).toBe(true);
+    expect(document.activeElement).toBe(trigger);
+  });
+
   it("closes on Escape and returns focus to trigger", () => {
     const trigger = document.querySelector("[data-cast-search-trigger]") as HTMLButtonElement;
     const overlay = document.querySelector("[data-cast-search-overlay]") as HTMLElement;
@@ -396,6 +411,13 @@ describe("cast-search-modal", () => {
     link.dispatchEvent(disabled);
     expect(disabled.defaultPrevented).toBe(true);
     expect(new FormData(form).get('tag_facets')).toBe(initial);
+    const middle = new MouseEvent("auxclick", { bubbles: true, cancelable: true, button: 1 });
+    link.dispatchEvent(middle);
+    expect(middle.defaultPrevented).toBe(true);
+    link.removeAttribute('aria-disabled');
+    const enabledMiddle = new MouseEvent("auxclick", { bubbles: true, cancelable: true, button: 1 });
+    link.dispatchEvent(enabledMiddle);
+    expect(enabledMiddle.defaultPrevented).toBe(false);
   });
 
   it("supports Cmd/Ctrl+K shortcut and ignores typing targets", () => {
