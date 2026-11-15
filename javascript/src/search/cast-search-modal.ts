@@ -2,8 +2,10 @@ import { fetchSearchResponse } from "@/utils/search-response";
 import { acquireBodyScroll, observeBootstrapScroll } from "@/utils/body-scroll";
 import { readBoundedJson } from "@/utils/bounded-json";
 import { isOrderingOptionDisabled } from "@/utils/ordering-options";
-import { createFocusTrap, type FocusTrapController } from "@/utils/focus-trap";
+import { activeFocusTrap, isFocusDestination, createFocusTrap, type FocusTrapController } from "@/utils/focus-trap";
 import CastSearchTypeahead from "@/search/cast-search-typeahead";
+
+const connectedSearchModals = new Set<CastSearchModal>();
 
 const DEFAULT_TRIGGER_SELECTOR = "[data-cast-search-trigger]";
 const ORDERING_DEFAULT = "-visible_date";
@@ -437,10 +439,11 @@ export default class CastSearchModal extends HTMLElement {
   }
 
   closeModal(): void {
-    if (!this.overlay) {
+    if (!this.overlay || this.overlay.hidden) {
       return;
     }
 
+    const ownedFocus = activeFocusTrap() === this.modal && this.modal?.contains(document.activeElement);
     this.refreshFacetsOnOpen ||= this.state.debounceTimer !== null || this.state.inFlight !== null;
     this.clearDebounceTimer();
     this.state.requestSeq += 1;
@@ -450,7 +453,13 @@ export default class CastSearchModal extends HTMLElement {
     this.releaseBodyScroll?.();
     this.releaseBodyScroll = null;
     this.focusTrap?.deactivate();
-    this.trigger?.focus();
+    const remainingTrap = activeFocusTrap();
+    if (ownedFocus && this.trigger && isFocusDestination(this.trigger) &&
+        (!remainingTrap || remainingTrap.contains(this.trigger))) {
+      this.trigger.focus();
+    } else if (ownedFocus && remainingTrap) {
+      remainingTrap.focus();
+    }
   }
 
   private resolveElements(): void {
@@ -515,6 +524,7 @@ export default class CastSearchModal extends HTMLElement {
     this.form?.addEventListener("reset", this.handleFormReset);
     document.addEventListener("keydown", this.boundDocumentKeydown);
 
+    connectedSearchModals.add(this);
     this.listenersBound = true;
   }
 
@@ -534,6 +544,7 @@ export default class CastSearchModal extends HTMLElement {
     this.resetTimers.clear();
     document.removeEventListener("keydown", this.boundDocumentKeydown);
 
+    connectedSearchModals.delete(this);
     this.listenersBound = false;
   }
 
@@ -577,15 +588,19 @@ export default class CastSearchModal extends HTMLElement {
   }
 
   private handleDocumentKeydown(event: KeyboardEvent): void {
-    if (event.isComposing || event.keyCode === 229) {
+    if (event.defaultPrevented || event.isComposing || event.keyCode === 229) {
       return;
     }
     if (!this.overlay) {
       return;
     }
 
+    const activeTrap = activeFocusTrap();
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
-      if (isTypingTarget(document.activeElement)) {
+      const shortcutOwner = activeTrap
+        ? Array.from(connectedSearchModals).find(instance => instance.modal === activeTrap)
+        : Array.from(connectedSearchModals).find(instance => instance.isConnected);
+      if (shortcutOwner !== this || isTypingTarget(document.activeElement)) {
         return;
       }
 
@@ -598,7 +613,7 @@ export default class CastSearchModal extends HTMLElement {
       return;
     }
 
-    if (event.key === "Escape" && !this.overlay.hidden) {
+    if (event.key === "Escape" && !this.overlay.hidden && activeTrap === this.modal) {
       event.preventDefault();
       this.closeModal();
     }
@@ -622,6 +637,7 @@ export default class CastSearchModal extends HTMLElement {
 
     const clearLink = target.closest<HTMLAnchorElement>(".cast-btn-clear");
     if (clearLink && this.modal.contains(clearLink)) {
+      if (!this.shouldHandleLink(event, clearLink)) return;
       event.preventDefault();
       this.clearAllFilters();
       return;
@@ -632,10 +648,7 @@ export default class CastSearchModal extends HTMLElement {
       return;
     }
 
-    if (link.getAttribute("aria-disabled") === "true" || link.classList.contains("is-disabled")) {
-      event.preventDefault();
-      return;
-    }
+    if (!this.shouldHandleLink(event, link)) return;
 
     const group = link.closest<HTMLElement>("[data-cast-facet-group]");
     if (!group) {
@@ -668,6 +681,17 @@ export default class CastSearchModal extends HTMLElement {
 
     this.scheduleFacetRecalculation();
     this.typeahead?.facetStateChanged();
+  }
+
+  private shouldHandleLink(event: Event, link: HTMLAnchorElement): boolean {
+    if (link.getAttribute("aria-disabled") === "true" || link.classList.contains("is-disabled")) {
+      event.preventDefault();
+      return false;
+    }
+    const click = event as MouseEvent;
+    return !event.defaultPrevented && !(click.button > 0) &&
+      !click.metaKey && !click.ctrlKey && !click.shiftKey && !click.altKey &&
+      !link.hasAttribute("download") && (!link.target || link.target.toLowerCase() === "_self");
   }
 
   private clearAllFilters(): void {

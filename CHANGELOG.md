@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- Release removed Bootstrap modal scroll owners at HTMX cleanup or DOM removal,
+  retaining other owners and disconnecting unused removal observation.
+- Preserve newer search overlay focus when closing older instances and restore
+  focus only to an eligible connected trigger within the remaining trap.
+- Preserve native facet/Clear link gestures and give search shortcuts and Escape
+  one eligible overlay owner, respecting already handled key events.
+- Reset connected Podlove players once for synchronous source/config/template/embed
+  changes, fencing old initialization and iframe work while retaining the
+  document's embed implementation identity.
+- Retire stale player intersection deliveries across removal/reconnection while
+  preserving queued records and observation for other players.
+
 - Keep named radio groups to one effective modal Tab stop, respecting form
   ownership, checked state, eligibility and positive tabindex order; preserve
   native arrow-key selection and independent unnamed radios. Tab from a focused

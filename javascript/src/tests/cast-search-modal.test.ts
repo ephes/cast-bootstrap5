@@ -149,13 +149,79 @@ function modalResponse(overrides: Partial<Record<"result_count", number>> = {}):
 describe("cast-search-modal", () => {
   beforeEach(() => {
     document.body.innerHTML = buildModalMarkup();
+    markVisible(document.querySelector<HTMLElement>('[data-cast-search-trigger]')!);
     vi.unstubAllGlobals();
     vi.useRealTimers();
   });
 
-  afterEach(() => {
+  afterEach(async () => {
+    document.body.replaceChildren();
+    await Promise.resolve();
+    document.body.style.overflow = "";
     vi.unstubAllGlobals();
     vi.useRealTimers();
+  });
+
+  it.each([false, true])("releases a removed Bootstrap scroll owner (search owner: %s)", async searchOpen => {
+    document.body.style.overflow = "scroll";
+    const modal = document.createElement("div");
+    modal.className = "modal";
+    document.body.append(modal);
+    modal.dispatchEvent(new Event("show.bs.modal", { bubbles: true }));
+    document.body.style.overflow = "hidden"; // Bootstrap's own show effect
+    if (searchOpen) getModalElement().openModal();
+    modal.remove(); // HTMX removes a shown owner without a hidden event
+    await Promise.resolve();
+    expect(document.body.style.overflow).toBe(searchOpen ? "hidden" : "scroll");
+    if (searchOpen) getModalElement().closeModal();
+    expect(document.body.style.overflow).toBe("scroll");
+  });
+
+  it("releases Bootstrap ownership at HTMX cleanup and preserves a second Bootstrap owner", () => {
+    document.body.style.overflow = "scroll";
+    const wrapper = document.createElement("div");
+    wrapper.innerHTML = '<div class="modal"></div>';
+    const second = document.createElement("div");
+    second.className = "modal";
+    document.body.append(wrapper, second);
+    for (const modal of [wrapper.firstElementChild!, second]) {
+      modal.dispatchEvent(new Event("show.bs.modal", { bubbles: true }));
+      document.body.style.overflow = "hidden";
+    }
+    wrapper.dispatchEvent(new Event("htmx:beforeCleanupElement", { bubbles: true }));
+    expect(document.body.style.overflow).toBe("hidden");
+    second.dispatchEvent(new Event("hidden.bs.modal", { bubbles: true }));
+    expect(document.body.style.overflow).toBe("scroll");
+  });
+
+  it("closing an older search preserves the newer overlay's focus", () => {
+    const first = getModalElement();
+    const second = first.cloneNode(true) as CastSearchModal;
+    const trigger = document.querySelector<HTMLButtonElement>('[data-cast-search-trigger]')!;
+    markVisible(trigger);
+    document.body.append(second);
+    first.openModal();
+    second.openModal();
+    const secondInput = second.querySelector('input')!;
+    expect(document.activeElement).toBe(secondInput);
+    first.closeModal();
+    expect(document.activeElement).toBe(secondInput);
+    second.closeModal();
+    expect(document.activeElement).toBe(trigger);
+  });
+
+  it("does not return focus to a removed or disabled search trigger", () => {
+    const modal = getModalElement();
+    const trigger = document.querySelector<HTMLButtonElement>('[data-cast-search-trigger]')!;
+    markVisible(trigger);
+    modal.openModal();
+    trigger.disabled = true;
+    modal.closeModal();
+    expect(document.activeElement).not.toBe(trigger);
+    modal.openModal();
+    trigger.remove();
+    modal.closeModal();
+    expect(document.activeElement).not.toBe(trigger);
   });
 
   it.each(["open", "cancelled", "closed"])("reconciles native reset when %s", async mode => {
@@ -281,6 +347,55 @@ describe("cast-search-modal", () => {
     if (session) input.dispatchEvent(new CompositionEvent("compositionend"));
     input.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
     expect(overlay.hidden).toBe(true);
+  });
+
+  it("gives one search instance the shortcut and only the active trap Escape", () => {
+    const first = getModalElement();
+    const second = first.cloneNode(true) as CastSearchModal;
+    document.body.append(second);
+    const key = (value: string, init: KeyboardEventInit = {}) =>
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: value, bubbles: true, cancelable: true, ...init }));
+    const handled = new KeyboardEvent("keydown", { key: "k", ctrlKey: true, cancelable: true });
+    handled.preventDefault();
+    document.dispatchEvent(handled);
+    expect(first.querySelector<HTMLElement>('[data-cast-search-overlay]')!.hidden).toBe(true);
+    key("k", { ctrlKey: true });
+    expect(first.querySelector<HTMLElement>('[data-cast-search-overlay]')!.hidden).toBe(false);
+    expect(second.querySelector<HTMLElement>('[data-cast-search-overlay]')!.hidden).toBe(true);
+    second.openModal();
+    key("Escape");
+    expect(first.querySelector<HTMLElement>('[data-cast-search-overlay]')!.hidden).toBe(false);
+    expect(second.querySelector<HTMLElement>('[data-cast-search-overlay]')!.hidden).toBe(true);
+    key("Escape");
+    expect(first.querySelector<HTMLElement>('[data-cast-search-overlay]')!.hidden).toBe(true);
+    first.remove();
+    key("k", { metaKey: true });
+    expect(second.querySelector<HTMLElement>('[data-cast-search-overlay]')!.hidden).toBe(false);
+  });
+
+  it.each(["facet", "clear"])("preserves native link gestures on %s links", kind => {
+    const link = document.querySelector<HTMLAnchorElement>(kind === "clear" ? '.cast-btn-clear' : 'a[href*="tag_facets=legacy"]')!;
+    const form = document.querySelector('form')!;
+    const initial = new FormData(form).get('tag_facets');
+    for (const init of [{ ctrlKey: true }, { metaKey: true }, { shiftKey: true }, { altKey: true }, { button: 1 }]) {
+      const event = new MouseEvent("click", { bubbles: true, cancelable: true, ...init });
+      link.dispatchEvent(event);
+      expect(event.defaultPrevented).toBe(false);
+      expect(new FormData(form).get('tag_facets')).toBe(initial);
+    }
+    for (const attribute of ['target', 'download']) {
+      link.setAttribute(attribute, attribute === 'target' ? '_blank' : '');
+      const event = new MouseEvent("click", { bubbles: true, cancelable: true });
+      link.dispatchEvent(event);
+      expect(event.defaultPrevented).toBe(false);
+      expect(new FormData(form).get('tag_facets')).toBe(initial);
+      link.removeAttribute(attribute);
+    }
+    link.setAttribute('aria-disabled', 'true');
+    const disabled = new MouseEvent("click", { bubbles: true, cancelable: true, ctrlKey: true });
+    link.dispatchEvent(disabled);
+    expect(disabled.defaultPrevented).toBe(true);
+    expect(new FormData(form).get('tag_facets')).toBe(initial);
   });
 
   it("supports Cmd/Ctrl+K shortcut and ignores typing targets", () => {

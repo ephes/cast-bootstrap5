@@ -164,6 +164,21 @@ retrying, or navigate to a new document to select another implementation. A
 preinstalled global initializer is associated with the first requested URL (or an
 existing marked embed script's URL); sites must configure that URL consistently.
 
+Changing a connected player's `data-url`, `data-config`, `data-template` or
+`data-embed` retires its previous initialization, host and iframe. Synchronous
+attribute updates coalesce into one reset using the final values. A player that
+had started loading starts the replacement once; an untouched facade remains
+lazy. Pending completions are invalidated immediately and cannot initialize the
+old source after a change. The document's canonical embed implementation remains
+binding across these resets; a conflicting `data-embed` still offers a retryable
+error. Source changes do not preserve playback.
+
+Intersection observation belongs to the current connection. Removal retires
+queued entries for that player and rotates the shared observer so an old delivery
+cannot change detached markup or unobserve a reconnected player. Pending records
+for other players are delivered before rotation, and remaining players resume
+observation on the new observer.
+
 Removing a player invalidates pending load callbacks and removes its embed host
 and iframe browsing context. Reconnecting creates a fresh host and instance;
 playback does not survive removal. A facade player that was already revealed gets
@@ -268,6 +283,14 @@ that instance. Overlapping search instances and Bootstrap modals keep scrolling
 locked until the last owner closes, then restore the saved value. Bootstrap
 coordination uses its public `show.bs.modal` and `hidden.bs.modal` lifecycle;
 Bootstrap continues to own its backdrops, scrollbar padding and focus traps.
+HTMX cleanup retires removed Bootstrap owners immediately; a DOM removal observer
+also releases shown modals removed without a hidden event. The observer disconnects
+when no Bootstrap owners remain, and other open owners keep their scroll lock.
+
+Facet and Clear links enhance only an unmodified primary click in the current
+browsing context. Ctrl/Meta/Shift/Alt clicks, non-primary clicks, download links
+and other targets keep native navigation using their complete filter URLs.
+Disabled facet and Clear links stay inert for every gesture.
 
 ## Keyboard focus in the search modal
 
@@ -306,6 +329,13 @@ deactivating an older trap leaves the current owner alone. Repeated activation
 or deactivation is idempotent. Disconnected containers are skipped, and the
 shared keyboard listener is removed when the last trap deactivates. This
 coordination covers theme traps; Bootstrap retains its own focus management.
+Closing an older search never moves focus away from the current trap. Closing the
+focused owner returns focus only to a connected, visible, enabled trigger within
+any remaining trap; otherwise a remaining trap receives focus. Removed, hidden,
+inert or disabled triggers are skipped, and focus already moved elsewhere stays
+there. Ctrl/Cmd-K has one search owner (the active search, or the first connected
+eligible instance); Escape closes only the active overlay. Already handled and
+composing key events retain their current behavior, as do shortcuts while typing.
 
 ## Development
 ### Install javascript dependencies
