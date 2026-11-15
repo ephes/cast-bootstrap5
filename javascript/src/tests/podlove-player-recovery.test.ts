@@ -4,6 +4,7 @@ import '@/audio/podlove-player';
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 vi.stubGlobal('IntersectionObserver', class {
   observe() {} unobserve() {} disconnect() {}
+  takeRecords() { return []; }
 });
 function setup(facade: boolean) {
   const element = document.createElement('podlove-player');

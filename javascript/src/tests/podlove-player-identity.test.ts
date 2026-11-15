@@ -3,6 +3,7 @@ import '@/audio/podlove-player';
 
 vi.stubGlobal('IntersectionObserver', class {
   observe() {} unobserve() {} disconnect() {}
+  takeRecords() { return []; }
 });
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 const embed = 'https://cdn.podlove.org/web-player/5.x/embed.js';
@@ -54,6 +55,7 @@ it('coalesces canonical URLs and refuses conflicting pending and registered impl
   expect(conflict.isInitialized).toBe(false);
   expect(globalThis.podlovePlayer).toHaveBeenCalledTimes(2);
   conflict.dataset.embed = embed;
+  // An immediate retry and the queued attribute reset share one initialization.
   conflict.querySelector<HTMLButtonElement>('button')!.click();
   await settle();
   expect(conflict.isInitialized).toBe(true);

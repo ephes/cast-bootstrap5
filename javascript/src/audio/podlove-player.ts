@@ -17,6 +17,7 @@ let embedScriptPromise: Promise<void> | null = null;
 let playerInstanceCounter = 0;
 let pageLoadPromise: Promise<void> | null = null;
 let sharedObserver: IntersectionObserver | null = null;
+const observedPlayers = new Map<PodlovePlayerElement, IntersectionObserver>();
 let lastKnownColorScheme: string | null = null;
 const EMBED_SCRIPT_LOAD_DEADLINE_MS = 10000;
 const EMBED_SCRIPT_ATTR = "data-podlove-embed";
@@ -69,25 +70,34 @@ function getLoadingBg(isDark: boolean): string {
 const FACADE_BTN_CLASS = "podlove-player-facade-btn";
 const FACADE_LOADING_CLASS = "podlove-player-facade-loading";
 
-function getSharedObserver(): IntersectionObserver {
-  if (!sharedObserver) {
-    sharedObserver = new IntersectionObserver((entries, observer) => {
-      entries.forEach((entry) => {
-        if (!entry.isIntersecting) {
-          return;
-        }
-
-        const target = entry.target;
-        observer.unobserve(target);
-
-        if (target instanceof PodlovePlayerElement) {
-          target.showFacade();
-        }
-      });
-    });
+function deliverIntersections(entries: IntersectionObserverEntry[], observer: IntersectionObserver): void {
+  for (const entry of entries) {
+    const target = entry.target;
+    if (!entry.isIntersecting || !(target instanceof PodlovePlayerElement) ||
+        !target.isConnected || observedPlayers.get(target) !== observer) continue;
+    observedPlayers.delete(target);
+    observer.unobserve(target);
+    target.showFacade();
   }
+}
 
+function getSharedObserver(): IntersectionObserver {
+  sharedObserver ??= new IntersectionObserver(deliverIntersections);
   return sharedObserver;
+}
+
+function retireObservation(target: PodlovePlayerElement): void {
+  const observer = target.observer;
+  target.observer = null;
+  observedPlayers.delete(target);
+  observer?.unobserve(target);
+  if (!observer || observer !== sharedObserver) return;
+  // Drain other players before rotating the shared observer. Observer identity
+  // fences even an already-delivering batch from a previous connection.
+  deliverIntersections(observer.takeRecords(), observer);
+  observer.disconnect();
+  sharedObserver = null;
+  for (const player of observedPlayers.keys()) player.observeElement();
 }
 
 // One global initializer means one implementation per document. Fragments do
@@ -292,6 +302,12 @@ class PodlovePlayerElement extends HTMLElement {
   iframeRevealShieldTimeoutId: number | null;
   facadeAbortController: AbortController | null;
   private connectionVersion = 0;
+  private sourceUpdateVersion = 0;
+  private sourceUpdatePending = false;
+  private restartAfterSourceUpdate = false;
+  // Upgrades deliver attributeChangedCallback(null -> value) while connected but
+  // before connectedCallback; only changes after connection are source updates.
+  private connectionStarted = false;
   private retryShouldFocus = false;
   private originalFacadeButton: { button: Element; html: string; label: string | null } | null = null;
   // Pristine server-rendered facade markup, captured on first connection so a
@@ -336,7 +352,36 @@ class PodlovePlayerElement extends HTMLElement {
     this.initializePlayer();
   }
 
+  static get observedAttributes(): string[] {
+    return ["data-url", "data-config", "data-template", "data-embed"];
+  }
+
+  attributeChangedCallback(_name: string, oldValue: string | null, newValue: string | null) {
+    if (oldValue === newValue || !this.isConnected || !this.connectionStarted) return;
+    // Fence completions immediately, before the coalesced reset task runs.
+    this.restartAfterSourceUpdate ||= this.isInitialized;
+    this.sourceUpdatePending = true;
+    this.initVersion += 1;
+    this.connectionVersion += 1;
+    const sourceVersion = ++this.sourceUpdateVersion;
+    queueMicrotask(() => {
+      if (!this.isConnected || sourceVersion !== this.sourceUpdateVersion) return;
+      const restart = this.restartAfterSourceUpdate;
+      this.retirePlayer();
+      this.connectPlayer();
+      if (restart) {
+        if (this.isFacadeMode()) this.handleFacadeLoad();
+        else this.initializePlayer();
+      }
+    });
+  }
+
   connectedCallback() {
+    this.connectionStarted = true;
+    this.connectPlayer();
+  }
+
+  private connectPlayer() {
     const connectionVersion = ++this.connectionVersion;
     this.renderPlaceholder();
 
@@ -358,11 +403,17 @@ class PodlovePlayerElement extends HTMLElement {
   }
 
   disconnectedCallback() {
+    this.connectionStarted = false;
+    this.retirePlayer();
+  }
+
+  private retirePlayer() {
+    this.sourceUpdatePending = false;
+    this.restartAfterSourceUpdate = false;
+    this.sourceUpdateVersion += 1;
     this.connectionVersion += 1;
     this.initVersion += 1;
-    if (this.observer) {
-      this.observer.unobserve(this);
-    }
+    retireObservation(this);
     if (this.facadeAbortController) {
       this.facadeAbortController.abort();
       this.facadeAbortController = null;
@@ -819,6 +870,7 @@ class PodlovePlayerElement extends HTMLElement {
   observeElement() {
     if (!this.isConnected) return;
     this.observer = getSharedObserver();
+    observedPlayers.set(this, this.observer);
     this.observer.observe(this);
   }
 
@@ -873,7 +925,7 @@ class PodlovePlayerElement extends HTMLElement {
   }
 
   showFacade(retry = false) {
-    if (this.isInitialized || !this.getAttribute("data-url")) {
+    if (!this.isConnected || this.isInitialized || !this.getAttribute("data-url")) {
       return;
     }
     const container = this.querySelector(".podlove-player-container");
@@ -910,6 +962,10 @@ class PodlovePlayerElement extends HTMLElement {
   }
 
   initializePlayer() {
+    if (this.sourceUpdatePending) {
+      this.restartAfterSourceUpdate = true;
+      return;
+    }
     if (this.isInitialized || !this.isConnected) {
       return;
     }

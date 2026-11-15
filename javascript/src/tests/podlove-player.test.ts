@@ -13,7 +13,8 @@ class IntersectionObserverMock implements IntersectionObserver {
   readonly scrollMargin = "0px";
   readonly thresholds = [0];
 
-  takeRecords(): IntersectionObserverEntry[] { return []; }
+  records: IntersectionObserverEntry[] = [];
+  takeRecords(): IntersectionObserverEntry[] { return this.records.splice(0); }
   callback: IntersectionObserverCallback;
   observedElements: Set<Element>;
 
@@ -91,6 +92,143 @@ describe('PodlovePlayerElement', () => {
 
     return element.querySelector('.podlove-player-host') as HTMLDivElement | null;
   };
+
+  function startSourcePlayer(facade: boolean): HTMLDivElement | null {
+    if (!facade) return setupAndTrigger();
+    const element = document.createElement('podlove-player');
+    element.dataset.url = '/api/audios/podlove/63/post/75/';
+    element.dataset.loadMode = 'facade';
+    element.innerHTML = '<div class="podlove-player-container podlove-facade"><div class="podlove-facade-inner"><button class="podlove-facade-play">Play</button></div></div>';
+    document.body.append(element);
+    element.querySelector<HTMLButtonElement>('button')!.click();
+    return element.playerDiv;
+  }
+
+  it.each([false, true])('coalesces live source/config changes and retires the iframe (facade: %s)', async facade => {
+    const original = global.podlovePlayer;
+    global.podlovePlayer = vi.fn((host) => {
+      if (host instanceof HTMLElement) host.append(document.createElement('iframe'));
+    });
+    try {
+      const host = startSourcePlayer(facade);
+      const element = document.querySelector('podlove-player')!;
+      expect(element.querySelector('iframe')).not.toBeNull();
+      element.setAttribute('data-url', '/synthetic/episode-2/');
+      element.setAttribute('data-config', '/synthetic/config-2/');
+      element.setAttribute('data-template', '<div>New template</div>');
+      await Promise.resolve();
+      expect(global.podlovePlayer).toHaveBeenCalledTimes(2);
+      expect(global.podlovePlayer).toHaveBeenLastCalledWith(element.playerDiv, '/synthetic/episode-2/', '/synthetic/config-2/');
+      expect(host?.isConnected).toBe(false);
+      expect(element.querySelectorAll('iframe')).toHaveLength(1);
+      expect(element.playerDiv?.getAttribute('data-template')).toBe('<div>New template</div>');
+      element.setAttribute('data-url', '/synthetic/episode-2/');
+      await Promise.resolve();
+      expect(global.podlovePlayer).toHaveBeenCalledTimes(2);
+    } finally {
+      global.podlovePlayer = original;
+    }
+  });
+
+  it.each([false, true])('fences pending initialization immediately on source changes (facade: %s)', async facade => {
+    const original = global.podlovePlayer;
+    delete global.podlovePlayer;
+    try {
+      startSourcePlayer(facade);
+      const element = document.querySelector('podlove-player')!;
+      const oldHost = element.playerDiv;
+      const script = document.querySelector('script[data-podlove-embed]')!;
+      global.podlovePlayer = vi.fn();
+      script.dispatchEvent(new Event('load')); // queue the old completion first
+      element.setAttribute('data-url', '/synthetic/latest/');
+      element.setAttribute('data-config', '/synthetic/latest-config/');
+      await new Promise(resolve => setTimeout(resolve, 0));
+      expect(oldHost?.isConnected).toBe(false);
+      expect(global.podlovePlayer).toHaveBeenCalledTimes(1);
+      expect(global.podlovePlayer).toHaveBeenCalledWith(element.playerDiv, '/synthetic/latest/', '/synthetic/latest-config/');
+    } finally {
+      global.podlovePlayer = original;
+    }
+  });
+
+  it.each([false, true])('treats upgrade-time attributes as the initial source, not a change (facade: %s)', async facade => {
+    const proto = customElements.get('podlove-player')!.prototype as any;
+    const retire = vi.spyOn(proto, 'retirePlayer');
+    try {
+      const mode = facade ? ' data-load-mode="facade"' : '';
+      const wrapper = document.createElement('div');
+      document.body.append(wrapper);
+      // innerHTML parsing upgrades the element: attributeChangedCallback(null -> value)
+      // runs while connected, before connectedCallback.
+      wrapper.innerHTML = `<podlove-player data-url="/synthetic/upgrade/" data-config="/synthetic/config/"${mode}></podlove-player>`;
+      await Promise.resolve();
+      await Promise.resolve();
+      expect(retire).not.toHaveBeenCalled();
+      const element = wrapper.querySelector('podlove-player')!;
+      element.setAttribute('data-url', '/synthetic/upgrade-2/');
+      await Promise.resolve();
+      expect(retire).toHaveBeenCalledTimes(1);
+    } finally {
+      retire.mockRestore();
+    }
+  });
+
+  it('keeps an untouched facade lazy through configuration changes and cancels detached resets', async () => {
+    const element = document.createElement('podlove-player');
+    element.dataset.url = '/synthetic/initial/';
+    document.body.append(element);
+    element.dataset.url = '/synthetic/replacement/';
+    element.dataset.config = '/synthetic/config/';
+    await Promise.resolve();
+    expect(global.podlovePlayer).not.toHaveBeenCalled();
+    const observer = getObserver(element);
+    observer.callback([intersectionEntry(element)], observer);
+    element.querySelector<HTMLButtonElement>('button')!.click();
+    expect(global.podlovePlayer).toHaveBeenCalledWith(element.playerDiv, '/synthetic/replacement/', '/synthetic/config/');
+    element.dataset.url = '/synthetic/detached/';
+    element.remove();
+    await Promise.resolve();
+    expect(element.playerDiv).toBeNull();
+    expect(global.podlovePlayer).toHaveBeenCalledTimes(1);
+  });
+
+  it('retires queued intersections across disconnect and reconnect without dropping sibling records', () => {
+    const first = document.createElement('podlove-player');
+    const sibling = document.createElement('podlove-player');
+    first.setAttribute('data-url', '/synthetic/first/');
+    sibling.setAttribute('data-url', '/synthetic/sibling/');
+    document.body.append(first, sibling);
+    const oldObserver = getObserver(first);
+    const stale = intersectionEntry(first);
+    oldObserver.records.push(stale, intersectionEntry(sibling));
+    first.remove();
+    oldObserver.callback([stale], oldObserver); // already queued delivery can outlive unobserve
+    expect(first.querySelector('.podlove-player-facade-btn')).toBeNull();
+    expect(sibling.querySelectorAll('.podlove-player-facade-btn')).toHaveLength(1);
+    document.body.append(first);
+    const current = getObserver(first);
+    oldObserver.callback([stale], oldObserver);
+    expect(first.querySelector('.podlove-player-facade-btn')).toBeNull();
+    expect(current.observedElements.has(first)).toBe(true);
+    current.callback([intersectionEntry(first)], current);
+    expect(first.querySelectorAll('.podlove-player-facade-btn')).toHaveLength(1);
+  });
+
+  it('reobserves unaffected players after retiring another connection', () => {
+    const first = document.createElement('podlove-player');
+    const sibling = document.createElement('podlove-player');
+    sibling.dataset.url = '/synthetic/sibling/';
+    document.body.append(first, sibling);
+    const old = getObserver(sibling);
+    first.remove();
+    const current = getObserver(sibling);
+    expect(current).not.toBe(old);
+    expect(current.observedElements.has(sibling)).toBe(true);
+    old.callback([intersectionEntry(sibling)], old);
+    expect(sibling.querySelector('button')).toBeNull();
+    current.callback([intersectionEntry(sibling)], current);
+    expect(sibling.querySelectorAll('button')).toHaveLength(1);
+  });
 
   it('should define the custom element', () => {
     expect(customElements.get('podlove-player')).toBeDefined();

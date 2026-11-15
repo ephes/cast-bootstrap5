@@ -2,8 +2,10 @@ import { fetchSearchResponse } from "@/utils/search-response";
 import { acquireBodyScroll, observeBootstrapScroll } from "@/utils/body-scroll";
 import { readBoundedJson } from "@/utils/bounded-json";
 import { isOrderingOptionDisabled } from "@/utils/ordering-options";
-import { createFocusTrap, type FocusTrapController } from "@/utils/focus-trap";
+import { activeFocusTrap, isFocusDestination, createFocusTrap, type FocusTrapController } from "@/utils/focus-trap";
 import CastSearchTypeahead from "@/search/cast-search-typeahead";
+
+const connectedSearchModals = new Set<CastSearchModal>();
 
 const DEFAULT_TRIGGER_SELECTOR = "[data-cast-search-trigger]";
 const ORDERING_DEFAULT = "-visible_date";
@@ -308,6 +310,10 @@ function dedupeFacetOptions(options: ModalFacetOption[]): ModalFacetOption[] {
   });
 }
 
+function isDisabledLink(link: HTMLAnchorElement): boolean {
+  return link.getAttribute("aria-disabled") === "true" || link.classList.contains("is-disabled");
+}
+
 export default class CastSearchModal extends HTMLElement {
   private releaseBodyScroll: (() => void) | null = null;
   private trigger: HTMLElement | null;
@@ -437,10 +443,15 @@ export default class CastSearchModal extends HTMLElement {
   }
 
   closeModal(): void {
-    if (!this.overlay) {
+    if (!this.overlay || this.overlay.hidden) {
       return;
     }
 
+    // Focus inside the modal, or focus that fell to <body> (e.g. a backdrop
+    // mousedown), still belongs to this trap; focus moved elsewhere stays there.
+    const active = document.activeElement;
+    const ownedFocus = activeFocusTrap() === this.modal &&
+      (active === null || active === document.body || !!this.modal?.contains(active));
     this.refreshFacetsOnOpen ||= this.state.debounceTimer !== null || this.state.inFlight !== null;
     this.clearDebounceTimer();
     this.state.requestSeq += 1;
@@ -450,7 +461,13 @@ export default class CastSearchModal extends HTMLElement {
     this.releaseBodyScroll?.();
     this.releaseBodyScroll = null;
     this.focusTrap?.deactivate();
-    this.trigger?.focus();
+    const remainingTrap = activeFocusTrap();
+    if (ownedFocus && this.trigger && isFocusDestination(this.trigger) &&
+        (!remainingTrap || remainingTrap.contains(this.trigger))) {
+      this.trigger.focus();
+    } else if (ownedFocus && remainingTrap) {
+      remainingTrap.focus();
+    }
   }
 
   private resolveElements(): void {
@@ -510,11 +527,13 @@ export default class CastSearchModal extends HTMLElement {
     this.overlay?.addEventListener("click", this.boundOverlayClick);
     this.closeButton?.addEventListener("click", this.boundCloseClick);
     this.modal?.addEventListener("click", this.boundModalClick);
+    this.modal?.addEventListener("auxclick", this.handleModalAuxClick);
     this.searchInput?.addEventListener("input", this.boundSearchInput);
     this.searchInput?.addEventListener("search", this.boundSearchInput);
     this.form?.addEventListener("reset", this.handleFormReset);
     document.addEventListener("keydown", this.boundDocumentKeydown);
 
+    connectedSearchModals.add(this);
     this.listenersBound = true;
   }
 
@@ -527,6 +546,7 @@ export default class CastSearchModal extends HTMLElement {
     this.overlay?.removeEventListener("click", this.boundOverlayClick);
     this.closeButton?.removeEventListener("click", this.boundCloseClick);
     this.modal?.removeEventListener("click", this.boundModalClick);
+    this.modal?.removeEventListener("auxclick", this.handleModalAuxClick);
     this.searchInput?.removeEventListener("input", this.boundSearchInput);
     this.searchInput?.removeEventListener("search", this.boundSearchInput);
     this.form?.removeEventListener("reset", this.handleFormReset);
@@ -534,6 +554,7 @@ export default class CastSearchModal extends HTMLElement {
     this.resetTimers.clear();
     document.removeEventListener("keydown", this.boundDocumentKeydown);
 
+    connectedSearchModals.delete(this);
     this.listenersBound = false;
   }
 
@@ -577,15 +598,19 @@ export default class CastSearchModal extends HTMLElement {
   }
 
   private handleDocumentKeydown(event: KeyboardEvent): void {
-    if (event.isComposing || event.keyCode === 229) {
+    if (event.defaultPrevented || event.isComposing || event.keyCode === 229) {
       return;
     }
     if (!this.overlay) {
       return;
     }
 
+    const activeTrap = activeFocusTrap();
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
-      if (isTypingTarget(document.activeElement)) {
+      const shortcutOwner = activeTrap
+        ? Array.from(connectedSearchModals).find(instance => instance.modal === activeTrap)
+        : Array.from(connectedSearchModals).find(instance => instance.isConnected);
+      if (shortcutOwner !== this || isTypingTarget(document.activeElement)) {
         return;
       }
 
@@ -598,7 +623,7 @@ export default class CastSearchModal extends HTMLElement {
       return;
     }
 
-    if (event.key === "Escape" && !this.overlay.hidden) {
+    if (event.key === "Escape" && !this.overlay.hidden && activeTrap === this.modal) {
       event.preventDefault();
       this.closeModal();
     }
@@ -622,6 +647,7 @@ export default class CastSearchModal extends HTMLElement {
 
     const clearLink = target.closest<HTMLAnchorElement>(".cast-btn-clear");
     if (clearLink && this.modal.contains(clearLink)) {
+      if (!this.shouldHandleLink(event, clearLink)) return;
       event.preventDefault();
       this.clearAllFilters();
       return;
@@ -632,10 +658,7 @@ export default class CastSearchModal extends HTMLElement {
       return;
     }
 
-    if (link.getAttribute("aria-disabled") === "true" || link.classList.contains("is-disabled")) {
-      event.preventDefault();
-      return;
-    }
+    if (!this.shouldHandleLink(event, link)) return;
 
     const group = link.closest<HTMLElement>("[data-cast-facet-group]");
     if (!group) {
@@ -668,6 +691,25 @@ export default class CastSearchModal extends HTMLElement {
 
     this.scheduleFacetRecalculation();
     this.typeahead?.facetStateChanged();
+  }
+
+  // Browsers send middle clicks as auxclick, not click: keep disabled links inert.
+  private readonly handleModalAuxClick = (event: Event): void => {
+    const target = event.target;
+    if (!(target instanceof Element) || !this.modal) return;
+    const link = target.closest<HTMLAnchorElement>(".cast-btn-clear, [data-cast-facet-group] a[href]");
+    if (link && this.modal.contains(link) && isDisabledLink(link)) event.preventDefault();
+  };
+
+  private shouldHandleLink(event: Event, link: HTMLAnchorElement): boolean {
+    if (isDisabledLink(link)) {
+      event.preventDefault();
+      return false;
+    }
+    const click = event as MouseEvent;
+    return !event.defaultPrevented && !(click.button > 0) &&
+      !click.metaKey && !click.ctrlKey && !click.shiftKey && !click.altKey &&
+      !link.hasAttribute("download") && (!link.target || link.target.toLowerCase() === "_self");
   }
 
   private clearAllFilters(): void {

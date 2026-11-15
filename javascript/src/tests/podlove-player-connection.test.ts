@@ -5,6 +5,7 @@ const observe = vi.fn();
 vi.stubGlobal('IntersectionObserver', class {
   observe = observe;
   unobserve() {} disconnect() {}
+  takeRecords() { return []; }
 });
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 function player() {

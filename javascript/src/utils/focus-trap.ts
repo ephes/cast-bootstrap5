@@ -69,6 +69,17 @@ export type FocusTrapController = {
 
 const activeTraps: { container: HTMLElement; onKeydown: (event: KeyboardEvent) => void }[] = [];
 
+export function activeFocusTrap(): HTMLElement | null {
+  for (let index = activeTraps.length - 1; index >= 0; index--) {
+    if (activeTraps[index].container.isConnected) return activeTraps[index].container;
+  }
+  return null;
+}
+
+export function isFocusDestination(element: HTMLElement): boolean {
+  return element.isConnected && isTabStop(element) && isVisible(element);
+}
+
 function onActiveKeydown(event: KeyboardEvent): void {
   for (let index = activeTraps.length - 1; index >= 0; index--) {
     const owner = activeTraps[index];

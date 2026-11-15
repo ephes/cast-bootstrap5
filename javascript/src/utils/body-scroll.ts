@@ -4,6 +4,7 @@ const searchOwners = new Set<object>();
 const bootstrapOwners = new Set<Element>();
 let priorOverflow: string | null = null;
 let observedDocument: Document | null = null;
+let removalObserver: MutationObserver | null = null;
 
 function capture(): void {
   if (priorOverflow === null) priorOverflow = document.body.style.overflow;
@@ -13,6 +14,10 @@ function restore(): void {
   // A shown modal removed without hiding never fires hidden.bs.modal.
   for (const modal of bootstrapOwners) {
     if (!modal.isConnected) bootstrapOwners.delete(modal);
+  }
+  if (bootstrapOwners.size === 0) {
+    removalObserver?.disconnect();
+    removalObserver = null;
   }
   if (searchOwners.size || bootstrapOwners.size) {
     document.body.style.overflow = "hidden";
@@ -30,6 +35,10 @@ export function observeBootstrapScroll(): void {
     const modal = event.target;
     capture();
     bootstrapOwners.add(modal);
+    if (!removalObserver) {
+      removalObserver = new MutationObserver(restore);
+      removalObserver.observe(document.body, { childList: true, subtree: true });
+    }
     // Do not write overflow here: Bootstrap snapshots it after the show event.
     queueMicrotask(() => {
       if (event.defaultPrevented) {
@@ -37,6 +46,17 @@ export function observeBootstrapScroll(): void {
         restore();
       }
     });
+  });
+  document.addEventListener("htmx:beforeCleanupElement", event => {
+    if (!(event.target instanceof Element)) return;
+    let removed = false;
+    for (const modal of bootstrapOwners) {
+      if (event.target.contains(modal)) {
+        bootstrapOwners.delete(modal);
+        removed = true;
+      }
+    }
+    if (removed) restore();
   });
   document.addEventListener("hidden.bs.modal", event => {
     if (!(event.target instanceof Element) || !bootstrapOwners.delete(event.target)) return;
