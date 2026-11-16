@@ -80,6 +80,10 @@ credentials. Redirects, including same-origin login redirects, fail back to ordi
 form search; configure the final endpoint directly. Both readers require valid
 UTF-8, including across stream chunks. Invalid bytes or a truncated character
 reject the whole response before caching or changing the page.
+Both readers also reject duplicate JSON member names in any object, including
+names that become identical after Unicode escape decoding. Contradictory query,
+destination or facet evidence fails the entire update; existing filters and
+ordinary form search remain available.
 Each suggestion request accumulates at most 64 KiB of response-body bytes through a
 standard stream reader before JSON parsing, independently of Content-Length
 (including absent or understated lengths). Exceeding the budget cancels the body
@@ -311,7 +315,11 @@ and Shift+Tab leave the group from there (as in Chromium), even when another
 member is checked. Otherwise an eligible checked member owns it, or the first
 eligible member in Tab order. Checked members and the focused control are read
 from the trap's own document or shadow root, so traps inside a shadow root
-follow focus there. Radios without a nonempty name remain
+follow focus there. An eligible checked member outside the trap suppresses that
+group’s unchecked entry stops inside it, unless an inside member currently has
+focus. Each Tab keypress builds one group index by root, form owner and name;
+group resolution takes linear work in the candidate and checked radio counts.
+Radios without a nonempty name remain
 independent stops. Arrow keys retain native radio selection. Controls in closed
 details content are skipped. The trap
 rechecks layout, disabled state and tabindex on each keypress. A template override may therefore

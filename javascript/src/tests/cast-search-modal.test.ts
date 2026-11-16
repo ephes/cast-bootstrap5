@@ -1538,6 +1538,37 @@ describe('bounded facet refresh and focus', () => {
     expect(fetchMock).toHaveBeenCalledOnce();
   });
 
+  it.each([
+    ['mode', '"mode":"modal"', '"mode":"modal"'],
+    ['escaped mode', '"mode":"modal"', '"mo\\u0064e":"modal"'],
+    ['facet selection', '"selected":"django"', '"selected":"python"'],
+    ['escaped facet selection', '"selected":"django"', '"sel\\u0065cted":"python"'],
+  ].flatMap(([label, target, duplicate]) => [false, true].map(reverse => ({ label, target, duplicate, reverse }))))(
+    'refuses duplicate $label (reverse: $reverse) without changing facets or caching', async ({ target, duplicate, reverse }) => {
+      vi.useFakeTimers();
+      document.body.innerHTML = buildModalMarkup({ dynamic: true });
+      const text = JSON.stringify(modalResponse());
+      expect(text).toContain(target);
+      const wire = text.replace(target, reverse ? `${target},${duplicate}` : `${duplicate},${target}`);
+      const fetchMock = vi.fn().mockResolvedValueOnce(new Response(wire))
+        .mockImplementation(() => jsonResponse(modalResponse()));
+      vi.stubGlobal("fetch", fetchMock);
+      const groups = Array.from(document.querySelectorAll<HTMLElement>("[data-cast-facet-group]"));
+      const beforeGroups = groups.map(group => group.innerHTML);
+      const form = document.querySelector<HTMLFormElement>("form")!;
+      const beforeInputs = Array.from(new FormData(form).entries());
+      const input = document.querySelector<HTMLInputElement>('[name="search"]')!;
+      input.dispatchEvent(new Event("input"));
+      await vi.advanceTimersByTimeAsync(FACET_DEBOUNCE_MS + 10);
+      expect(groups.map(group => group.innerHTML)).toEqual(beforeGroups);
+      expect(Array.from(new FormData(form).entries())).toEqual(beforeInputs);
+      expect(document.querySelector('[data-cast-facet-status]')!.textContent).toContain("Could not refresh");
+      input.dispatchEvent(new Event("input"));
+      await vi.advanceTimersByTimeAsync(FACET_DEBOUNCE_MS + 10);
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      expect(document.querySelector('[data-cast-facet-status]')!.textContent).toBe("Filters updated.");
+    });
+
   it.each(["utf8", "truncated-utf8", "redirected", "foreign-url"])("refuses %s responses without caching", async (kind) => {
     vi.useFakeTimers();
     document.body.innerHTML = buildModalMarkup({ dynamic: true });
