@@ -5,10 +5,12 @@ Usage (from the repository root):
     uv run --extra test python scripts/messages.py --check
 """
 
+import fcntl
 import os
 import re
 import shutil
 import sys
+from contextlib import contextmanager
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -29,7 +31,68 @@ class MakeMessages(MakeMessagesCommand):
     msgmerge_options = [*MakeMessagesCommand.msgmerge_options, "--no-fuzzy-matching"]
 
 
+class SourcesChanged(RuntimeError):
+    def __init__(self):
+        super().__init__("Translation sources changed during generation/publication; rerun `just messages`.")
+
+
+@contextmanager
+def publication_lock():
+    # A stable inode outside the package, shared by checks and writers. Never
+    # unlink the lock: waiters must not acquire a different inode.
+    lock = PACKAGE.parent / ".cache/messages.lock"
+    lock.parent.mkdir(exist_ok=True)
+    with lock.open("a+b") as handle:
+        fcntl.flock(handle, fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(handle, fcntl.LOCK_UN)
+
+
+def generation(path: Path) -> tuple | None:
+    try:
+        with path.open("rb") as handle:
+            before = os.fstat(handle.fileno())
+            data = handle.read()
+            after = os.fstat(handle.fileno())
+    except FileNotFoundError:
+        return None
+    if (before.st_size, before.st_mtime_ns, before.st_ctime_ns) != (
+        after.st_size,
+        after.st_mtime_ns,
+        after.st_ctime_ns,
+    ):
+        raise SourcesChanged()
+    # Rename preserves these fields; inode identity also fences an editor's
+    # atomic save of identical bytes. Keep the bytes to catch in-place edits.
+    return after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns, data
+
+
+def source_generations(paths: list[Path]) -> dict:
+    inputs = set(paths)
+    inputs.update(
+        path.relative_to(PACKAGE)
+        for path in PACKAGE.rglob("*")
+        if path.suffix in {".html", ".txt", ".py"} and "static" not in path.relative_to(PACKAGE).parts
+    )
+    return {relative: generation(PACKAGE / relative) for relative in sorted(inputs)}
+
+
+def ensure_current(expected: dict, paths: list[Path]) -> None:
+    if source_generations(paths) != expected:
+        raise SourcesChanged()
+
+
 def generate(staged: Path) -> None:
+    dates = {
+        source: (
+            CREATION_DATE.search((staged / source.relative_to(PACKAGE)).read_bytes())
+            if (staged / source.relative_to(PACKAGE)).exists()
+            else None
+        )
+        for source in CATALOGS
+    }
     previous_cwd = Path.cwd()
     try:
         os.chdir(staged)
@@ -46,7 +109,7 @@ def generate(staged: Path) -> None:
             po = staged / source.relative_to(PACKAGE)
             # Preserve only the volatile extraction timestamp, before compiling
             # so the PO/MO pair is deterministic and can be compared bytewise.
-            old_date = CREATION_DATE.search(source.read_bytes()) if source.exists() else None
+            old_date = dates[source]
             if old_date:
                 po.write_bytes(CREATION_DATE.sub(lambda _: old_date.group(), po.read_bytes()))
             po.with_suffix(".mo").unlink(missing_ok=True)
@@ -55,25 +118,31 @@ def generate(staged: Path) -> None:
         os.chdir(previous_cwd)
 
 
-def publish(staged: Path, backup: Path, paths: list[Path]) -> None:
+def publish(staged: Path, backup: Path, paths: list[Path], expected: dict) -> None:
+    owned = {relative: generation(staged / relative) for relative in paths}
     published = []
     try:
         for relative in paths:
+            ensure_current(expected, paths)
             target = PACKAGE / relative
             target.parent.mkdir(parents=True, exist_ok=True)
             published.append(relative)
             os.replace(staged / relative, target)
+            expected[relative] = owned[relative]
+        ensure_current(expected, paths)
     except BaseException as error:
-        # All generation has already succeeded. Restore any earlier publications
-        # if a later replace fails, including a caught KeyboardInterrupt.
+        # Roll back only files whose inode, timestamp and bytes are still ours.
+        # A translator save (including an atomic replacement) keeps ownership.
         for relative in reversed(published):
             try:
+                if generation(PACKAGE / relative) != owned[relative]:
+                    continue
                 original = backup / relative
                 if original.exists():
                     os.replace(original, PACKAGE / relative)
                 else:
                     (PACKAGE / relative).unlink()
-            except OSError as rollback_error:
+            except (OSError, SourcesChanged) as rollback_error:
                 error.add_note(f"Could not restore {relative}: {rollback_error}")
         raise
 
@@ -84,30 +153,33 @@ def main(check: bool) -> int:
     django.setup()
     paths = [source.with_suffix(suffix).relative_to(PACKAGE) for source in CATALOGS for suffix in (".po", ".mo")]
     # A sibling temporary tree keeps publication on the same filesystem.
-    with TemporaryDirectory(prefix=".messages-", dir=PACKAGE.parent) as temporary:
+    with publication_lock(), TemporaryDirectory(prefix=".messages-", dir=PACKAGE.parent) as temporary:
         temporary = Path(temporary)
         staged, backup = temporary / "package", temporary / "backup"
+        initial = source_generations(paths)
         shutil.copytree(PACKAGE, staged, ignore=shutil.ignore_patterns("static", "__pycache__", "*.pyc"))
         for relative in paths:
-            source = PACKAGE / relative
-            if source.exists():
+            if initial[relative] is not None:
                 saved = backup / relative
                 saved.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(source, saved)
+                shutil.copy2(staged / relative, saved)
+        ensure_current(initial, paths)
         generate(staged)
         # Read the complete result before publishing any member of the set.
         expected = {relative: (staged / relative).read_bytes() for relative in paths}
+        ensure_current(initial, paths)
         if check:
-            stale = any(
-                not (PACKAGE / path).exists() or (PACKAGE / path).read_bytes() != data
-                for path, data in expected.items()
-            )
+            stale = any(initial[path] is None or initial[path][-1] != data for path, data in expected.items())
             if stale:
                 print("Translation catalog is stale: run `just messages` and commit the result.", file=sys.stderr)
             return int(stale)
-        publish(staged, backup, paths)
+        publish(staged, backup, paths, initial.copy())
     return 0
 
 
 if __name__ == "__main__":
-    sys.exit(main(check="--check" in sys.argv[1:]))
+    try:
+        sys.exit(main(check="--check" in sys.argv[1:]))
+    except SourcesChanged as error:
+        print(error, file=sys.stderr)
+        sys.exit(1)

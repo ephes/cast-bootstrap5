@@ -473,10 +473,22 @@ The existing POT creation timestamp is retained before compiling for determinist
 comparison; translator edits are compared as part of the current source catalog.
 `just messages` keeps existing translations, adds new msgids untranslated (no
 fuzzy guesses) and drops strings the templates no longer use. Only after the full
-catalog set compiles does it publish each file with an atomic replacement. A
-caught publication error or interruption restores files already replaced; an
-uncatchable process termination during publication can still require rerunning
-`just messages`. The pytest suite checks that `django.mo` matches the translated
+catalog set compiles does it publish each file with an atomic replacement.
+Checks and updates share an advisory process lock at `.cache/messages.lock`,
+held from the source snapshot through publication/rollback; do not delete this
+lock file while commands may be running. Catalog bytes, file identity and
+timestamps, plus the extracted HTML/text/Python source inventory, are rechecked
+after generation, before each replacement and after the final replacement.
+A concurrent save refuses the stale result; rerun `just messages` after finishing
+the edit. A caught publication error or interruption restores only files still
+owned by that attempt, preserving later translator saves, including atomic saves
+of identical bytes. Such a save may leave a PO needing recompilation, so review
+and regenerate the pair before committing.
+The lock coordinates these commands; unrelated editors must use the same lock
+for strict exclusion, since an unsynchronized save can still race the final
+check and rename. Avoid editing during publication. An uncatchable process
+termination during publication can also require rerunning `just messages`.
+The pytest suite checks that `django.mo` matches the translated
 entries in `django.po`.
 
 ### Run development server

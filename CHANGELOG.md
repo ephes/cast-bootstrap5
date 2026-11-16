@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Serialize catalog checks/updates and refuse stale source generations before
+  publication; roll back only outputs still owned by the failed attempt so
+  concurrent translator saves survive generation and publication failures.
+
 - Rebuild purged Bootstrap CSS from the pristine, exactly pinned 5.3.8 package
   input so newly used classes return on subsequent runs without restoring files.
 
