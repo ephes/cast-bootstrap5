@@ -10,6 +10,10 @@ const cssPath = resolve(
   root,
   "cast_bootstrap5/static/cast_bootstrap5/css/bootstrap5/bootstrap.min.css",
 );
+// npm's exact Bootstrap version and lockfile integrity pin the pristine input.
+// Never use the generated stylesheet as input: a removed rule must be able to
+// return when a template starts using it on a later run.
+const inputPath = resolve(__dirname, "node_modules/bootstrap/dist/css/bootstrap.min.css");
 
 // Content sources: local (required) and sibling repos (optional).
 // Sibling repos are validated — missing ones emit a warning so the
@@ -85,10 +89,11 @@ if (missing.length > 0) {
   );
 }
 
-const originalSize = readFileSync(cssPath).length;
+const pristineCss = readFileSync(inputPath, "utf-8");
+const originalSize = Buffer.byteLength(pristineCss);
 
 const result = await new PurgeCSS().purge({
-  css: [{ raw: readFileSync(cssPath, "utf-8") }],
+  css: [{ raw: pristineCss }],
   content: contentGlobs,
   safelist: {
     standard: [
