@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Rebuild purged Bootstrap CSS from the pristine, exactly pinned 5.3.8 package
+  input so newly used classes return on subsequent runs without restoring files.
+
 - Release removed Bootstrap modal scroll owners at HTMX cleanup or DOM removal,
   retaining other owners and disconnecting unused removal observation.
 - Preserve newer search overlay focus when closing older instances and restore

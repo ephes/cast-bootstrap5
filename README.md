@@ -377,7 +377,10 @@ cp dist/.vite/manifest.json ../cast_bootstrap5/static/cast_bootstrap5/vite
 
 ### Purge unused Bootstrap CSS
 
-After upgrading `bootstrap.min.css`, re-run PurgeCSS to strip unused rules:
+PurgeCSS always reads the pristine `bootstrap@5.3.8` stylesheet installed by
+`npm ci` (exact package version plus lockfile integrity). It writes a separate
+generated stylesheet; repeated runs can restore classes newly used by templates.
+After changing template usage, rebuild from `javascript/`:
 
 ```shell
 npm run purge:bootstrap
@@ -390,8 +393,15 @@ determine which Bootstrap classes are actually used. Requirements:
 - **Optional**: `../homepage` and `../python-podcast` — if missing, a warning
   is printed (classes only used in those repos may be incorrectly purged)
 
-The purged CSS is written back to
+The generated CSS is written to
 `cast_bootstrap5/static/cast_bootstrap5/css/bootstrap5/bootstrap.min.css`.
+To restore/rebuild it, run `npm ci` and `npm run purge:bootstrap`; no Git restore
+or download is needed between purge runs. Never edit or purge the input at
+`javascript/node_modules/bootstrap/dist/css/bootstrap.min.css`. To upgrade
+Bootstrap, update its exact devDependency and lockfile together, then rebuild
+with the same sibling checkouts and review the generated CSS. Optional sibling
+content still affects the output, so use all consumer checkouts for publication;
+`just check-assets` checks Vite and `cast.css`, not this sibling-dependent purge.
 
 ### Run tests
 
