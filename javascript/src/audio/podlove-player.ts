@@ -1030,6 +1030,9 @@ class PodlovePlayerElement extends HTMLElement {
       return;
     }
     this.isInitialized = true;
+    // A source-update restart can reconnect through the no-observer fallback,
+    // which offers Play before this restart runs; initialization owns it now.
+    container.querySelector(`.${FACADE_BTN_CLASS}`)?.remove();
     this.initVersion += 1;
     const currentVersion = this.initVersion;
     let configUrl = this.getAttribute('data-config') || '/api/audios/player_config/';

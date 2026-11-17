@@ -78,3 +78,18 @@ it('clears retired registrations when the replacement observer is refused', asyn
   expect(sibling.querySelectorAll('button[aria-label="Play"]')).toHaveLength(1);
   expect(globalThis.podlovePlayer).not.toHaveBeenCalled();
 });
+
+it.each(['missing', 'refused'])('restarts a source change without a stale Play control when observation is %s', async (mode) => {
+  refuseObservation(mode);
+  const player = document.createElement('podlove-player');
+  player.dataset.url = '/synthetic/audio/';
+  document.body.append(player);
+  player.querySelector<HTMLButtonElement>('button[aria-label="Play"]')!.click();
+  expect(globalThis.podlovePlayer).toHaveBeenCalledTimes(1);
+  player.dataset.url = '/synthetic/other/';
+  await Promise.resolve();
+  await Promise.resolve();
+  expect(globalThis.podlovePlayer).toHaveBeenCalledTimes(2);
+  expect(player.isInitialized).toBe(true);
+  expect(player.querySelector('.podlove-player-facade-btn')).toBeNull();
+});
