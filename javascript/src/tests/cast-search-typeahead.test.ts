@@ -233,13 +233,15 @@ describe("CastSearchTypeahead", () => {
     controller.disconnect();
   });
 
-  it.each(["utf8", "truncated-utf8", "redirected", "foreign-url"])("refuses %s responses without caching", async (kind) => {
+  it.each(["utf8", "truncated-utf8", "http-error", "redirected", "foreign-url"])("refuses %s responses without caching", async (kind) => {
     const text = JSON.stringify({ query: "py", suggestions: pythonSuggestions });
     const bytes = new TextEncoder().encode(text);
     const index = text.indexOf('Python');
     bytes[index] = kind === "truncated-utf8" ? 0xe2 : 0xff;
     if (kind === "truncated-utf8") bytes[index + 1] = 0x82;
-    const bad = new Response(kind.endsWith("utf8") ? bytes : text);
+    const cancel = vi.fn();
+    const bad = new Response(kind.endsWith("utf8") ? bytes : new ReadableStream({ cancel }),
+      { status: kind === "http-error" ? 500 : 200 });
     if (kind === "redirected") Object.defineProperty(bad, "redirected", { value: true });
     if (kind === "foreign-url") Object.defineProperty(bad, "url", { value: `${window.location.origin}/login/` });
     const fetchMock = vi.fn().mockResolvedValueOnce(bad).mockImplementation(() => response("py", pythonSuggestions));
@@ -250,6 +252,7 @@ describe("CastSearchTypeahead", () => {
     await vi.advanceTimersByTimeAsync(225);
     expect(listbox.children).toHaveLength(0);
     expect(status.textContent).toContain("unavailable");
+    if (!kind.endsWith("utf8")) expect(cancel).toHaveBeenCalledOnce();
     input.dispatchEvent(new Event("input"));
     await vi.advanceTimersByTimeAsync(225);
     expect(fetchMock).toHaveBeenCalledTimes(2);

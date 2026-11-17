@@ -162,6 +162,37 @@ describe("cast-search-modal", () => {
     vi.useRealTimers();
   });
 
+  it.each([false, true])("keeps a newer show after cancelled-show rollback (search owner: %s)", async searchOpen => {
+    document.body.style.overflow = "scroll";
+    const modal = document.createElement("div");
+    modal.className = "modal";
+    document.body.append(modal);
+    modal.addEventListener("show.bs.modal", event => event.preventDefault(), { once: true });
+    modal.dispatchEvent(new Event("show.bs.modal", { bubbles: true, cancelable: true }));
+    modal.dispatchEvent(new Event("show.bs.modal", { bubbles: true, cancelable: true }));
+    document.body.style.overflow = "hidden"; // Accepted Bootstrap show
+    if (searchOpen) getModalElement().openModal();
+    await Promise.resolve();
+    if (searchOpen) getModalElement().closeModal();
+    expect(document.body.style.overflow).toBe("hidden");
+    modal.dispatchEvent(new Event("hidden.bs.modal", { bubbles: true }));
+    expect(document.body.style.overflow).toBe("scroll");
+  });
+
+  it.each([false, true])("rolls back a lone cancelled show (search owner: %s)", async searchOpen => {
+    document.body.style.overflow = "scroll";
+    const modal = document.createElement("div");
+    modal.className = "modal";
+    document.body.append(modal);
+    if (searchOpen) getModalElement().openModal();
+    modal.addEventListener("show.bs.modal", event => event.preventDefault(), { once: true });
+    modal.dispatchEvent(new Event("show.bs.modal", { bubbles: true, cancelable: true }));
+    await Promise.resolve();
+    expect(document.body.style.overflow).toBe(searchOpen ? "hidden" : "scroll");
+    if (searchOpen) getModalElement().closeModal();
+    expect(document.body.style.overflow).toBe("scroll");
+  });
+
   it.each([false, true])("releases a removed Bootstrap scroll owner (search owner: %s)", async searchOpen => {
     document.body.style.overflow = "scroll";
     const modal = document.createElement("div");
@@ -1569,7 +1600,7 @@ describe('bounded facet refresh and focus', () => {
       expect(document.querySelector('[data-cast-facet-status]')!.textContent).toBe("Filters updated.");
     });
 
-  it.each(["utf8", "truncated-utf8", "redirected", "foreign-url"])("refuses %s responses without caching", async (kind) => {
+  it.each(["utf8", "truncated-utf8", "http-error", "redirected", "foreign-url"])("refuses %s responses without caching", async (kind) => {
     vi.useFakeTimers();
     document.body.innerHTML = buildModalMarkup({ dynamic: true });
     const text = JSON.stringify(modalResponse());
@@ -1577,7 +1608,9 @@ describe('bounded facet refresh and focus', () => {
     const index = text.indexOf('django');
     bytes[index] = kind === "truncated-utf8" ? 0xe2 : 0xff;
     if (kind === "truncated-utf8") bytes[index + 1] = 0x82;
-    const bad = new Response(kind.endsWith("utf8") ? bytes : text);
+    const cancel = vi.fn();
+    const bad = new Response(kind.endsWith("utf8") ? bytes : new ReadableStream({ cancel }),
+      { status: kind === "http-error" ? 500 : 200 });
     if (kind === "redirected") Object.defineProperty(bad, "redirected", { value: true });
     if (kind === "foreign-url") Object.defineProperty(bad, "url", { value: `${window.location.origin}/login/` });
     const fetchMock = vi.fn().mockResolvedValueOnce(bad).mockImplementation(() => jsonResponse(modalResponse()));
@@ -1590,6 +1623,7 @@ describe('bounded facet refresh and focus', () => {
     await vi.advanceTimersByTimeAsync(FACET_DEBOUNCE_MS + 10);
     expect(group.innerHTML).toBe(original);
     expect(document.querySelector('[data-cast-facet-status]')!.textContent).toContain("Could not refresh");
+    if (!kind.endsWith("utf8")) expect(cancel).toHaveBeenCalledOnce();
     input.dispatchEvent(new Event("input"));
     await vi.advanceTimersByTimeAsync(FACET_DEBOUNCE_MS + 10);
     expect(fetchMock).toHaveBeenCalledTimes(2);
