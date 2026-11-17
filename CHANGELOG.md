@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Index native radio groups once per Tab keypress to avoid quadratic focus work,
+  preserving focused/checked/fallback order, external checked members and form
+  and shadow-root ownership.
+
+- Reject duplicate decoded JSON member names in suggestion and facet responses
+  before caching or rendering, retaining ordinary search and current filters.
+
 - Serialize catalog checks/updates and refuse stale source generations before
   publication; roll back only outputs still owned by the failed attempt so
   concurrent translator saves survive generation and publication failures.

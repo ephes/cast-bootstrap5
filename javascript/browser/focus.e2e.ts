@@ -171,3 +171,51 @@ test("recovers focus across hidden/inert changes and empty facet replacements", 
   await page.locator("#deactivate").click();
   expect(await page.locator("#modal").getAttribute("tabindex")).toBeNull();
 });
+
+test("reindexes checked members outside the trap and changing form ownership", async ({ page }) => {
+  await page.locator("#before").evaluate((before) => {
+    before.insertAdjacentHTML("afterend", `<form id="owner"></form><form id="other-owner"></form>
+      <input id="external" type="radio" name='choice[]"' form="owner" checked>`);
+  });
+  await page.locator("#modal").evaluate((modal) => {
+    modal.innerHTML = `<input id="owned" type="radio" name='choice[]"' form="owner">
+      <input id="other" type="radio" name='choice[]"' form="other-owner" checked>
+      <button id="last">Last</button>`;
+  });
+  await page.locator("#last").focus();
+  await page.keyboard.press("Tab");
+  await expect(page.locator("#other")).toBeFocused();
+  await page.keyboard.press("Shift+Tab");
+  await expect(page.locator("#last")).toBeFocused();
+  await page.locator("#external").evaluate((radio: HTMLInputElement) => { radio.checked = false; });
+  await page.keyboard.press("Tab");
+  await expect(page.locator("#owned")).toBeFocused();
+  // Moving the external checked member into the other form changes both groups.
+  await page.locator("#external").evaluate((radio: HTMLInputElement) => {
+    radio.setAttribute("form", "other-owner"); radio.checked = true;
+  });
+  await page.keyboard.press("Tab");
+  await expect(page.locator("#last")).toBeFocused();
+  await page.keyboard.press("Shift+Tab");
+  await expect(page.locator("#owned")).toBeFocused();
+});
+
+test("indexes the shadow root's focus and checked members independently of the document", async ({ page }) => {
+  await page.locator("#activate-shadow").click();
+  const host = page.locator("#shadow-host");
+  await host.locator("#shadow-last").focus();
+  await page.keyboard.press("Tab");
+  await expect(host.locator("#shadow-a")).toBeFocused();
+  await page.keyboard.press("ArrowRight");
+  await expect(host.locator("#shadow-b")).toBeChecked();
+  await page.keyboard.press("Tab");
+  await expect(host.locator("#shadow-last")).toBeFocused();
+  await page.keyboard.press("Shift+Tab");
+  await expect(host.locator("#shadow-b")).toBeFocused();
+  await host.locator("#shadow-external").evaluate((radio: HTMLInputElement) => { radio.checked = true; });
+  // Focused unchecked member still owns its stop for this keypress.
+  await page.keyboard.press("Tab");
+  await expect(host.locator("#shadow-last")).toBeFocused();
+  await page.keyboard.press("Shift+Tab");
+  await expect(host.locator("#shadow-last")).toBeFocused();
+});

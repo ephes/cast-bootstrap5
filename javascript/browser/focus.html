@@ -9,6 +9,8 @@
   <div id="newer" hidden><button id="new-first">New first</button><button id="new-last">New last</button></div>
   <button id="activate-newer">Activate newer trap</button>
   <button id="deactivate-newer">Deactivate newer trap</button>
+  <div id="shadow-host"></div>
+  <button id="activate-shadow">Activate shadow trap</button>
   <script type="module">
     import { createFocusTrap } from "/src/utils/focus-trap.ts";
     const trap = createFocusTrap(document.getElementById("modal"));
@@ -24,6 +26,15 @@
     document.getElementById("deactivate-newer").addEventListener("click", () => {
       newer.deactivate();
       newerContainer.hidden = true;
+    });
+    document.getElementById("activate-shadow").addEventListener("click", () => {
+      document.body.insertAdjacentHTML("beforeend", '<input type="radio" name="shadow-choice" checked>');
+      const root = document.getElementById("shadow-host").attachShadow({ mode: "open" });
+      root.innerHTML = `<input id="shadow-external" type="radio" name="shadow-choice">
+        <div id="shadow-modal"><input id="shadow-a" type="radio" name="shadow-choice">
+        <input id="shadow-b" type="radio" name="shadow-choice">
+        <button id="shadow-last">Last</button></div>`;
+      createFocusTrap(root.getElementById("shadow-modal")).activate();
     });
     document.body.dataset.ready = "true";
   </script>

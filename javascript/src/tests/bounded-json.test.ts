@@ -3,6 +3,34 @@ import { readBoundedJson } from '@/utils/bounded-json';
 import { fetchSearchResponse } from '@/utils/search-response';
 
 describe('bounded search JSON', () => {
+  it.each([
+    '{"query":"old","query":"new"}',
+    '{"query":"new","qu\\u0065ry":"old"}',
+    '{"results":[],"results":[1]}',
+    '{"results":[1],"res\\u0075lts":[]}',
+    '{"suggestions":[{"url":"/a/","url":"/b/"}]}',
+    '{"suggestions":[{"u\\u0072l":"/b/","url":"/a/"}]}',
+    '{"groups":{"tag_facets":{"selected":"a","sel\\u0065cted":"b"}}}',
+    '{"groups":{"tag_facets":{},"tag_facets":{}}}',
+    '{"__proto__":1,"__pr\\u006fto__":2}',
+  ])('refuses duplicate decoded object members: %s', async text => {
+    const body = new Response(text).body!;
+    await expect(readBoundedJson(new Response(body), new AbortController().signal, 1024))
+      .rejects.toThrow('Duplicate JSON member');
+    expect(body.locked).toBe(false);
+  });
+
+  it('keeps member sets local to each object and preserves ordinary JSON strings', async () => {
+    const text = '{"items":[{"name":"a"},{"name":"b"}],"nested":{"name":"c"},"__proto__":0,"text":"\\\\ \\\"name\\\": \\\"name\\\""}';
+    await expect(readBoundedJson(new Response(text), new AbortController().signal, 1024))
+      .resolves.toEqual(JSON.parse(text));
+  });
+
+  it.each(['', '/* comment */ {}', '{"a":1,}', '[1,]', '{"a":}', '{} {}', '{"a":01}'])(
+    'retains strict JSON syntax refusal: %s', async text => {
+      await expect(readBoundedJson(new Response(text), new AbortController().signal, 1024)).rejects.toThrow();
+    });
+
   it.each([64 * 1024, 256 * 1024])('admits split Unicode at the exact %i byte ceiling and releases the reader', async limit => {
     const text = '"é😀' + ' '.repeat(limit - 8) + '"';
     const bytes = new TextEncoder().encode(text);

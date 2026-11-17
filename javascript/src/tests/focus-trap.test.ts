@@ -20,6 +20,31 @@ function markVisible(element: HTMLElement): void {
 }
 
 describe("focus-trap", () => {
+  it.each([1000, 2000, 4000])("indexes %i radios with linear group identity reads per keypress", (size) => {
+    document.body.innerHTML = `<div id="modal">${Array.from({ length: size }, (_, index) =>
+      `<input type="radio" name="group-${Math.floor(index / 2)}" ${index % 2 ? "checked" : ""}>`
+    ).join("")}<button id="last">Last</button></div>`;
+    const modal = document.getElementById("modal")!;
+    vi.spyOn(HTMLElement.prototype, "getClientRects").mockReturnValue([{} as DOMRect] as unknown as DOMRectList);
+    let identityReads = 0;
+    const radios = Array.from(modal.querySelectorAll<HTMLInputElement>("input"));
+    for (const radio of radios) {
+      const name = radio.name;
+      // Count native group-key access without retaining millions of mock calls.
+      Object.defineProperty(radio, "name", { get() { identityReads++; return name; } });
+    }
+    createFocusTrap(modal).activate();
+    const last = document.getElementById("last")!;
+    last.focus();
+    expect(pressTab(last)).toBe(true);
+    expect(document.activeElement).toBe(radios[1]);
+    expect(identityReads).toBeLessThanOrEqual(16 * size);
+    identityReads = 0;
+    expect(pressTab(radios[1], true)).toBe(true);
+    expect(document.activeElement).toBe(last);
+    expect(identityReads).toBeLessThanOrEqual(16 * size);
+  });
+
   it("cycles focus forward from last to first", () => {
     document.body.innerHTML = `
       <div id="modal">

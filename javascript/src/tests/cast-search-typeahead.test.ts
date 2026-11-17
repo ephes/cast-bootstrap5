@@ -57,6 +57,33 @@ const pythonSuggestions: Suggestion[] = [
 ];
 
 describe("CastSearchTypeahead", () => {
+  it.each([
+    ['query', '"query":"py"', '"query":"python"'],
+    ['escaped query', '"query":"py"', '"qu\\u0065ry":"python"'],
+    ['suggestions', `"suggestions":${JSON.stringify(pythonSuggestions)}`, '"suggestions":[]'],
+    ['escaped suggestions', `"suggestions":${JSON.stringify(pythonSuggestions)}`, '"sugge\\u0073tions":[]'],
+    ['url', '"url":"/python-newest/"', '"url":"/other/"'],
+    ['escaped url', '"url":"/python-newest/"', '"u\\u0072l":"/other/"'],
+  ].flatMap(([label, target, duplicate]) => [false, true].map(reverse => ({ label, target, duplicate, reverse }))))(
+    'refuses duplicate $label (reverse: $reverse) before DOM or cache publication', async ({ target, duplicate, reverse }) => {
+      const text = JSON.stringify({ query: "py", suggestions: pythonSuggestions });
+      const replacement = reverse ? `${target},${duplicate}` : `${duplicate},${target}`;
+      const fetchMock = vi.fn().mockResolvedValueOnce(new Response(text.replace(target, replacement)))
+        .mockImplementation(() => response("py", pythonSuggestions));
+      vi.stubGlobal("fetch", fetchMock);
+      const { controller, input, listbox, status } = setup();
+      input.value = "py";
+      input.dispatchEvent(new Event("input"));
+      await vi.advanceTimersByTimeAsync(225);
+      expect(listbox.children).toHaveLength(0);
+      expect(status.textContent).toContain("unavailable");
+      input.dispatchEvent(new Event("input"));
+      await vi.advanceTimersByTimeAsync(225);
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      expect(listbox.children).toHaveLength(2);
+      controller.disconnect();
+    });
+
   it("rejects a response for another query before caching", async () => {
     const fetchMock = vi.fn().mockImplementationOnce(() => response("wrong", pythonSuggestions))
       .mockImplementation(() => response("py", pythonSuggestions));
