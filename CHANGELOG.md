@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Batch Podlove observer rebinding across synchronous player removals, keeping
+  list cleanup linear while preserving queued sibling records and fencing stale
+  deliveries across reconnection.
+- Offer the deliberate Play control when IntersectionObserver is unavailable or
+  its constructor is refused, retaining keyboard activation, retry and clean
+  disconnect/reconnect behavior without automatic playback. A source change
+  while playing in that fallback restarts without leaving an inert Play button.
 - Index native radio groups once per Tab keypress to avoid quadratic focus work,
   preserving focused/checked/fallback order, external checked members and form
   and shadow-root ownership.

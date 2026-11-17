@@ -178,10 +178,19 @@ binding across these resets; a conflicting `data-embed` still offers a retryable
 error. Source changes do not preserve playback.
 
 Intersection observation belongs to the current connection. Removal retires
-queued entries for that player and rotates the shared observer so an old delivery
-cannot change detached markup or unobserve a reconnected player. Pending records
-for other players are delivered before rotation, and remaining players resume
-observation on the new observer.
+queued entries for that player and invalidates the shared observer immediately,
+so an old delivery cannot change detached markup or unobserve a reconnected
+player. Pending records for other players are delivered before retirement.
+Remaining players rebind once in a microtask after synchronous sibling removals,
+keeping mount/removal observation work linear for a paginated list. A player
+reconnected in that turn can acquire the new observer immediately.
+
+If IntersectionObserver is missing or its constructor is refused by the browser,
+non-facade players expose the same keyboard-accessible “Play” button without
+waiting for intersection. Focus and hover leave playback idle; activating the
+button starts initialization. Removal retires the button and pending work;
+reconnection offers a fresh control. Loading failures retain the normal retry
+behavior.
 
 Removing a player invalidates pending load callbacks and removes its embed host
 and iframe browsing context. Reconnecting creates a fresh host and instance;

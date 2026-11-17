@@ -214,13 +214,16 @@ describe('PodlovePlayerElement', () => {
     expect(first.querySelectorAll('.podlove-player-facade-btn')).toHaveLength(1);
   });
 
-  it('reobserves unaffected players after retiring another connection', () => {
+  it('reobserves unaffected players after retiring another connection', async () => {
     const first = document.createElement('podlove-player');
     const sibling = document.createElement('podlove-player');
     sibling.dataset.url = '/synthetic/sibling/';
     document.body.append(first, sibling);
     const old = getObserver(sibling);
     first.remove();
+    old.callback([intersectionEntry(sibling)], old);
+    expect(sibling.querySelector('button')).toBeNull();
+    await Promise.resolve();
     const current = getObserver(sibling);
     expect(current).not.toBe(old);
     expect(current.observedElements.has(sibling)).toBe(true);
@@ -228,6 +231,82 @@ describe('PodlovePlayerElement', () => {
     expect(sibling.querySelector('button')).toBeNull();
     current.callback([intersectionEntry(sibling)], current);
     expect(sibling.querySelectorAll('button')).toHaveLength(1);
+  });
+
+  it('stops an in-progress delivery when a preceding entry retires its observer', async () => {
+    const first = document.createElement('podlove-player');
+    const sibling = document.createElement('podlove-player');
+    first.dataset.url = sibling.dataset.url = '/synthetic/audio/';
+    document.body.append(first, sibling);
+    const old = getObserver(first);
+    const show = vi.spyOn(first, 'showFacade').mockImplementation(() => {
+      first.remove();
+      document.body.append(first);
+    });
+    try {
+      old.callback([intersectionEntry(first), intersectionEntry(sibling)], old);
+      expect(sibling.querySelector('button')).toBeNull();
+      await Promise.resolve();
+      const current = getObserver(sibling);
+      expect(current).not.toBe(old);
+      expect(current.observedElements.has(sibling)).toBe(true);
+      current.callback([intersectionEntry(sibling)], current);
+      expect(sibling.querySelectorAll('button')).toHaveLength(1);
+    } finally {
+      show.mockRestore();
+    }
+  });
+
+  it.each([100, 200, 400])('bounds mount/removal observation work for %i players', async (count) => {
+    const observe = vi.spyOn(IntersectionObserverMock.prototype, 'observe');
+    try {
+      const paging = document.createElement('div');
+      document.body.append(paging);
+      const players = Array.from({ length: count }, () => {
+        const player = document.createElement('podlove-player');
+        player.dataset.url = '/synthetic/audio/';
+        return player;
+      });
+      paging.append(...players);
+      expect(observe).toHaveBeenCalledTimes(count);
+      // Sequential sibling cleanup in one HTMX removal turn.
+      players.forEach(player => player.remove());
+      await Promise.resolve();
+      expect(observe.mock.calls.length).toBeLessThanOrEqual(2 * count);
+      expect(players.every(player => player.observer === null)).toBe(true);
+    } finally {
+      observe.mockRestore();
+    }
+  });
+
+  it('coalesces partial removal and reconnect without accepting already-delivering entries', async () => {
+    const observe = vi.spyOn(IntersectionObserverMock.prototype, 'observe');
+    try {
+      const players = Array.from({ length: 100 }, () => {
+        const player = document.createElement('podlove-player');
+        player.dataset.url = '/synthetic/audio/';
+        document.body.append(player);
+        return player;
+      });
+      const old = getObserver(players[0]);
+      const entries = players.map(player => intersectionEntry(player));
+      players.slice(0, 50).forEach(player => player.remove());
+      document.body.append(players[0]);
+      const reconnected = getObserver(players[0]);
+      old.callback(entries, old);
+      expect(document.querySelectorAll('.podlove-player-facade-btn')).toHaveLength(0);
+      expect(reconnected.observedElements.has(players[0])).toBe(true);
+      await Promise.resolve();
+      expect(observe.mock.calls.length).toBeLessThanOrEqual(151);
+      const current = getObserver(players[50]);
+      expect(current.observedElements.size).toBe(51);
+      old.callback(entries, old);
+      expect(document.querySelectorAll('.podlove-player-facade-btn')).toHaveLength(0);
+      current.callback(entries, current);
+      expect(document.querySelectorAll('.podlove-player-facade-btn')).toHaveLength(51);
+    } finally {
+      observe.mockRestore();
+    }
   });
 
   it('should define the custom element', () => {

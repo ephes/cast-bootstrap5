@@ -17,6 +17,7 @@ let embedScriptPromise: Promise<void> | null = null;
 let playerInstanceCounter = 0;
 let pageLoadPromise: Promise<void> | null = null;
 let sharedObserver: IntersectionObserver | null = null;
+let observationRebindQueued = false;
 const observedPlayers = new Map<PodlovePlayerElement, IntersectionObserver>();
 let lastKnownColorScheme: string | null = null;
 const EMBED_SCRIPT_LOAD_DEADLINE_MS = 10000;
@@ -72,6 +73,7 @@ const FACADE_LOADING_CLASS = "podlove-player-facade-loading";
 
 function deliverIntersections(entries: IntersectionObserverEntry[], observer: IntersectionObserver): void {
   for (const entry of entries) {
+    if (observer !== sharedObserver) return;
     const target = entry.target;
     if (!entry.isIntersecting || !(target instanceof PodlovePlayerElement) ||
         !target.isConnected || observedPlayers.get(target) !== observer) continue;
@@ -81,8 +83,15 @@ function deliverIntersections(entries: IntersectionObserverEntry[], observer: In
   }
 }
 
-function getSharedObserver(): IntersectionObserver {
-  sharedObserver ??= new IntersectionObserver(deliverIntersections);
+function getSharedObserver(): IntersectionObserver | null {
+  if (sharedObserver) return sharedObserver;
+  if (typeof IntersectionObserver !== "function") return null;
+  try {
+    sharedObserver = new IntersectionObserver(deliverIntersections);
+  } catch {
+    // Restricted browser contexts can expose the API but refuse construction.
+    return null;
+  }
   return sharedObserver;
 }
 
@@ -92,12 +101,22 @@ function retireObservation(target: PodlovePlayerElement): void {
   observedPlayers.delete(target);
   observer?.unobserve(target);
   if (!observer || observer !== sharedObserver) return;
-  // Drain other players before rotating the shared observer. Observer identity
-  // fences even an already-delivering batch from a previous connection.
+  // Drain queued sibling records, then invalidate this observer immediately so
+  // even an already-delivering batch cannot act on a later connection.
   deliverIntersections(observer.takeRecords(), observer);
   observer.disconnect();
   sharedObserver = null;
-  for (const player of observedPlayers.keys()) player.observeElement();
+  // Rebind survivors once after synchronous sibling removals have finished.
+  // A reconnect can acquire a fresh observer immediately; the batch skips any
+  // registrations already owned by that observer.
+  if (observationRebindQueued) return;
+  observationRebindQueued = true;
+  queueMicrotask(() => {
+    observationRebindQueued = false;
+    for (const [player, registration] of observedPlayers) {
+      if (registration !== sharedObserver) player.observeElement();
+    }
+  });
 }
 
 // One global initializer means one implementation per document. Fragments do
@@ -869,9 +888,16 @@ class PodlovePlayerElement extends HTMLElement {
 
   observeElement() {
     if (!this.isConnected) return;
-    this.observer = getSharedObserver();
-    observedPlayers.set(this, this.observer);
-    this.observer.observe(this);
+    const observer = getSharedObserver();
+    if (!observer) {
+      // Reuse the deliberate play control; focus/hover must not start playback.
+      retireObservation(this);
+      this.showFacade();
+      return;
+    }
+    this.observer = observer;
+    observedPlayers.set(this, observer);
+    observer.observe(this);
   }
 
   setupFacadeInteraction() {
@@ -1004,6 +1030,9 @@ class PodlovePlayerElement extends HTMLElement {
       return;
     }
     this.isInitialized = true;
+    // A source-update restart can reconnect through the no-observer fallback,
+    // which offers Play before this restart runs; initialization owns it now.
+    container.querySelector(`.${FACADE_BTN_CLASS}`)?.remove();
     this.initVersion += 1;
     const currentVersion = this.initVersion;
     let configUrl = this.getAttribute('data-config') || '/api/audios/player_config/';
