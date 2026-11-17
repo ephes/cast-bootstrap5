@@ -8,6 +8,9 @@ export async function fetchSearchResponse(value: string, signal: AbortSignal): P
   url.hash = '';
   const response = await fetch(url.href, { signal, redirect: 'error' });
   if (!response.ok || response.redirected || (response.url && response.url !== url.href)) {
+    // Refusal retires the transfer even after the caller clears its deadline.
+    // Cancellation must neither delay nor replace the original refusal.
+    void response.body?.cancel().catch(() => undefined);
     throw new Error('Invalid search response endpoint');
   }
   return response;

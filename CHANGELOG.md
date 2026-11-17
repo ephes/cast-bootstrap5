@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Keep a newer Bootstrap modal show locked when an earlier cancelled show of the
+  same element rolls back, preserving shared search locks and removal cleanup.
+
+- Cancel unread suggestion and facet response bodies when rejecting their status
+  or endpoint, without waiting for cancellation or replacing the original failure.
+
 - Batch Podlove observer rebinding across synchronous player removals, keeping
   list cleanup linear while preserving queued sibling records and fencing stale
   deliveries across reconnection.

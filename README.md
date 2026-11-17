@@ -77,8 +77,10 @@ so keyboard focus always identifies exactly one option. Invalid identities rejec
 the whole response before caching or rendering.
 Suggestion and dynamic-facet endpoints must be same-origin HTTP(S) URLs without
 credentials. Redirects, including same-origin login redirects, fail back to ordinary
-form search; configure the final endpoint directly. Both readers require valid
-UTF-8, including across stream chunks. Invalid bytes or a truncated character
+form search; configure the final endpoint directly. Responses rejected for their
+status, redirect or final URL have their unread bodies cancelled immediately.
+Cleanup is not awaited and cannot delay or replace the ordinary search fallback.
+Both readers require valid UTF-8, including across stream chunks. Invalid bytes or a truncated character
 reject the whole response before caching or changing the page.
 Both readers also reject duplicate JSON member names in any object, including
 names that become identical after Unicode escape decoding. Contradictory query,
@@ -296,6 +298,8 @@ that instance. Overlapping search instances and Bootstrap modals keep scrolling
 locked until the last owner closes, then restore the saved value. Bootstrap
 coordination uses its public `show.bs.modal` and `hidden.bs.modal` lifecycle;
 Bootstrap continues to own its backdrops, scrollbar padding and focus traps.
+Each show attempt owns its own acquisition. A cancelled show releases only that
+attempt, so its deferred rollback cannot unlock a newer show of the same modal.
 HTMX cleanup retires removed Bootstrap owners immediately; a DOM removal observer
 also releases shown modals removed without a hidden event. The observer disconnects
 when no Bootstrap owners remain, and other open owners keep their scroll lock.

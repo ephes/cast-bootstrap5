@@ -18,6 +18,36 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
+for (const searchOpen of [false, true]) {
+  test(`accepted Bootstrap show survives an older cancelled attempt (search owner: ${searchOpen})`, async ({ page }) => {
+    await page.addScriptTag({ path: resolve('../cast_bootstrap5/static/cast_bootstrap5/js/bootstrap5/bootstrap.bundle.min.js') });
+    await page.evaluate(open => {
+      document.body.style.overflow = 'scroll';
+      const modal = document.createElement('div');
+      modal.id = 'bootstrap-generation';
+      modal.className = 'modal';
+      modal.innerHTML = '<div class="modal-dialog"><div class="modal-content">Synthetic</div></div>';
+      document.body.append(modal);
+      const instance = new (window as any).bootstrap.Modal(modal, { backdrop: false, focus: false });
+      modal.addEventListener('show.bs.modal', event => event.preventDefault(), { once: true });
+      instance.show(); // Cancelled A and accepted B in the same task
+      instance.show();
+      if (open) (document.querySelector('#a') as any).openModal();
+    }, searchOpen);
+    if (searchOpen) await page.locator('#a').evaluate(modal => (modal as any).closeModal());
+    await expect(page.locator('#bootstrap-generation')).toHaveClass(/show/);
+    await expect(page.locator('body')).toHaveCSS('overflow', 'hidden');
+    await page.evaluate(() => {
+      const modal = document.querySelector('#bootstrap-generation')!;
+      const instance = (window as any).bootstrap.Modal.getInstance(modal);
+      instance.hide();
+      instance.dispose();
+      modal.remove();
+    });
+    await expect(page.locator('body')).toHaveCSS('overflow', 'scroll');
+  });
+}
+
 test('removed Bootstrap owners release scrolling while remaining search owners retain it', async ({ page }) => {
   await page.addScriptTag({ path: resolve('../cast_bootstrap5/static/cast_bootstrap5/js/bootstrap5/bootstrap.bundle.min.js') });
   for (const searchOpen of [false, true]) {
