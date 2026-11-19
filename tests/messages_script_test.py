@@ -176,10 +176,10 @@ def test_unverifiable_rollback_ownership_retains_the_backup(package, monkeypatch
             raise failure
         replace(source, target)
 
-    def fail_rollback_check(path, remaining_total):
+    def fail_rollback_check(path, remaining_total, **kwargs):
         if failure.__traceback__ is not None and path == package / po:
             raise OSError("ownership check failed")
-        return generation(path, remaining_total)
+        return generation(path, remaining_total, **kwargs)
 
     monkeypatch.setattr(messages, "generate", generate)
     monkeypatch.setattr(messages.os, "replace", fail_publication)
@@ -195,7 +195,7 @@ def test_unverifiable_rollback_ownership_retains_the_backup(package, monkeypatch
     assert snapshot(package) == {**before, po: b"generated PO"}
 
 
-def test_real_gettext_stages_translations_and_detects_mo_drift(package):
+def test_real_gettext_stages_translations_and_detects_mo_drift(package, monkeypatch):
     import gettext
 
     if not all(shutil.which(tool) for tool in ("msgmerge", "msgfmt", "xgettext")):
@@ -215,6 +215,26 @@ def test_real_gettext_stages_translations_and_detects_mo_drift(package):
     assert compiled.gettext("Skip to content") == "Zum Inhalt springen"
     assert 'msgid "Synthetic new string"' in (catalogs / "django.po").read_text()
     assert messages.main(True) == 0
+
+    admitted = snapshot(package)
+    unrelated = package / "unrelated.bin"
+    with unrelated.open("wb") as handle:
+        handle.truncate(messages.MAX_SOURCE_FILE_BYTES + 1)
+    generate = messages.generate
+
+    def generate_from_admitted_sources(staged):
+        assert {path.relative_to(staged) for path in staged.rglob("*") if path.is_file()} == admitted.keys()
+        assert snapshot(staged) == admitted
+        generate(staged)
+
+    with monkeypatch.context() as staging:
+        staging.setattr(messages, "generate", generate_from_admitted_sources)
+        assert messages.main(True) == 0
+        assert messages.main(False) == 0
+    assert unrelated.stat().st_size == messages.MAX_SOURCE_FILE_BYTES + 1
+    unrelated.unlink()
+    assert snapshot(package) == admitted
+
     (catalogs / "django.mo").write_bytes(b"stale compiled catalog")
     before = snapshot(package)
     assert messages.main(True) == 1

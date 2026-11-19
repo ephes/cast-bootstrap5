@@ -487,7 +487,10 @@ just messages        # makemessages + compilemessages for the theme package
 just check-messages  # compare the generated PO/MO pair without modifying sources (CI)
 ```
 
-Both commands extract and compile in an isolated temporary copy of the package.
+Both commands extract and compile in a temporary tree containing only the
+fingerprinted HTML, text and Python sources and the working PO/MO catalogs.
+Static assets and Python caches are excluded. Each copied file is checked
+against its admitted fingerprint as it is staged.
 `just check-messages` compares both PO and MO bytes with the working catalogs and
 never writes to them, including on extraction/compilation failure or interruption.
 The existing POT creation timestamp is retained before compiling for deterministic

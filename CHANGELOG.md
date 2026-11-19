@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Stage only fingerprinted translation sources and catalogs, so unrelated
+  package files are excluded from translation builds.
+
 - Reject non-regular translation inputs with a path-specific error so named
   pipes cannot block catalog checks or updates.
 

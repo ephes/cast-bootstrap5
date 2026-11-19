@@ -16,7 +16,7 @@ from collections.abc import Iterable
 from contextlib import contextmanager, nullcontext
 from pathlib import Path
 from tempfile import TemporaryDirectory, mkdtemp
-from typing import NamedTuple
+from typing import BinaryIO, NamedTuple
 
 import django
 from django.conf import settings
@@ -74,7 +74,7 @@ def publication_lock():
             fcntl.flock(handle, fcntl.LOCK_UN)
 
 
-def generation(path: Path, remaining_total: int) -> Generation | None:
+def generation(path: Path, remaining_total: int, *, destination: BinaryIO | None = None) -> Generation | None:
     try:
         try:
             descriptor = os.open(path, os.O_RDONLY | os.O_NONBLOCK)
@@ -98,6 +98,8 @@ def generation(path: Path, remaining_total: int) -> Generation | None:
                 if not chunk:
                     raise SourcesChanged()
                 digest.update(chunk)
+                if destination is not None:
+                    destination.write(chunk)
                 remaining -= len(chunk)
             after = os.fstat(descriptor)
         finally:
@@ -110,6 +112,10 @@ def generation(path: Path, remaining_total: int) -> Generation | None:
         after.st_ctime_ns,
     ):
         raise SourcesChanged()
+    if destination is not None:
+        destination.flush()
+        os.fchmod(destination.fileno(), stat.S_IMODE(before.st_mode))
+        os.utime(destination.fileno(), ns=(before.st_atime_ns, before.st_mtime_ns))
     # Rename preserves these fields; inode identity also fences an editor's
     # atomic save of identical bytes. The digest catches in-place edits.
     return Generation(after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns, digest.digest())
@@ -128,17 +134,35 @@ def generations(root: Path, inputs: Iterable[Path]) -> dict[Path, Generation | N
 
 def source_generations(paths: list[Path]) -> dict[Path, Generation | None]:
     inputs = set(paths)
-    inputs.update(
-        path.relative_to(PACKAGE)
-        for path in PACKAGE.rglob("*")
-        if path.suffix in {".html", ".txt", ".py"} and "static" not in path.relative_to(PACKAGE).parts
-    )
+    for path in PACKAGE.rglob("*"):
+        if path.suffix in {".html", ".txt", ".py"}:
+            relative = path.relative_to(PACKAGE)
+            if not any(part in {"static", "__pycache__"} or part.endswith(".pyc") for part in relative.parts):
+                inputs.add(relative)
     return generations(PACKAGE, inputs)
 
 
 def ensure_current(expected: dict, paths: list[Path]) -> None:
     if source_generations(paths) != expected:
         raise SourcesChanged()
+
+
+def stage_sources(staged: Path, initial: dict[Path, Generation | None], paths: list[Path]) -> None:
+    # Django needs the locale directory even when regenerating missing catalogs.
+    for relative in paths:
+        (staged / relative).parent.mkdir(parents=True, exist_ok=True)
+    for relative, expected in initial.items():
+        if expected is None:
+            continue
+        target = staged / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        with target.open("wb") as destination:
+            try:
+                actual = generation(PACKAGE / relative, expected.size, destination=destination)
+            except SourceBudgetExceeded as error:
+                raise SourcesChanged() from error
+        if actual != expected:
+            raise SourcesChanged()
 
 
 def generate(staged: Path) -> None:
@@ -254,7 +278,7 @@ def main(check: bool) -> int:
         # A sibling temporary tree keeps publication on the same filesystem.
         with TemporaryDirectory(prefix=".messages-", dir=PACKAGE.parent) as temporary:
             staged = Path(temporary) / "package"
-            shutil.copytree(PACKAGE, staged, ignore=shutil.ignore_patterns("static", "__pycache__", "*.pyc"))
+            stage_sources(staged, initial, paths)
             backup_context = nullcontext(({}, set())) if check else catalog_backups(staged, paths, initial)
             with backup_context as (backups, retained):
                 ensure_current(initial, paths)
