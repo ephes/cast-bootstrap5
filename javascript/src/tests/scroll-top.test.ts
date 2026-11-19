@@ -259,11 +259,36 @@ describe("scroll-top accessible activation", () => {
     expect(document.activeElement).toBe(heading);
   });
 
-  it.each(["destroy", "replace"])("releases its tabindex and blur handler on %s", (retire) => {
+  it.each(["destroy", "replace"])("keeps a focused destination focusable on %s until blur", (retire) => {
     initScrollTop();
     const heading = document.querySelector("h1")!;
     const button = document.querySelector("button")!;
     button.click();
+    expect(heading.getAttribute("tabindex")).toBe("-1");
+
+    if (retire === "destroy") destroyScrollTop();
+    else {
+      button.replaceWith(button.cloneNode());
+      document.dispatchEvent(new CustomEvent("htmx:afterSwap"));
+    }
+    expect(document.activeElement).toBe(heading);
+    expect(heading.getAttribute("tabindex")).toBe("-1");
+
+    heading.blur();
+    expect(heading.hasAttribute("tabindex")).toBe(false);
+    heading.tabIndex = -1;
+    heading.dispatchEvent(new FocusEvent("blur"));
+    expect(heading.getAttribute("tabindex")).toBe("-1");
+  });
+
+  it.each(["destroy", "replace"])("releases an unfocused destination's tabindex and blur handler on %s", (retire) => {
+    initScrollTop();
+    const heading = document.querySelector("h1")!;
+    const button = document.querySelector("button")!;
+    const focus = vi.spyOn(heading, "focus").mockImplementation(() => {});
+    button.click();
+    focus.mockRestore();
+    expect(document.activeElement).not.toBe(heading);
     expect(heading.getAttribute("tabindex")).toBe("-1");
 
     if (retire === "destroy") destroyScrollTop();

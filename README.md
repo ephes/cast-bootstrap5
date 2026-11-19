@@ -618,7 +618,9 @@ to assistive technology until focus leaves it.
 Viewport updates own at most one animation frame. Teardown or a button
 replacement cancels and invalidates that frame; rebinding starts fresh.
 A temporary focus `tabindex` is removed on blur, button replacement or teardown
-if it still has the value set by the button. Later changes to the value are preserved.
+if it still has the value set by the button. While the destination keeps focus,
+replacement or teardown defers removal to its blur so focus stays in place.
+Later changes to the value are preserved.
 
 ## Post content enhancements
 

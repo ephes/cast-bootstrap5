@@ -97,7 +97,9 @@ function bindButtonListeners(button: HTMLElement): void {
   let focusDestination: HTMLElement | null = null;
   let releaseFocusTabindex: (() => void) | null = null;
   retireButtonBinding = () => {
-    releaseFocusTabindex?.();
+    // Removing tabindex from the focused destination would make browsers move
+    // focus to <body>; its self-removing blur listener releases it later.
+    if (focusDestination !== doc.activeElement) releaseFocusTabindex?.();
     active = false;
     if (frame !== null) win.cancelAnimationFrame(frame);
   };

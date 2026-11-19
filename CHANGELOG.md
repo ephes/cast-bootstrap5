@@ -9,7 +9,7 @@
   publication fails or its ownership cannot be verified.
 
 - Release the scroll-to-top focus tabindex on blur and teardown while preserving
-  later changes to its value.
+  later changes to its value; a still-focused destination keeps it until blur.
 
 - Keep theme switching active after a body replacement and remove delegated
   document listeners on teardown.
