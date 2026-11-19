@@ -6,7 +6,7 @@
   staging, with an 8 MiB file limit and a 64 MiB total limit per pass.
 
 - Retain and report the original catalog when rollback of an owned translation
-  publication fails.
+  publication fails or its ownership cannot be verified.
 
 - Release the scroll-to-top focus tabindex on blur and teardown while preserving
   later changes to its value.

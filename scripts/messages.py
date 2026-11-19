@@ -204,7 +204,13 @@ def publish(staged: Path, backups: dict, retained: set, paths: list[Path], expec
                 if generation(target, MAX_SOURCE_TOTAL_BYTES) != owned[relative]:
                     continue
             except (OSError, SourcesChanged, SourceBudgetExceeded) as rollback_error:
-                error.add_note(f"Could not verify rollback ownership of {relative}: {rollback_error}")
+                # The target may still hold this attempt's bytes, so keep the
+                # original copy instead of deleting the only recovery source.
+                note = f"Could not verify rollback ownership of {relative}: {rollback_error}"
+                if (original := backups.get(relative)) is not None:
+                    retained.add(relative)
+                    note += f". Original catalog retained at {original}"
+                error.add_note(note)
                 continue
             original = backups.get(relative)
             try:

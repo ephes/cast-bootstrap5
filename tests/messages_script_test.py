@@ -139,6 +139,42 @@ def test_failed_restore_retains_only_the_owned_backup(package, monkeypatch):
     assert not list(package.parent.glob(".messages-*"))
 
 
+def test_unverifiable_rollback_ownership_retains_the_backup(package, monkeypatch):
+    before = snapshot(package)
+    po = Path("locale/de/LC_MESSAGES/django.po")
+    mo = po.with_suffix(".mo")
+    failure = OSError("second publication failed")
+    replace = messages.os.replace
+    generation = messages.generation
+
+    def generate(staged):
+        (staged / po).write_bytes(b"generated PO")
+        (staged / mo).write_bytes(b"generated MO")
+
+    def fail_publication(source, target):
+        if target == package / mo:
+            raise failure
+        replace(source, target)
+
+    def fail_rollback_check(path, remaining_total):
+        if failure.__traceback__ is not None and path == package / po:
+            raise OSError("ownership check failed")
+        return generation(path, remaining_total)
+
+    monkeypatch.setattr(messages, "generate", generate)
+    monkeypatch.setattr(messages.os, "replace", fail_publication)
+    monkeypatch.setattr(messages, "generation", fail_rollback_check)
+    with pytest.raises(OSError, match="second publication failed"):
+        messages.main(False)
+
+    cache = package.parent / ".cache"
+    saved = [path for path in cache.rglob("*") if path.is_file() and path.name != "messages.lock"]
+    assert len(saved) == 1
+    assert saved[0].read_bytes() == before[po]
+    assert any("ownership check failed" in note and str(saved[0]) in note for note in failure.__notes__)
+    assert snapshot(package) == {**before, po: b"generated PO"}
+
+
 def test_real_gettext_stages_translations_and_detects_mo_drift(package):
     import gettext
     import shutil
