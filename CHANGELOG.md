@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Keep theme switching active after a body replacement and remove delegated
+  document listeners on teardown.
+
 - Keep a newer Bootstrap modal show locked when an earlier cancelled show of the
   same element rolls back, preserving shared search locks and removal cleanup.
 

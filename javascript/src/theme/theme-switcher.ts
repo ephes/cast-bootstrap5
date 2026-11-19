@@ -14,7 +14,7 @@ type HtmxAfterSwapDetail = {
 let sessionMode: ThemeMode | null = null;
 let listenersBound = false;
 let mediaQueryList: MediaQueryList | null = null;
-let bodyClickHandler: ((event: Event) => void) | null = null;
+let clickHandler: ((event: Event) => void) | null = null;
 let mediaChangeHandler: ((event: MediaQueryListEvent) => void) | null = null;
 let storageHandler: ((event: StorageEvent) => void) | null = null;
 let afterSwapHandler: ((event: Event) => void) | null = null;
@@ -207,7 +207,7 @@ function bindListeners(): void {
     return;
   }
 
-  bodyClickHandler = (event: Event) => {
+  clickHandler = (event: Event) => {
     const target = event.target;
     if (!(target instanceof Element)) {
       return;
@@ -255,8 +255,8 @@ function bindListeners(): void {
     syncThemeSwitchers(doc);
   };
   win.addEventListener("storage", storageHandler);
-  doc.body.addEventListener("click", bodyClickHandler);
-  doc.body.addEventListener("htmx:afterSwap", afterSwapHandler);
+  doc.addEventListener("click", clickHandler);
+  doc.addEventListener("htmx:afterSwap", afterSwapHandler);
   if (mediaQueryList && mediaChangeHandler) {
     mediaQueryList.addEventListener("change", mediaChangeHandler);
   }
@@ -283,17 +283,17 @@ export function destroyThemeSwitcher(): void {
   if (!doc || !listenersBound) {
     listenersBound = false;
     mediaQueryList = null;
-    bodyClickHandler = null;
+    clickHandler = null;
     mediaChangeHandler = null;
     afterSwapHandler = null;
     return;
   }
 
-  if (bodyClickHandler) {
-    doc.body.removeEventListener("click", bodyClickHandler);
+  if (clickHandler) {
+    doc.removeEventListener("click", clickHandler);
   }
   if (afterSwapHandler) {
-    doc.body.removeEventListener("htmx:afterSwap", afterSwapHandler);
+    doc.removeEventListener("htmx:afterSwap", afterSwapHandler);
   }
   if (mediaQueryList && mediaChangeHandler) {
     mediaQueryList.removeEventListener("change", mediaChangeHandler);
@@ -301,7 +301,7 @@ export function destroyThemeSwitcher(): void {
 
   listenersBound = false;
   mediaQueryList = null;
-  bodyClickHandler = null;
+  clickHandler = null;
   mediaChangeHandler = null;
   afterSwapHandler = null;
 }

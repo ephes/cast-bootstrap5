@@ -638,7 +638,9 @@ including system color-scheme changes and HTMX swaps; the next full page load
 falls back to the stored value, or Auto when none is readable. Other open tabs
 synchronize on localStorage changes (including clearing storage), updating the
 root and all switchers. A denied-write session choice remains authoritative.
-Destroying the switcher unregisters storage synchronization.
+Delegated clicks and bubbling HTMX swap events use the document, so replacing
+the body keeps the new switchers synchronized and interactive. Destroying the
+switcher unregisters those handlers and storage synchronization.
 
 Every element marked `data-cast-theme-switcher` (the navigation menu and the
 styleguide's floating toggle) is driven by `src/theme/theme-switcher.ts`, so all
