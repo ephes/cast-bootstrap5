@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Retain and report the original catalog when rollback of an owned translation
+  publication fails.
+
 - Release the scroll-to-top focus tabindex on blur and teardown while preserving
   later changes to its value.
 

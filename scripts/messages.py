@@ -10,9 +10,9 @@ import os
 import re
 import shutil
 import sys
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 from pathlib import Path
-from tempfile import TemporaryDirectory
+from tempfile import TemporaryDirectory, mkdtemp
 
 import django
 from django.conf import settings
@@ -118,7 +118,33 @@ def generate(staged: Path) -> None:
         os.chdir(previous_cwd)
 
 
-def publish(staged: Path, backup: Path, paths: list[Path], expected: dict) -> None:
+@contextmanager
+def catalog_backups(staged: Path, paths: list[Path], initial: dict):
+    # Recovery copies start in their final location so retention needs no
+    # additional filesystem writes after a failed restore.
+    directory = Path(mkdtemp(prefix="messages-recovery-", dir=PACKAGE.parent / ".cache"))
+    backups = {}
+    retained = set()
+    try:
+        for relative in paths:
+            if initial[relative] is not None:
+                saved = directory / relative
+                saved.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(staged / relative, saved)
+                backups[relative] = saved
+        yield backups, retained
+    finally:
+        try:
+            if retained:
+                for relative in backups.keys() - retained:
+                    backups[relative].unlink(missing_ok=True)
+            else:
+                shutil.rmtree(directory)
+        except OSError as cleanup_error:
+            print(f"Could not clean translation backups in {directory}: {cleanup_error}", file=sys.stderr)
+
+
+def publish(staged: Path, backups: dict, retained: set, paths: list[Path], expected: dict) -> None:
     owned = {relative: generation(staged / relative) for relative in paths}
     published = []
     try:
@@ -134,16 +160,25 @@ def publish(staged: Path, backup: Path, paths: list[Path], expected: dict) -> No
         # Roll back only files whose inode, timestamp and bytes are still ours.
         # A translator save (including an atomic replacement) keeps ownership.
         for relative in reversed(published):
+            target = PACKAGE / relative
             try:
-                if generation(PACKAGE / relative) != owned[relative]:
+                if generation(target) != owned[relative]:
                     continue
-                original = backup / relative
-                if original.exists():
-                    os.replace(original, PACKAGE / relative)
-                else:
-                    (PACKAGE / relative).unlink()
             except (OSError, SourcesChanged) as rollback_error:
-                error.add_note(f"Could not restore {relative}: {rollback_error}")
+                error.add_note(f"Could not verify rollback ownership of {relative}: {rollback_error}")
+                continue
+            original = backups.get(relative)
+            try:
+                if original is not None:
+                    os.replace(original, target)
+                else:
+                    target.unlink()
+            except OSError as rollback_error:
+                note = f"Could not restore {relative}: {rollback_error}"
+                if original is not None:
+                    retained.add(relative)
+                    note += f". Original catalog retained at {original}"
+                error.add_note(note)
         raise
 
 
@@ -155,25 +190,22 @@ def main(check: bool) -> int:
     # A sibling temporary tree keeps publication on the same filesystem.
     with publication_lock(), TemporaryDirectory(prefix=".messages-", dir=PACKAGE.parent) as temporary:
         temporary = Path(temporary)
-        staged, backup = temporary / "package", temporary / "backup"
+        staged = temporary / "package"
         initial = source_generations(paths)
         shutil.copytree(PACKAGE, staged, ignore=shutil.ignore_patterns("static", "__pycache__", "*.pyc"))
-        for relative in paths:
-            if initial[relative] is not None:
-                saved = backup / relative
-                saved.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(staged / relative, saved)
-        ensure_current(initial, paths)
-        generate(staged)
-        # Read the complete result before publishing any member of the set.
-        expected = {relative: (staged / relative).read_bytes() for relative in paths}
-        ensure_current(initial, paths)
-        if check:
-            stale = any(initial[path] is None or initial[path][-1] != data for path, data in expected.items())
-            if stale:
-                print("Translation catalog is stale: run `just messages` and commit the result.", file=sys.stderr)
-            return int(stale)
-        publish(staged, backup, paths, initial.copy())
+        backup_context = nullcontext(({}, set())) if check else catalog_backups(staged, paths, initial)
+        with backup_context as (backups, retained):
+            ensure_current(initial, paths)
+            generate(staged)
+            # Read the complete result before publishing any member of the set.
+            expected = {relative: (staged / relative).read_bytes() for relative in paths}
+            ensure_current(initial, paths)
+            if check:
+                stale = any(initial[path] is None or initial[path][-1] != data for path, data in expected.items())
+                if stale:
+                    print("Translation catalog is stale: run `just messages` and commit the result.", file=sys.stderr)
+                return int(stale)
+            publish(staged, backups, retained, paths, initial.copy())
     return 0
 
 
