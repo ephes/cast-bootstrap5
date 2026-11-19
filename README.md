@@ -502,7 +502,9 @@ timestamps, plus the extracted HTML/text/Python source inventory, are rechecked
 after generation, before each replacement and after the final replacement.
 The checks stream SHA-256 fingerprints in 64 KiB chunks. Each fingerprint pass
 allows up to 8 MiB per file and 64 MiB total for extraction sources and the
-tracked PO/MO catalogs. Oversized inputs are rejected before staging starts.
+tracked PO/MO catalogs. Both commands require regular files for these inputs and
+report the path of a special file such as a named pipe without waiting for it.
+Oversized inputs are rejected before staging starts.
 A concurrent save refuses the stale result; rerun `just messages` after finishing
 the edit. A caught publication error or interruption restores only files still
 owned by that attempt, preserving later translator saves, including atomic saves

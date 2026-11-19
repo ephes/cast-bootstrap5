@@ -1,6 +1,10 @@
 """Catalog generation never uses translator-owned files as scratch space."""
 
 import importlib.util
+import os
+import shutil
+import subprocess
+import sys
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -28,6 +32,22 @@ def package(tmp_path, monkeypatch):
 
 def snapshot(package):
     return {p.relative_to(package): p.read_bytes() for p in package.rglob("*") if p.is_file()}
+
+
+@pytest.mark.parametrize("args", [[], ["--check"]], ids=["update", "check"])
+def test_cli_rejects_a_fifo_template(package, args):
+    template = package / "templates/fifo.html"
+    os.mkfifo(template)
+    script = package.parent / "scripts/messages.py"
+    script.parent.mkdir()
+    shutil.copyfile(SPEC.origin, script)
+
+    result = subprocess.run([sys.executable, str(script), *args], capture_output=True, text=True, timeout=5)
+
+    assert result.returncode == 1
+    assert "not a regular file" in result.stderr
+    assert str(template) in result.stderr
+    assert "Traceback" not in result.stderr
 
 
 @pytest.mark.parametrize("check", [True, False])
@@ -177,7 +197,6 @@ def test_unverifiable_rollback_ownership_retains_the_backup(package, monkeypatch
 
 def test_real_gettext_stages_translations_and_detects_mo_drift(package):
     import gettext
-    import shutil
 
     if not all(shutil.which(tool) for tool in ("msgmerge", "msgfmt", "xgettext")):
         pytest.skip("GNU gettext is required")
@@ -298,35 +317,18 @@ def test_oversized_sources_are_refused_before_staging(package, monkeypatch, limi
     def unexpected_staging(*args, **kwargs):
         pytest.fail("staging was created before input admission")
 
-    original_open = Path.open
+    original_read = os.read
     bytes_read = 0
 
-    class CountedReader:
-        def __init__(self, handle):
-            self.handle = handle
-
-        def __enter__(self):
-            return self
-
-        def __exit__(self, *args):
-            self.handle.close()
-
-        def fileno(self):
-            return self.handle.fileno()
-
-        def read(self, size=-1):
-            nonlocal bytes_read
-            data = self.handle.read(size)
-            bytes_read += len(data)
-            assert bytes_read <= 4096
-            return data
-
-    def track_reads(path, *args, **kwargs):
-        handle = original_open(path, *args, **kwargs)
-        return CountedReader(handle) if path.is_relative_to(package) else handle
+    def track_reads(descriptor, size):
+        nonlocal bytes_read
+        data = original_read(descriptor, size)
+        bytes_read += len(data)
+        assert bytes_read <= 4096
+        return data
 
     before = snapshot(package)
-    monkeypatch.setattr(Path, "open", track_reads)
+    monkeypatch.setattr(os, "read", track_reads)
     monkeypatch.setattr(messages, "TemporaryDirectory", unexpected_staging)
     with pytest.raises(RuntimeError, match=f"{limit}.*oversized.html"):
         messages.main(False)
@@ -362,9 +364,6 @@ def test_new_template_during_generation_refuses_stale_output(package, monkeypatc
 
 
 def test_check_and_update_hold_one_process_lock_through_publication(package, monkeypatch):
-    import subprocess
-    import sys
-
     def assert_locked():
         # A separate process cannot enter the lock during generation or any
         # publication; a normal blocking publisher would wait for its release.

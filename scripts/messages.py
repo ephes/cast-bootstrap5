@@ -10,6 +10,7 @@ import hashlib
 import os
 import re
 import shutil
+import stat
 import sys
 from collections.abc import Iterable
 from contextlib import contextmanager, nullcontext
@@ -54,6 +55,11 @@ class SourceBudgetExceeded(RuntimeError):
     pass
 
 
+class UnsupportedSource(RuntimeError):
+    def __init__(self, path: Path):
+        super().__init__(f"Translation source is not a regular file: {path}")
+
+
 @contextmanager
 def publication_lock():
     # A stable inode outside the package, shared by checks and writers. Never
@@ -70,8 +76,17 @@ def publication_lock():
 
 def generation(path: Path, remaining_total: int) -> Generation | None:
     try:
-        with path.open("rb", buffering=0) as handle:
-            before = os.fstat(handle.fileno())
+        try:
+            descriptor = os.open(path, os.O_RDONLY | os.O_NONBLOCK)
+        except OSError:
+            # Some special files, such as Unix sockets, cannot be opened.
+            if not stat.S_ISREG(path.stat().st_mode):
+                raise UnsupportedSource(path) from None
+            raise
+        try:
+            before = os.fstat(descriptor)
+            if not stat.S_ISREG(before.st_mode):
+                raise UnsupportedSource(path)
             if before.st_size > MAX_SOURCE_FILE_BYTES:
                 raise SourceBudgetExceeded(f"Translation per-file limit ({MAX_SOURCE_FILE_BYTES} bytes): {path}")
             if before.st_size > remaining_total:
@@ -79,12 +94,14 @@ def generation(path: Path, remaining_total: int) -> Generation | None:
             digest = hashlib.sha256()
             remaining = before.st_size
             while remaining:
-                chunk = handle.read(min(DIGEST_CHUNK_BYTES, remaining))
+                chunk = os.read(descriptor, min(DIGEST_CHUNK_BYTES, remaining))
                 if not chunk:
                     raise SourcesChanged()
                 digest.update(chunk)
                 remaining -= len(chunk)
-            after = os.fstat(handle.fileno())
+            after = os.fstat(descriptor)
+        finally:
+            os.close(descriptor)
     except FileNotFoundError:
         return None
     if (before.st_size, before.st_mtime_ns, before.st_ctime_ns) != (
@@ -203,7 +220,7 @@ def publish(staged: Path, backups: dict, retained: set, paths: list[Path], expec
             try:
                 if generation(target, MAX_SOURCE_TOTAL_BYTES) != owned[relative]:
                     continue
-            except (OSError, SourcesChanged, SourceBudgetExceeded) as rollback_error:
+            except (OSError, SourcesChanged, SourceBudgetExceeded, UnsupportedSource) as rollback_error:
                 # The target may still hold this attempt's bytes, so keep the
                 # original copy instead of deleting the only recovery source.
                 note = f"Could not verify rollback ownership of {relative}: {rollback_error}"
@@ -265,6 +282,6 @@ def main(check: bool) -> int:
 if __name__ == "__main__":
     try:
         sys.exit(main(check="--check" in sys.argv[1:]))
-    except (SourcesChanged, SourceBudgetExceeded) as error:
+    except (SourcesChanged, SourceBudgetExceeded, UnsupportedSource) as error:
         print(error, file=sys.stderr)
         sys.exit(1)
