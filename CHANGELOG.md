@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- Stream translation source fingerprints and reject oversized inputs before
+  staging, with an 8 MiB file limit and a 64 MiB total limit per pass.
+
+- Retain and report the original catalog when rollback of an owned translation
+  publication fails or its ownership cannot be verified.
+
+- Release the scroll-to-top focus tabindex on blur and teardown while preserving
+  later changes to its value; a still-focused destination keeps it until blur.
+
+- Keep theme switching active after a body replacement and remove delegated
+  document listeners on teardown.
+
 - Keep a newer Bootstrap modal show locked when an earlier cancelled show of the
   same element rolls back, preserving shared search locks and removal cleanup.
 

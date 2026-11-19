@@ -111,7 +111,7 @@ describe("theme-switcher", () => {
     const write = vi.spyOn(storageMock, 'setItem').mockImplementation(() => { throw new Error('denied'); });
     if (denyReads) vi.spyOn(storageMock, 'getItem').mockImplementation(() => { throw new Error('denied'); });
     document.body.innerHTML = createSwitcherMarkup('a');
-    const module = await loadModule();
+    await loadModule();
     (document.querySelector('[data-cast-theme-value="mode:dark"]') as HTMLButtonElement).click();
     expect(write).toHaveBeenCalledTimes(1);
     expect(document.querySelector('[data-cast-theme-label]')?.textContent).toBe('Dark');
@@ -121,8 +121,7 @@ describe("theme-switcher", () => {
     const target = document.createElement('div');
     target.innerHTML = createSwitcherMarkup('b');
     document.body.append(target);
-    document.body.dispatchEvent(new CustomEvent('htmx:afterSwap', { detail: { target } }));
-    module.initThemeSwitcher(target);
+    document.body.dispatchEvent(new CustomEvent('htmx:afterSwap', { detail: { target }, bubbles: true }));
     for (const label of document.querySelectorAll('[data-cast-theme-label]')) expect(label.textContent).toBe('Dark');
     expect(document.documentElement.getAttribute('data-bs-theme')).toBe('dark');
   });
@@ -281,6 +280,38 @@ describe("theme-switcher", () => {
     document.body.dispatchEvent(event);
 
     expect(document.getElementById("b")?.querySelector("[data-cast-theme-label]")?.textContent).toBe("Dark");
+  });
+
+  it("handles a replacement body once and retires click and swap handling on destroy", async () => {
+    storageMock.setItem("cast-theme", "dark");
+    document.body.innerHTML = createSwitcherMarkup("original");
+    const module = await loadModule();
+    const write = vi.spyOn(storageMock, "setItem");
+    const original = document.body;
+    const replacement = document.createElement("body");
+    replacement.innerHTML = createSwitcherMarkup("replacement");
+    original.replaceWith(replacement);
+
+    const swap = () => replacement.dispatchEvent(new CustomEvent("htmx:afterSwap", {
+      bubbles: true,
+      detail: { target: replacement },
+    }));
+    const label = replacement.querySelector("[data-cast-theme-label]")!;
+    const light = replacement.querySelector<HTMLElement>('[data-cast-theme-mode="light"] span')!;
+    const oldDark = original.querySelector<HTMLElement>('[data-cast-theme-mode="dark"] span')!;
+    swap();
+    expect(label.textContent).toBe("Dark");
+    light.click();
+    expect(label.textContent).toBe("Light");
+    expect(write).toHaveBeenCalledExactlyOnceWith("cast-theme", "light");
+
+    module.destroyThemeSwitcher();
+    label.textContent = "System";
+    swap();
+    oldDark.click();
+    light.click();
+    expect(label.textContent).toBe("System");
+    expect(write).toHaveBeenCalledTimes(1);
   });
 
   it("is a no-op when no switcher markup exists", async () => {

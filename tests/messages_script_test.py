@@ -103,6 +103,76 @@ def test_publication_failure_restores_complete_pair(package, monkeypatch, failur
     with pytest.raises(failure):
         messages.main(False)
     assert snapshot(package) == before
+    assert list((package.parent / ".cache").iterdir()) == [package.parent / ".cache/messages.lock"]
+
+
+def test_failed_restore_retains_only_the_owned_backup(package, monkeypatch):
+    before = snapshot(package)
+    po = Path("locale/de/LC_MESSAGES/django.po")
+    mo = po.with_suffix(".mo")
+    failure = OSError("second publication failed")
+    replace = messages.os.replace
+
+    def generate(staged):
+        (staged / po).write_bytes(b"generated PO")
+        (staged / mo).write_bytes(b"generated MO")
+
+    def fail_publication_and_restore(source, target):
+        if target == package / mo:
+            raise failure
+        if target == package / po and Path(source).read_bytes() == before[po]:
+            raise OSError("restore failed")
+        replace(source, target)
+
+    monkeypatch.setattr(messages, "generate", generate)
+    monkeypatch.setattr(messages.os, "replace", fail_publication_and_restore)
+    with pytest.raises(OSError, match="second publication failed") as caught:
+        messages.main(False)
+
+    assert caught.value is failure
+    cache = package.parent / ".cache"
+    saved = [path for path in cache.rglob("*") if path.is_file() and path.name != "messages.lock"]
+    assert len(saved) == 1
+    assert saved[0].read_bytes() == before[po]
+    assert any("restore failed" in note and str(saved[0]) in note for note in failure.__notes__)
+    assert snapshot(package) == {**before, po: b"generated PO"}
+    assert not list(package.parent.glob(".messages-*"))
+
+
+def test_unverifiable_rollback_ownership_retains_the_backup(package, monkeypatch):
+    before = snapshot(package)
+    po = Path("locale/de/LC_MESSAGES/django.po")
+    mo = po.with_suffix(".mo")
+    failure = OSError("second publication failed")
+    replace = messages.os.replace
+    generation = messages.generation
+
+    def generate(staged):
+        (staged / po).write_bytes(b"generated PO")
+        (staged / mo).write_bytes(b"generated MO")
+
+    def fail_publication(source, target):
+        if target == package / mo:
+            raise failure
+        replace(source, target)
+
+    def fail_rollback_check(path, remaining_total):
+        if failure.__traceback__ is not None and path == package / po:
+            raise OSError("ownership check failed")
+        return generation(path, remaining_total)
+
+    monkeypatch.setattr(messages, "generate", generate)
+    monkeypatch.setattr(messages.os, "replace", fail_publication)
+    monkeypatch.setattr(messages, "generation", fail_rollback_check)
+    with pytest.raises(OSError, match="second publication failed"):
+        messages.main(False)
+
+    cache = package.parent / ".cache"
+    saved = [path for path in cache.rglob("*") if path.is_file() and path.name != "messages.lock"]
+    assert len(saved) == 1
+    assert saved[0].read_bytes() == before[po]
+    assert any("ownership check failed" in note and str(saved[0]) in note for note in failure.__notes__)
+    assert snapshot(package) == {**before, po: b"generated PO"}
 
 
 def test_real_gettext_stages_translations_and_detects_mo_drift(package):
@@ -211,6 +281,72 @@ def test_failed_publication_does_not_roll_back_a_translator_save(package, monkey
         messages.main(False)
     assert po.read_bytes() == (b"generated" if atomic_save else b"translator save just before failure")
     assert mo.read_bytes() == original_mo
+
+
+@pytest.mark.parametrize("limit", ["per-file", "aggregate"])
+def test_oversized_sources_are_refused_before_staging(package, monkeypatch, limit):
+    oversized = package / "templates/oversized.html"
+    with oversized.open("wb") as handle:
+        handle.truncate(1024 * 1024 if limit == "per-file" else 4096)
+    monkeypatch.setattr(
+        messages, "MAX_SOURCE_FILE_BYTES", 4096 if limit == "per-file" else 2 * 1024 * 1024, raising=False
+    )
+    monkeypatch.setattr(
+        messages, "MAX_SOURCE_TOTAL_BYTES", 2 * 1024 * 1024 if limit == "per-file" else 4096, raising=False
+    )
+
+    def unexpected_staging(*args, **kwargs):
+        pytest.fail("staging was created before input admission")
+
+    original_open = Path.open
+    bytes_read = 0
+
+    class CountedReader:
+        def __init__(self, handle):
+            self.handle = handle
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            self.handle.close()
+
+        def fileno(self):
+            return self.handle.fileno()
+
+        def read(self, size=-1):
+            nonlocal bytes_read
+            data = self.handle.read(size)
+            bytes_read += len(data)
+            assert bytes_read <= 4096
+            return data
+
+    def track_reads(path, *args, **kwargs):
+        handle = original_open(path, *args, **kwargs)
+        return CountedReader(handle) if path.is_relative_to(package) else handle
+
+    before = snapshot(package)
+    monkeypatch.setattr(Path, "open", track_reads)
+    monkeypatch.setattr(messages, "TemporaryDirectory", unexpected_staging)
+    with pytest.raises(RuntimeError, match=f"{limit}.*oversized.html"):
+        messages.main(False)
+    monkeypatch.undo()
+    assert snapshot(package) == before
+
+
+def test_same_size_translator_rewrite_with_restored_mtime_is_detected(package, monkeypatch):
+    po = package / "locale/de/LC_MESSAGES/django.po"
+    before = po.stat()
+    original = po.read_bytes()
+
+    def generate(staged):
+        po.write_bytes(b"x" * len(original))
+        messages.os.utime(po, ns=(before.st_atime_ns, before.st_mtime_ns))
+
+    monkeypatch.setattr(messages, "generate", generate)
+    with pytest.raises(messages.SourcesChanged):
+        messages.main(False)
+    assert po.read_bytes() == b"x" * len(original)
 
 
 def test_new_template_during_generation_refuses_stale_output(package, monkeypatch):

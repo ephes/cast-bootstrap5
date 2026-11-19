@@ -500,11 +500,17 @@ held from the source snapshot through publication/rollback; do not delete this
 lock file while commands may be running. Catalog bytes, file identity and
 timestamps, plus the extracted HTML/text/Python source inventory, are rechecked
 after generation, before each replacement and after the final replacement.
+The checks stream SHA-256 fingerprints in 64 KiB chunks. Each fingerprint pass
+allows up to 8 MiB per file and 64 MiB total for extraction sources and the
+tracked PO/MO catalogs. Oversized inputs are rejected before staging starts.
 A concurrent save refuses the stale result; rerun `just messages` after finishing
 the edit. A caught publication error or interruption restores only files still
 owned by that attempt, preserving later translator saves, including atomic saves
 of identical bytes. Such a save may leave a PO needing recompilation, so review
-and regenerate the pair before committing.
+and regenerate the pair before committing. If restoring an owned catalog fails,
+or its ownership cannot be verified during rollback, the error reports its
+original copy under `.cache/messages-recovery-*/`.
+Review that copy against any subsequent translator edits before restoring it.
 The lock coordinates these commands; unrelated editors must use the same lock
 for strict exclusion, since an unsynchronized save can still race the final
 check and rename. Avoid editing during publication. An uncatchable process
@@ -611,6 +617,10 @@ never moves focus, and a focused scroll-to-top button stays visible and exposed
 to assistive technology until focus leaves it.
 Viewport updates own at most one animation frame. Teardown or a button
 replacement cancels and invalidates that frame; rebinding starts fresh.
+A temporary focus `tabindex` is removed on blur, button replacement or teardown
+if it still has the value set by the button. While the destination keeps focus,
+replacement or teardown defers removal to its blur so focus stays in place.
+Later changes to the value are preserved.
 
 ## Post content enhancements
 
@@ -638,7 +648,9 @@ including system color-scheme changes and HTMX swaps; the next full page load
 falls back to the stored value, or Auto when none is readable. Other open tabs
 synchronize on localStorage changes (including clearing storage), updating the
 root and all switchers. A denied-write session choice remains authoritative.
-Destroying the switcher unregisters storage synchronization.
+Delegated clicks and bubbling HTMX swap events use the document, so replacing
+the body keeps the new switchers synchronized and interactive. Destroying the
+switcher unregisters those handlers and storage synchronization.
 
 Every element marked `data-cast-theme-switcher` (the navigation menu and the
 styleguide's floating toggle) is driven by `src/theme/theme-switcher.ts`, so all

@@ -6,13 +6,16 @@ Usage (from the repository root):
 """
 
 import fcntl
+import hashlib
 import os
 import re
 import shutil
 import sys
-from contextlib import contextmanager
+from collections.abc import Iterable
+from contextlib import contextmanager, nullcontext
 from pathlib import Path
-from tempfile import TemporaryDirectory
+from tempfile import TemporaryDirectory, mkdtemp
+from typing import NamedTuple
 
 import django
 from django.conf import settings
@@ -23,7 +26,18 @@ ROOT = Path(__file__).resolve().parents[1]
 PACKAGE = ROOT / "cast_bootstrap5"
 LOCALES = ["de"]
 CATALOGS = [PACKAGE / "locale" / locale / "LC_MESSAGES" / "django.po" for locale in LOCALES]
+MAX_SOURCE_FILE_BYTES = 8 * 1024 * 1024
+MAX_SOURCE_TOTAL_BYTES = 64 * 1024 * 1024
+DIGEST_CHUNK_BYTES = 64 * 1024
 CREATION_DATE = re.compile(rb'^"POT-Creation-Date: .*"$', re.MULTILINE)
+
+
+class Generation(NamedTuple):
+    device: int
+    inode: int
+    size: int
+    mtime_ns: int
+    digest: bytes
 
 
 class MakeMessages(MakeMessagesCommand):
@@ -34,6 +48,10 @@ class MakeMessages(MakeMessagesCommand):
 class SourcesChanged(RuntimeError):
     def __init__(self):
         super().__init__("Translation sources changed during generation/publication; rerun `just messages`.")
+
+
+class SourceBudgetExceeded(RuntimeError):
+    pass
 
 
 @contextmanager
@@ -50,11 +68,22 @@ def publication_lock():
             fcntl.flock(handle, fcntl.LOCK_UN)
 
 
-def generation(path: Path) -> tuple | None:
+def generation(path: Path, remaining_total: int) -> Generation | None:
     try:
-        with path.open("rb") as handle:
+        with path.open("rb", buffering=0) as handle:
             before = os.fstat(handle.fileno())
-            data = handle.read()
+            if before.st_size > MAX_SOURCE_FILE_BYTES:
+                raise SourceBudgetExceeded(f"Translation per-file limit ({MAX_SOURCE_FILE_BYTES} bytes): {path}")
+            if before.st_size > remaining_total:
+                raise SourceBudgetExceeded(f"Translation aggregate limit ({MAX_SOURCE_TOTAL_BYTES} bytes): {path}")
+            digest = hashlib.sha256()
+            remaining = before.st_size
+            while remaining:
+                chunk = handle.read(min(DIGEST_CHUNK_BYTES, remaining))
+                if not chunk:
+                    raise SourcesChanged()
+                digest.update(chunk)
+                remaining -= len(chunk)
             after = os.fstat(handle.fileno())
     except FileNotFoundError:
         return None
@@ -65,18 +94,29 @@ def generation(path: Path) -> tuple | None:
     ):
         raise SourcesChanged()
     # Rename preserves these fields; inode identity also fences an editor's
-    # atomic save of identical bytes. Keep the bytes to catch in-place edits.
-    return after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns, data
+    # atomic save of identical bytes. The digest catches in-place edits.
+    return Generation(after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns, digest.digest())
 
 
-def source_generations(paths: list[Path]) -> dict:
+def generations(root: Path, inputs: Iterable[Path]) -> dict[Path, Generation | None]:
+    result = {}
+    remaining = MAX_SOURCE_TOTAL_BYTES
+    for relative in sorted(inputs):
+        fingerprint = generation(root / relative, remaining)
+        result[relative] = fingerprint
+        if fingerprint is not None:
+            remaining -= fingerprint.size
+    return result
+
+
+def source_generations(paths: list[Path]) -> dict[Path, Generation | None]:
     inputs = set(paths)
     inputs.update(
         path.relative_to(PACKAGE)
         for path in PACKAGE.rglob("*")
         if path.suffix in {".html", ".txt", ".py"} and "static" not in path.relative_to(PACKAGE).parts
     )
-    return {relative: generation(PACKAGE / relative) for relative in sorted(inputs)}
+    return generations(PACKAGE, inputs)
 
 
 def ensure_current(expected: dict, paths: list[Path]) -> None:
@@ -118,8 +158,33 @@ def generate(staged: Path) -> None:
         os.chdir(previous_cwd)
 
 
-def publish(staged: Path, backup: Path, paths: list[Path], expected: dict) -> None:
-    owned = {relative: generation(staged / relative) for relative in paths}
+@contextmanager
+def catalog_backups(staged: Path, paths: list[Path], initial: dict):
+    # Recovery copies start in their final location so retention needs no
+    # additional filesystem writes after a failed restore.
+    directory = Path(mkdtemp(prefix="messages-recovery-", dir=PACKAGE.parent / ".cache"))
+    backups = {}
+    retained = set()
+    try:
+        for relative in paths:
+            if initial[relative] is not None:
+                saved = directory / relative
+                saved.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(staged / relative, saved)
+                backups[relative] = saved
+        yield backups, retained
+    finally:
+        try:
+            if retained:
+                for relative in backups.keys() - retained:
+                    backups[relative].unlink(missing_ok=True)
+            else:
+                shutil.rmtree(directory)
+        except OSError as cleanup_error:
+            print(f"Could not clean translation backups in {directory}: {cleanup_error}", file=sys.stderr)
+
+
+def publish(staged: Path, backups: dict, retained: set, paths: list[Path], expected: dict, owned: dict) -> None:
     published = []
     try:
         for relative in paths:
@@ -134,16 +199,31 @@ def publish(staged: Path, backup: Path, paths: list[Path], expected: dict) -> No
         # Roll back only files whose inode, timestamp and bytes are still ours.
         # A translator save (including an atomic replacement) keeps ownership.
         for relative in reversed(published):
+            target = PACKAGE / relative
             try:
-                if generation(PACKAGE / relative) != owned[relative]:
+                if generation(target, MAX_SOURCE_TOTAL_BYTES) != owned[relative]:
                     continue
-                original = backup / relative
-                if original.exists():
-                    os.replace(original, PACKAGE / relative)
+            except (OSError, SourcesChanged, SourceBudgetExceeded) as rollback_error:
+                # The target may still hold this attempt's bytes, so keep the
+                # original copy instead of deleting the only recovery source.
+                note = f"Could not verify rollback ownership of {relative}: {rollback_error}"
+                if (original := backups.get(relative)) is not None:
+                    retained.add(relative)
+                    note += f". Original catalog retained at {original}"
+                error.add_note(note)
+                continue
+            original = backups.get(relative)
+            try:
+                if original is not None:
+                    os.replace(original, target)
                 else:
-                    (PACKAGE / relative).unlink()
-            except (OSError, SourcesChanged) as rollback_error:
-                error.add_note(f"Could not restore {relative}: {rollback_error}")
+                    target.unlink()
+            except OSError as rollback_error:
+                note = f"Could not restore {relative}: {rollback_error}"
+                if original is not None:
+                    retained.add(relative)
+                    note += f". Original catalog retained at {original}"
+                error.add_note(note)
         raise
 
 
@@ -152,34 +232,39 @@ def main(check: bool) -> int:
         settings.configure(USE_I18N=True)
     django.setup()
     paths = [source.with_suffix(suffix).relative_to(PACKAGE) for source in CATALOGS for suffix in (".po", ".mo")]
-    # A sibling temporary tree keeps publication on the same filesystem.
-    with publication_lock(), TemporaryDirectory(prefix=".messages-", dir=PACKAGE.parent) as temporary:
-        temporary = Path(temporary)
-        staged, backup = temporary / "package", temporary / "backup"
+    with publication_lock():
         initial = source_generations(paths)
-        shutil.copytree(PACKAGE, staged, ignore=shutil.ignore_patterns("static", "__pycache__", "*.pyc"))
-        for relative in paths:
-            if initial[relative] is not None:
-                saved = backup / relative
-                saved.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(staged / relative, saved)
-        ensure_current(initial, paths)
-        generate(staged)
-        # Read the complete result before publishing any member of the set.
-        expected = {relative: (staged / relative).read_bytes() for relative in paths}
-        ensure_current(initial, paths)
-        if check:
-            stale = any(initial[path] is None or initial[path][-1] != data for path, data in expected.items())
-            if stale:
-                print("Translation catalog is stale: run `just messages` and commit the result.", file=sys.stderr)
-            return int(stale)
-        publish(staged, backup, paths, initial.copy())
+        # A sibling temporary tree keeps publication on the same filesystem.
+        with TemporaryDirectory(prefix=".messages-", dir=PACKAGE.parent) as temporary:
+            staged = Path(temporary) / "package"
+            shutil.copytree(PACKAGE, staged, ignore=shutil.ignore_patterns("static", "__pycache__", "*.pyc"))
+            backup_context = nullcontext(({}, set())) if check else catalog_backups(staged, paths, initial)
+            with backup_context as (backups, retained):
+                ensure_current(initial, paths)
+                generate(staged)
+                # Fingerprint the complete result before publishing any member of the set.
+                owned = {}
+                for relative, fingerprint in generations(staged, paths).items():
+                    if fingerprint is None:
+                        raise FileNotFoundError(staged / relative)
+                    owned[relative] = fingerprint
+                ensure_current(initial, paths)
+                if check:
+                    stale = any(
+                        (original := initial[path]) is None or original.digest != owned[path].digest for path in paths
+                    )
+                    if stale:
+                        print(
+                            "Translation catalog is stale: run `just messages` and commit the result.", file=sys.stderr
+                        )
+                    return int(stale)
+                publish(staged, backups, retained, paths, initial.copy(), owned)
     return 0
 
 
 if __name__ == "__main__":
     try:
         sys.exit(main(check="--check" in sys.argv[1:]))
-    except SourcesChanged as error:
+    except (SourcesChanged, SourceBudgetExceeded) as error:
         print(error, file=sys.stderr)
         sys.exit(1)
