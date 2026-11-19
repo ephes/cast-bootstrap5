@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Stream translation source fingerprints and reject oversized inputs before
+  staging, with an 8 MiB file limit and a 64 MiB total limit per pass.
+
 - Retain and report the original catalog when rollback of an owned translation
   publication fails.
 

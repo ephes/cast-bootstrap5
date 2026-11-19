@@ -500,6 +500,9 @@ held from the source snapshot through publication/rollback; do not delete this
 lock file while commands may be running. Catalog bytes, file identity and
 timestamps, plus the extracted HTML/text/Python source inventory, are rechecked
 after generation, before each replacement and after the final replacement.
+The checks stream SHA-256 fingerprints in 64 KiB chunks. Each fingerprint pass
+allows up to 8 MiB per file and 64 MiB total for extraction sources and the
+tracked PO/MO catalogs. Oversized inputs are rejected before staging starts.
 A concurrent save refuses the stale result; rerun `just messages` after finishing
 the edit. A caught publication error or interruption restores only files still
 owned by that attempt, preserving later translator saves, including atomic saves
