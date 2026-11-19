@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Release the scroll-to-top focus tabindex on blur and teardown while preserving
+  later changes to its value.
+
 - Keep theme switching active after a body replacement and remove delegated
   document listeners on teardown.
 

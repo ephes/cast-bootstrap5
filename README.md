@@ -611,6 +611,8 @@ never moves focus, and a focused scroll-to-top button stays visible and exposed
 to assistive technology until focus leaves it.
 Viewport updates own at most one animation frame. Teardown or a button
 replacement cancels and invalidates that frame; rebinding starts fresh.
+A temporary focus `tabindex` is removed on blur, button replacement or teardown
+if it still has the value set by the button. Later changes to the value are preserved.
 
 ## Post content enhancements
 

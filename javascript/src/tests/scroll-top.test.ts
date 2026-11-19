@@ -239,6 +239,45 @@ describe("scroll-top accessible activation", () => {
     expect(document.querySelector("h1")!.hasAttribute("tabindex")).toBe(false);
   });
 
+  it.each(["blur", "destroy", "replace"])("preserves a later tabindex change on %s", (retire) => {
+    initScrollTop();
+    const heading = document.querySelector("h1")!;
+    const button = document.querySelector("button")!;
+    button.click();
+    expect(document.activeElement).toBe(heading);
+    expect(heading.getAttribute("tabindex")).toBe("-1");
+
+    heading.tabIndex = 0;
+    if (retire === "destroy") destroyScrollTop();
+    if (retire === "replace") {
+      button.replaceWith(button.cloneNode());
+      document.dispatchEvent(new CustomEvent("htmx:afterSwap"));
+    }
+    heading.blur();
+    expect(heading.getAttribute("tabindex")).toBe("0");
+    heading.focus();
+    expect(document.activeElement).toBe(heading);
+  });
+
+  it.each(["destroy", "replace"])("releases its tabindex and blur handler on %s", (retire) => {
+    initScrollTop();
+    const heading = document.querySelector("h1")!;
+    const button = document.querySelector("button")!;
+    button.click();
+    expect(heading.getAttribute("tabindex")).toBe("-1");
+
+    if (retire === "destroy") destroyScrollTop();
+    else {
+      button.replaceWith(button.cloneNode());
+      document.dispatchEvent(new CustomEvent("htmx:afterSwap"));
+    }
+    expect(heading.hasAttribute("tabindex")).toBe(false);
+
+    heading.tabIndex = -1;
+    heading.dispatchEvent(new FocusEvent("blur"));
+    expect(heading.getAttribute("tabindex")).toBe("-1");
+  });
+
   it("ordinary scrolling never steals focus or hides the focused control", () => {
     initScrollTop();
     const button = document.querySelector<HTMLButtonElement>("button")!;

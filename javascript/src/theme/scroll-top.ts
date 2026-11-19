@@ -3,7 +3,7 @@ const MIN_SCROLLABLE_DISTANCE = 300;
 const MAX_VISIBILITY_THRESHOLD = 400;
 const VISIBILITY_FRACTION = 0.5;
 
-let cancelViewportUpdate: (() => void) | null = null;
+let retireButtonBinding: (() => void) | null = null;
 let trackedButton: HTMLElement | null = null;
 let scrollHandler: ((event: Event) => void) | null = null;
 let resizeHandler: ((event: Event) => void) | null = null;
@@ -52,8 +52,8 @@ function updateButtonState(button: HTMLElement): void {
 }
 
 function unbindButtonListeners(): void {
-  cancelViewportUpdate?.();
-  cancelViewportUpdate = null;
+  retireButtonBinding?.();
+  retireButtonBinding = null;
   const win = getWindow();
   if (!win) {
     trackedButton = null;
@@ -94,7 +94,10 @@ function bindButtonListeners(button: HTMLElement): void {
   let ticking = false;
   let active = true;
   let frame: number | null = null;
-  cancelViewportUpdate = () => {
+  let focusDestination: HTMLElement | null = null;
+  let releaseFocusTabindex: (() => void) | null = null;
+  retireButtonBinding = () => {
+    releaseFocusTabindex?.();
     active = false;
     if (frame !== null) win.cancelAnimationFrame(frame);
   };
@@ -121,9 +124,22 @@ function bindButtonListeners(button: HTMLElement): void {
     const destination = doc.querySelector<HTMLElement>("main h1, #main-content h1, [role='main'] h1")
       ?? doc.querySelector<HTMLElement>("#main-content, main, [role='main']")
       ?? doc.querySelector<HTMLElement>("h1") ?? doc.body;
+    if (focusDestination !== destination) releaseFocusTabindex?.();
     if (!destination.hasAttribute("tabindex")) {
-      destination.tabIndex = -1;
-      destination.addEventListener("blur", () => destination.removeAttribute("tabindex"), { once: true });
+      releaseFocusTabindex?.();
+      const temporaryTabindex = "-1";
+      destination.setAttribute("tabindex", temporaryTabindex);
+      focusDestination = destination;
+      const release = () => {
+        destination.removeEventListener("blur", release);
+        if (destination.getAttribute("tabindex") === temporaryTabindex) {
+          destination.removeAttribute("tabindex");
+        }
+        focusDestination = null;
+        releaseFocusTabindex = null;
+      };
+      releaseFocusTabindex = release;
+      destination.addEventListener("blur", release);
     }
     destination.focus({ preventScroll: true });
     const reducedMotion = win.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
