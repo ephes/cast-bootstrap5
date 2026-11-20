@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Stage only fingerprinted translation sources and catalogs, so unrelated
+  package files are excluded from translation builds.
+
+- Reject non-regular translation inputs with a path-specific error so named
+  pipes cannot block catalog checks or updates.
+
 - Stream translation source fingerprints and reject oversized inputs before
   staging, with an 8 MiB file limit and a 64 MiB total limit per pass.
 

@@ -10,12 +10,13 @@ import hashlib
 import os
 import re
 import shutil
+import stat
 import sys
 from collections.abc import Iterable
 from contextlib import contextmanager, nullcontext
 from pathlib import Path
 from tempfile import TemporaryDirectory, mkdtemp
-from typing import NamedTuple
+from typing import BinaryIO, NamedTuple
 
 import django
 from django.conf import settings
@@ -54,6 +55,11 @@ class SourceBudgetExceeded(RuntimeError):
     pass
 
 
+class UnsupportedSource(RuntimeError):
+    def __init__(self, path: Path):
+        super().__init__(f"Translation source is not a regular file: {path}")
+
+
 @contextmanager
 def publication_lock():
     # A stable inode outside the package, shared by checks and writers. Never
@@ -68,10 +74,19 @@ def publication_lock():
             fcntl.flock(handle, fcntl.LOCK_UN)
 
 
-def generation(path: Path, remaining_total: int) -> Generation | None:
+def generation(path: Path, remaining_total: int, *, destination: BinaryIO | None = None) -> Generation | None:
     try:
-        with path.open("rb", buffering=0) as handle:
-            before = os.fstat(handle.fileno())
+        try:
+            descriptor = os.open(path, os.O_RDONLY | os.O_NONBLOCK)
+        except OSError:
+            # Some special files, such as Unix sockets, cannot be opened.
+            if not stat.S_ISREG(path.stat().st_mode):
+                raise UnsupportedSource(path) from None
+            raise
+        try:
+            before = os.fstat(descriptor)
+            if not stat.S_ISREG(before.st_mode):
+                raise UnsupportedSource(path)
             if before.st_size > MAX_SOURCE_FILE_BYTES:
                 raise SourceBudgetExceeded(f"Translation per-file limit ({MAX_SOURCE_FILE_BYTES} bytes): {path}")
             if before.st_size > remaining_total:
@@ -79,12 +94,16 @@ def generation(path: Path, remaining_total: int) -> Generation | None:
             digest = hashlib.sha256()
             remaining = before.st_size
             while remaining:
-                chunk = handle.read(min(DIGEST_CHUNK_BYTES, remaining))
+                chunk = os.read(descriptor, min(DIGEST_CHUNK_BYTES, remaining))
                 if not chunk:
                     raise SourcesChanged()
                 digest.update(chunk)
+                if destination is not None:
+                    destination.write(chunk)
                 remaining -= len(chunk)
-            after = os.fstat(handle.fileno())
+            after = os.fstat(descriptor)
+        finally:
+            os.close(descriptor)
     except FileNotFoundError:
         return None
     if (before.st_size, before.st_mtime_ns, before.st_ctime_ns) != (
@@ -93,6 +112,10 @@ def generation(path: Path, remaining_total: int) -> Generation | None:
         after.st_ctime_ns,
     ):
         raise SourcesChanged()
+    if destination is not None:
+        destination.flush()
+        os.fchmod(destination.fileno(), stat.S_IMODE(before.st_mode))
+        os.utime(destination.fileno(), ns=(before.st_atime_ns, before.st_mtime_ns))
     # Rename preserves these fields; inode identity also fences an editor's
     # atomic save of identical bytes. The digest catches in-place edits.
     return Generation(after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns, digest.digest())
@@ -111,17 +134,35 @@ def generations(root: Path, inputs: Iterable[Path]) -> dict[Path, Generation | N
 
 def source_generations(paths: list[Path]) -> dict[Path, Generation | None]:
     inputs = set(paths)
-    inputs.update(
-        path.relative_to(PACKAGE)
-        for path in PACKAGE.rglob("*")
-        if path.suffix in {".html", ".txt", ".py"} and "static" not in path.relative_to(PACKAGE).parts
-    )
+    for path in PACKAGE.rglob("*"):
+        if path.suffix in {".html", ".txt", ".py"}:
+            relative = path.relative_to(PACKAGE)
+            if not any(part in {"static", "__pycache__"} or part.endswith(".pyc") for part in relative.parts):
+                inputs.add(relative)
     return generations(PACKAGE, inputs)
 
 
 def ensure_current(expected: dict, paths: list[Path]) -> None:
     if source_generations(paths) != expected:
         raise SourcesChanged()
+
+
+def stage_sources(staged: Path, initial: dict[Path, Generation | None], paths: list[Path]) -> None:
+    # Django needs the locale directory even when regenerating missing catalogs.
+    for relative in paths:
+        (staged / relative).parent.mkdir(parents=True, exist_ok=True)
+    for relative, expected in initial.items():
+        if expected is None:
+            continue
+        target = staged / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        with target.open("wb") as destination:
+            try:
+                actual = generation(PACKAGE / relative, expected.size, destination=destination)
+            except SourceBudgetExceeded as error:
+                raise SourcesChanged() from error
+        if actual != expected:
+            raise SourcesChanged()
 
 
 def generate(staged: Path) -> None:
@@ -203,7 +244,7 @@ def publish(staged: Path, backups: dict, retained: set, paths: list[Path], expec
             try:
                 if generation(target, MAX_SOURCE_TOTAL_BYTES) != owned[relative]:
                     continue
-            except (OSError, SourcesChanged, SourceBudgetExceeded) as rollback_error:
+            except (OSError, SourcesChanged, SourceBudgetExceeded, UnsupportedSource) as rollback_error:
                 # The target may still hold this attempt's bytes, so keep the
                 # original copy instead of deleting the only recovery source.
                 note = f"Could not verify rollback ownership of {relative}: {rollback_error}"
@@ -237,7 +278,7 @@ def main(check: bool) -> int:
         # A sibling temporary tree keeps publication on the same filesystem.
         with TemporaryDirectory(prefix=".messages-", dir=PACKAGE.parent) as temporary:
             staged = Path(temporary) / "package"
-            shutil.copytree(PACKAGE, staged, ignore=shutil.ignore_patterns("static", "__pycache__", "*.pyc"))
+            stage_sources(staged, initial, paths)
             backup_context = nullcontext(({}, set())) if check else catalog_backups(staged, paths, initial)
             with backup_context as (backups, retained):
                 ensure_current(initial, paths)
@@ -265,6 +306,6 @@ def main(check: bool) -> int:
 if __name__ == "__main__":
     try:
         sys.exit(main(check="--check" in sys.argv[1:]))
-    except (SourcesChanged, SourceBudgetExceeded) as error:
+    except (SourcesChanged, SourceBudgetExceeded, UnsupportedSource) as error:
         print(error, file=sys.stderr)
         sys.exit(1)

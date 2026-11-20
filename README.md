@@ -487,7 +487,10 @@ just messages        # makemessages + compilemessages for the theme package
 just check-messages  # compare the generated PO/MO pair without modifying sources (CI)
 ```
 
-Both commands extract and compile in an isolated temporary copy of the package.
+Both commands extract and compile in a temporary tree containing only the
+fingerprinted HTML, text and Python sources and the working PO/MO catalogs.
+Static assets and Python caches are excluded. Each copied file is checked
+against its admitted fingerprint as it is staged.
 `just check-messages` compares both PO and MO bytes with the working catalogs and
 never writes to them, including on extraction/compilation failure or interruption.
 The existing POT creation timestamp is retained before compiling for deterministic
@@ -502,7 +505,9 @@ timestamps, plus the extracted HTML/text/Python source inventory, are rechecked
 after generation, before each replacement and after the final replacement.
 The checks stream SHA-256 fingerprints in 64 KiB chunks. Each fingerprint pass
 allows up to 8 MiB per file and 64 MiB total for extraction sources and the
-tracked PO/MO catalogs. Oversized inputs are rejected before staging starts.
+tracked PO/MO catalogs. Both commands require regular files for these inputs and
+report the path of a special file such as a named pipe without waiting for it.
+Oversized inputs are rejected before staging starts.
 A concurrent save refuses the stale result; rerun `just messages` after finishing
 the edit. A caught publication error or interruption restores only files still
 owned by that attempt, preserving later translator saves, including atomic saves
