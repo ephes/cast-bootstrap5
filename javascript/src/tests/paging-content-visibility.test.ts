@@ -125,7 +125,7 @@ describe("paging-content-visibility", () => {
     expect(pagingArea.getAttribute("data-cast-podlove-present")).toBeNull();
   });
 
-  it("does not adopt a beforeRequest cancelled by a source listener", () => {
+  it("keeps ownership when a vetoed request never reaches beforeSend", () => {
     vi.useFakeTimers();
     const pagingArea = document.getElementById("paging-area")!;
     pagingArea.innerHTML = "<podlove-player></podlove-player>";
