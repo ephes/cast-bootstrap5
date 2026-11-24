@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Preserve translation publication errors and recovery paths when backup cleanup
+  fails, and continue removing the other obsolete copies.
+
+- Detect permission changes during translation generation, and keep later
+  catalog permission changes when publication rollback restores the original
+  catalog bytes.
+
 - Keep facet and ordering enhancements active for HTMX swaps after a body
   replacement, with teardown removing the swap listener from the document.
 

@@ -507,9 +507,10 @@ fuzzy guesses) and drops strings the templates no longer use. Only after the ful
 catalog set compiles does it publish each file with an atomic replacement.
 Checks and updates share an advisory process lock at `.cache/messages.lock`,
 held from the source snapshot through publication/rollback; do not delete this
-lock file while commands may be running. Catalog bytes, file identity and
-timestamps, plus the extracted HTML/text/Python source inventory, are rechecked
-after generation, before each replacement and after the final replacement.
+lock file while commands may be running. Catalog and extraction source fingerprints
+include file identity, size, modification time, permission bits and a content digest.
+They are rechecked along with the extracted HTML/text/Python inventory after
+generation, before each replacement and after the final replacement.
 The checks stream SHA-256 fingerprints in 64 KiB chunks. Each fingerprint pass
 allows up to 8 MiB per file and 64 MiB total for extraction sources and the
 tracked PO/MO catalogs. Both commands require regular files for these inputs and
@@ -517,12 +518,15 @@ report the path of a special file such as a named pipe without waiting for it.
 Oversized inputs are rejected before staging starts.
 A concurrent save refuses the stale result; rerun `just messages` after finishing
 the edit. A caught publication error or interruption restores only files still
-owned by that attempt, preserving later translator saves, including atomic saves
-of identical bytes. Such a save may leave a PO needing recompilation, so review
-and regenerate the pair before committing. If restoring an owned catalog fails,
-or its ownership cannot be verified during rollback, the error reports its
-original copy under `.cache/messages-recovery-*/`.
-Review that copy against any subsequent translator edits before restoring it.
+owned by that attempt, preserving later translator saves, including atomic
+saves of identical bytes. A permission change alone keeps the file owned: its
+original bytes are restored with the new permission bits. A translator save may leave a PO needing
+recompilation, so review and regenerate the pair before committing. If restoring
+an owned catalog fails or its ownership cannot be verified during rollback, the
+error reports its original copy under `.cache/messages-recovery-*/`.
+Failures while removing obsolete backup copies are attached to the original
+error with their paths, and cleanup still attempts the other obsolete copies.
+Review the retained original against subsequent translator edits before restoring it.
 The lock coordinates these commands; unrelated editors must use the same lock
 for strict exclusion, since an unsynchronized save can still race the final
 check and rename. Avoid editing during publication. An uncatchable process

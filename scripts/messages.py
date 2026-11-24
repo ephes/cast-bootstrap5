@@ -13,7 +13,7 @@ import shutil
 import stat
 import sys
 from collections.abc import Iterable
-from contextlib import contextmanager, nullcontext
+from contextlib import contextmanager, nullcontext, suppress
 from pathlib import Path
 from tempfile import TemporaryDirectory, mkdtemp
 from typing import BinaryIO, NamedTuple
@@ -38,6 +38,7 @@ class Generation(NamedTuple):
     inode: int
     size: int
     mtime_ns: int
+    mode: int
     digest: bytes
 
 
@@ -118,7 +119,9 @@ def generation(path: Path, remaining_total: int, *, destination: BinaryIO | None
         os.utime(destination.fileno(), ns=(before.st_atime_ns, before.st_mtime_ns))
     # Rename preserves these fields; inode identity also fences an editor's
     # atomic save of identical bytes. The digest catches in-place edits.
-    return Generation(after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns, digest.digest())
+    return Generation(
+        after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns, stat.S_IMODE(after.st_mode), digest.digest()
+    )
 
 
 def generations(root: Path, inputs: Iterable[Path]) -> dict[Path, Generation | None]:
@@ -206,6 +209,16 @@ def catalog_backups(staged: Path, paths: list[Path], initial: dict):
     directory = Path(mkdtemp(prefix="messages-recovery-", dir=PACKAGE.parent / ".cache"))
     backups = {}
     retained = set()
+    failure = None
+
+    def report_cleanup_error(path, error):
+        note = f"Could not clean translation backup path {path}: {error}"
+        if failure is not None:
+            failure.add_note(note)
+        else:
+            with suppress(Exception):
+                print(note, file=sys.stderr)
+
     try:
         for relative in paths:
             if initial[relative] is not None:
@@ -214,15 +227,21 @@ def catalog_backups(staged: Path, paths: list[Path], initial: dict):
                 shutil.copy2(staged / relative, saved)
                 backups[relative] = saved
         yield backups, retained
+    except BaseException as error:
+        failure = error
+        raise
     finally:
-        try:
-            if retained:
-                for relative in backups.keys() - retained:
-                    backups[relative].unlink(missing_ok=True)
-            else:
-                shutil.rmtree(directory)
-        except OSError as cleanup_error:
-            print(f"Could not clean translation backups in {directory}: {cleanup_error}", file=sys.stderr)
+        if retained:
+            for relative in backups.keys() - retained:
+                saved = backups[relative]
+                try:
+                    saved.unlink(missing_ok=True)
+                except OSError as error:
+                    report_cleanup_error(saved, error)
+        elif sys.version_info >= (3, 12):
+            shutil.rmtree(directory, onexc=lambda _function, path, error: report_cleanup_error(path, error))
+        else:
+            shutil.rmtree(directory, onerror=lambda _function, path, exc_info: report_cleanup_error(path, exc_info[1]))
 
 
 def publish(staged: Path, backups: dict, retained: set, paths: list[Path], expected: dict, owned: dict) -> None:
@@ -237,25 +256,30 @@ def publish(staged: Path, backups: dict, retained: set, paths: list[Path], expec
             expected[relative] = owned[relative]
         ensure_current(expected, paths)
     except BaseException as error:
-        # Roll back only files whose inode, timestamp and bytes are still ours.
-        # A translator save (including an atomic replacement) keeps ownership.
+        # Roll back only files that still hold this attempt's content. A later
+        # translator save keeps the file; a permission-only change is carried
+        # over to the restored original so the PO/MO pair stays consistent.
         for relative in reversed(published):
             target = PACKAGE / relative
+            original = backups.get(relative)
             try:
-                if generation(target, MAX_SOURCE_TOTAL_BYTES) != owned[relative]:
+                current = generation(target, MAX_SOURCE_TOTAL_BYTES)
+                # A deleted catalog (None) belongs to whoever removed it.
+                if current is None or current._replace(mode=owned[relative].mode) != owned[relative]:
                     continue
             except (OSError, SourcesChanged, SourceBudgetExceeded, UnsupportedSource) as rollback_error:
                 # The target may still hold this attempt's bytes, so keep the
                 # original copy instead of deleting the only recovery source.
                 note = f"Could not verify rollback ownership of {relative}: {rollback_error}"
-                if (original := backups.get(relative)) is not None:
+                if original is not None:
                     retained.add(relative)
                     note += f". Original catalog retained at {original}"
                 error.add_note(note)
                 continue
-            original = backups.get(relative)
             try:
                 if original is not None:
+                    if current.mode != owned[relative].mode:
+                        os.chmod(original, current.mode)
                     os.replace(original, target)
                 else:
                     target.unlink()
@@ -307,5 +331,5 @@ if __name__ == "__main__":
     try:
         sys.exit(main(check="--check" in sys.argv[1:]))
     except (SourcesChanged, SourceBudgetExceeded, UnsupportedSource) as error:
-        print(error, file=sys.stderr)
+        print(error, *getattr(error, "__notes__", ()), sep="\n", file=sys.stderr)
         sys.exit(1)
