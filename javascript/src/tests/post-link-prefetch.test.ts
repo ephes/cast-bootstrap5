@@ -230,6 +230,34 @@ describe("post-link-prefetch", () => {
     expect(getPrefetchLinks()).toEqual([existing]);
   });
 
+  it("reuses a foreign prefetch with a mixed-case rel token and leaves it in place on destroy", () => {
+    const existing = document.createElement("link");
+    existing.rel = "alternate PreFeTcH";
+    existing.href = "/post/?page=1#existing";
+    document.head.append(existing);
+    try {
+      document.body.innerHTML = '<a href="/post/?page=1#next" data-cast-prefetch>Post</a>';
+      const anchor = document.querySelector("a")!;
+      const focus = () => anchor.dispatchEvent(new Event("focusin", { bubbles: true }));
+      initPostLinkPrefetch();
+
+      focus();
+      expect(getPrefetchLinks()).toHaveLength(0);
+
+      anchor.href = "/post/?page=2#next";
+      focus();
+      expect(getPrefetchLinks().map((link) => link.href)).toEqual([
+        new URL("/post/?page=2", window.location.href).href,
+      ]);
+
+      destroyPostLinkPrefetch();
+      expect(getPrefetchLinks()).toHaveLength(0);
+      expect(existing.parentNode).toBe(document.head);
+    } finally {
+      existing.remove();
+    }
+  });
+
   it("handles links inserted after initialization", () => {
     initPostLinkPrefetch();
 

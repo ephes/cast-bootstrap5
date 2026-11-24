@@ -231,9 +231,10 @@ focus or touch. The theme checks the browser's Save-Data preference on each
 interaction and skips new prefetches while the browser reports it as enabled.
 Browsers without this signal continue to prefetch. Only same-origin HTTP(S)
 URLs without a username or password are eligible. The current page is excluded.
-Prefetch identity ignores fragments
-(including when checking existing prefetch links), while paths and query strings
-remain distinct. Anchor destinations, including fragments, and ordinary browser
+Prefetch identity ignores fragments, while paths and query strings remain
+distinct. The theme reuses matching links with a `prefetch` relation token,
+regardless of case or additional relation tokens.
+Anchor destinations, including fragments, and ordinary browser
 navigation are unchanged. The theme retains at most 32 owned prefetch nodes/cache
 entries across HTMX swaps, evicting the oldest entry before admitting a new URL.
 Eviction and teardown remove only theme-owned nodes; foreign head links stay in
