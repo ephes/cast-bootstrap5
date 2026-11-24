@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Skip new post-link prefetches while the browser reports Save-Data enabled.
+
 - Stage only fingerprinted translation sources and catalogs, so unrelated
   package files are excluded from translation builds.
 

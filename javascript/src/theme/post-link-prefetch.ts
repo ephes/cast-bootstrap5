@@ -130,6 +130,11 @@ function prefetchUrl(url: string): void {
 }
 
 function handlePrefetchEvent(event: Event): void {
+  const { connection } = navigator as Navigator & { connection?: { saveData?: boolean } };
+  if (connection?.saveData === true) {
+    return;
+  }
+
   const anchor = findPrefetchAnchor(event);
   if (!anchor) {
     return;

@@ -102,6 +102,48 @@ describe("post-link-prefetch", () => {
     expect(getPrefetchLinks()).toHaveLength(1);
   });
 
+  it("honors changes to Save-Data on hover, focus and touch while preserving clicks", () => {
+    const connection = { saveData: true };
+    vi.stubGlobal("navigator", { connection });
+    try {
+      document.body.innerHTML = '<a href="/post/#comments" data-cast-prefetch>Post</a>';
+      const anchor = document.querySelector("a")!;
+      const trigger = (type: string) => anchor.dispatchEvent(new Event(type, { bubbles: true }));
+      const click = () => {
+        const event = new MouseEvent("click", { bubbles: true, cancelable: true });
+        let defaultPrevented: boolean | undefined;
+        window.addEventListener("click", (event) => {
+          defaultPrevented = event.defaultPrevented;
+          event.preventDefault(); // Avoid cross-document navigation in jsdom.
+        }, { once: true });
+        anchor.dispatchEvent(event);
+        expect(defaultPrevented).toBe(false);
+        expect(anchor.getAttribute("href")).toBe("/post/#comments");
+      };
+      initPostLinkPrefetch();
+
+      const interactions = ["mouseover", "focusin", "touchstart"];
+      for (const type of interactions) {
+        trigger(type);
+        expect(getPrefetchLinks()).toHaveLength(0);
+      }
+      click();
+
+      connection.saveData = false;
+      interactions.forEach(trigger);
+      const links = getPrefetchLinks();
+      expect(links.map((link) => link.href)).toEqual([new URL("/post/", window.location.href).href]);
+      click();
+
+      connection.saveData = true;
+      anchor.setAttribute("href", "/other-post/");
+      trigger("focusin");
+      expect(getPrefetchLinks()).toEqual(links);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it.each(["mailto:test@example.com", "javascript:void(0)"])("ignores non-http scheme %s", (href) => {
     document.body.innerHTML = `
       <a href="${href}" data-cast-prefetch>Unsupported</a>
