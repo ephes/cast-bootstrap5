@@ -238,11 +238,10 @@ def catalog_backups(staged: Path, paths: list[Path], initial: dict):
                     saved.unlink(missing_ok=True)
                 except OSError as error:
                     report_cleanup_error(saved, error)
+        elif sys.version_info >= (3, 12):
+            shutil.rmtree(directory, onexc=lambda _function, path, error: report_cleanup_error(path, error))
         else:
-            def report_tree_cleanup_error(_function, path, exc_info):
-                report_cleanup_error(path, exc_info[1])
-
-            shutil.rmtree(directory, onerror=report_tree_cleanup_error)
+            shutil.rmtree(directory, onerror=lambda _function, path, exc_info: report_cleanup_error(path, exc_info[1]))
 
 
 def publish(staged: Path, backups: dict, retained: set, paths: list[Path], expected: dict, owned: dict) -> None:
@@ -257,25 +256,30 @@ def publish(staged: Path, backups: dict, retained: set, paths: list[Path], expec
             expected[relative] = owned[relative]
         ensure_current(expected, paths)
     except BaseException as error:
-        # Roll back only files that still match the published generation.
-        # Later translator saves and permission changes keep ownership.
+        # Roll back only files that still hold this attempt's content. A later
+        # translator save keeps the file; a permission-only change is carried
+        # over to the restored original so the PO/MO pair stays consistent.
         for relative in reversed(published):
             target = PACKAGE / relative
+            original = backups.get(relative)
             try:
-                if generation(target, MAX_SOURCE_TOTAL_BYTES) != owned[relative]:
+                current = generation(target, MAX_SOURCE_TOTAL_BYTES)
+                # A deleted catalog (None) belongs to whoever removed it.
+                if current is None or current._replace(mode=owned[relative].mode) != owned[relative]:
                     continue
             except (OSError, SourcesChanged, SourceBudgetExceeded, UnsupportedSource) as rollback_error:
                 # The target may still hold this attempt's bytes, so keep the
                 # original copy instead of deleting the only recovery source.
                 note = f"Could not verify rollback ownership of {relative}: {rollback_error}"
-                if (original := backups.get(relative)) is not None:
+                if original is not None:
                     retained.add(relative)
                     note += f". Original catalog retained at {original}"
                 error.add_note(note)
                 continue
-            original = backups.get(relative)
             try:
                 if original is not None:
+                    if current.mode != owned[relative].mode:
+                        os.chmod(original, current.mode)
                     os.replace(original, target)
                 else:
                     target.unlink()

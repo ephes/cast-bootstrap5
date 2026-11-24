@@ -518,8 +518,9 @@ report the path of a special file such as a named pipe without waiting for it.
 Oversized inputs are rejected before staging starts.
 A concurrent save refuses the stale result; rerun `just messages` after finishing
 the edit. A caught publication error or interruption restores only files still
-owned by that attempt, preserving later permission changes and translator saves,
-including atomic saves of identical bytes. Such a save may leave a PO needing
+owned by that attempt, preserving later translator saves, including atomic
+saves of identical bytes. A permission change alone keeps the file owned: its
+original bytes are restored with the new permission bits. A translator save may leave a PO needing
 recompilation, so review and regenerate the pair before committing. If restoring
 an owned catalog fails or its ownership cannot be verified during rollback, the
 error reports its original copy under `.cache/messages-recovery-*/`.
