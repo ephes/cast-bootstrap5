@@ -3,6 +3,7 @@
 import importlib.util
 import os
 import shutil
+import stat
 import subprocess
 import sys
 from pathlib import Path
@@ -287,6 +288,37 @@ def test_translator_save_between_publications_refuses_stale_set(package, monkeyp
         messages.main(False)
     assert po.read_bytes() == b"concurrent translator save"
     assert mo.read_bytes() == original_mo
+
+
+@pytest.mark.parametrize("change_mode", [False, True], ids=["unchanged-mode", "chmod-after-rename"])
+def test_publication_fences_catalog_mode_after_rename(package, monkeypatch, change_mode):
+    po = package / "locale/de/LC_MESSAGES/django.po"
+    mo = po.with_suffix(".mo")
+    po.chmod(0o644)
+    original_mo = mo.read_bytes()
+    replace = messages.os.replace
+
+    def generate(staged):
+        for catalog in (po, mo):
+            (staged / catalog.relative_to(package)).write_bytes(b"generated")
+
+    def replace_and_chmod(source, target):
+        replace(source, target)
+        if change_mode and target == po:
+            po.chmod(0o600)
+
+    monkeypatch.setattr(messages, "generate", generate)
+    monkeypatch.setattr(messages.os, "replace", replace_and_chmod)
+    if change_mode:
+        with pytest.raises(messages.SourcesChanged):
+            messages.main(False)
+        assert mo.read_bytes() == original_mo
+    else:
+        assert messages.main(False) == 0
+        assert mo.read_bytes() == b"generated"
+
+    assert po.read_bytes() == b"generated"
+    assert stat.S_IMODE(po.stat().st_mode) == (0o600 if change_mode else 0o644)
 
 
 @pytest.mark.parametrize("atomic_save", [False, True])

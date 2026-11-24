@@ -38,6 +38,7 @@ class Generation(NamedTuple):
     inode: int
     size: int
     mtime_ns: int
+    mode: int
     digest: bytes
 
 
@@ -118,7 +119,9 @@ def generation(path: Path, remaining_total: int, *, destination: BinaryIO | None
         os.utime(destination.fileno(), ns=(before.st_atime_ns, before.st_mtime_ns))
     # Rename preserves these fields; inode identity also fences an editor's
     # atomic save of identical bytes. The digest catches in-place edits.
-    return Generation(after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns, digest.digest())
+    return Generation(
+        after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns, stat.S_IMODE(after.st_mode), digest.digest()
+    )
 
 
 def generations(root: Path, inputs: Iterable[Path]) -> dict[Path, Generation | None]:
@@ -237,8 +240,8 @@ def publish(staged: Path, backups: dict, retained: set, paths: list[Path], expec
             expected[relative] = owned[relative]
         ensure_current(expected, paths)
     except BaseException as error:
-        # Roll back only files whose inode, timestamp and bytes are still ours.
-        # A translator save (including an atomic replacement) keeps ownership.
+        # Roll back only files that still match the published generation.
+        # Later translator saves and permission changes keep ownership.
         for relative in reversed(published):
             target = PACKAGE / relative
             try:

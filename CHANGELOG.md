@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Detect permission changes during translation generation and preserve later
+  catalog permission changes during publication rollback.
+
 - Keep facet and ordering enhancements active for HTMX swaps after a body
   replacement, with teardown removing the swap listener from the document.
 
