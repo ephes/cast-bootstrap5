@@ -83,17 +83,16 @@ function getPrefetchUrl(anchor: HTMLAnchorElement): string | null {
 }
 
 function hasExistingPrefetchLink(doc: Document, url: string): boolean {
-  return Array.from(doc.querySelectorAll<HTMLLinkElement>('link[rel="prefetch"]')).some(
-    (link) => {
-      try {
-        const existing = new URL(link.href);
-        existing.hash = "";
-        return existing.href === url;
-      } catch {
-        return false;
-      }
-    },
-  );
+  for (const link of doc.querySelectorAll<HTMLLinkElement>('link[rel~="prefetch" i]')) {
+    try {
+      const existing = new URL(link.href);
+      existing.hash = "";
+      if (existing.href === url) return true;
+    } catch {
+      continue;
+    }
+  }
+  return false;
 }
 
 function prefetchUrl(url: string): void {
@@ -130,6 +129,11 @@ function prefetchUrl(url: string): void {
 }
 
 function handlePrefetchEvent(event: Event): void {
+  const { connection } = navigator as Navigator & { connection?: { saveData?: boolean } };
+  if (connection?.saveData === true) {
+    return;
+  }
+
   const anchor = findPrefetchAnchor(event);
   if (!anchor) {
     return;

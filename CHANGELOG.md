@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Reuse matching prefetch links with mixed-case or multiple relation tokens,
+  while preserving externally owned hints during teardown.
+
+- Skip new post-link prefetches while the browser reports Save-Data enabled.
+
 - Stage only fingerprinted translation sources and catalogs, so unrelated
   package files are excluded from translation builds.
 
