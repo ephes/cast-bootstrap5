@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Keep facet and ordering enhancements active for HTMX swaps after a body
+  replacement, with teardown removing the swap listener from the document.
+
 - Mask the paging list and player iframes only when HTMX is about to send
   the request, so late cancellation preserves the current paging state.
 

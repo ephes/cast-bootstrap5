@@ -563,9 +563,11 @@ idempotent. The replacement button's accessible name includes both the field
 label and the current selected value, including after selection changes and reset.
 
 `initFilterEnhancementsBootstrap()` owns one pending DOMContentLoaded callback
-and one HTMX swap listener. `destroyFilterEnhancementsBootstrap()` cancels pending
-initialization and removes the swap listener, leaving already rendered controls
-in place. Reinitialization is supported after teardown.
+and one document-level listener for bubbling HTMX swaps. The listener keeps
+enhancing swap targets after the body is replaced.
+`destroyFilterEnhancementsBootstrap()` cancels pending initialization and removes
+the document listener, leaving already rendered controls in place.
+Reinitialization is supported after teardown.
 Each ordering enhancement separately owns an `htmx:beforeCleanupElement`
 listener. HTMX cleanup disconnects its observer, removes form/control/menu
 listeners, cancels pending reset work and restores the native select. Reusing
