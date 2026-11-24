@@ -212,6 +212,9 @@ makes the queued callback a no-op.
 
 While an HTMX pagination request for `#paging-area` is running, a list that
 contains Podlove players is masked so the players do not flash during the swap.
+The list and its visible player iframes are masked at `htmx:beforeSend`.
+Cancelling `htmx:beforeRequest` leaves the current paging state intact, even
+when a listener registered after the theme cancels the request.
 The mask and the fade state are removed again when the new content has settled.
 Each request owns its state through HTMX's public `detail.xhr` identity. A late
 transition, settle, error or unmask timer from an older request cannot clear the
@@ -560,9 +563,11 @@ idempotent. The replacement button's accessible name includes both the field
 label and the current selected value, including after selection changes and reset.
 
 `initFilterEnhancementsBootstrap()` owns one pending DOMContentLoaded callback
-and one HTMX swap listener. `destroyFilterEnhancementsBootstrap()` cancels pending
-initialization and removes the swap listener, leaving already rendered controls
-in place. Reinitialization is supported after teardown.
+and one document-level listener for bubbling HTMX swaps. The listener keeps
+enhancing swap targets after the body is replaced.
+`destroyFilterEnhancementsBootstrap()` cancels pending initialization and removes
+the document listener, leaving already rendered controls in place.
+Reinitialization is supported after teardown.
 Each ordering enhancement separately owns an `htmx:beforeCleanupElement`
 listener. HTMX cleanup disconnects its observer, removes form/control/menu
 listeners, cancels pending reset work and restores the native select. Reusing

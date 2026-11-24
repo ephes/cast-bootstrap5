@@ -43,6 +43,21 @@ test('actual HTMX requests keep the newer paging mask when the older request set
   await expect(page.locator('#paging-area')).not.toHaveAttribute('data-cast-paging-mask-active');
 });
 
+test('a later document listener can cancel HTMX pagination without masking the list', async ({ page }) => {
+  await page.evaluate(() => {
+    document.body.insertAdjacentHTML('beforeend', '<button id="cancelled" hx-get="/paging/cancelled" hx-target="#paging-area">Next</button><div id="paging-area"><podlove-player></podlove-player></div>');
+    document.addEventListener('htmx:beforeRequest', event => {
+      event.preventDefault();
+      document.body.dataset.cancelled = String(event.defaultPrevented);
+    }, { once: true });
+  });
+  await page.addScriptTag({ path: resolve('../cast_bootstrap5/static/cast_bootstrap5/js/htmx.min.js') });
+  await page.evaluate(() => (window as any).htmx.process(document.body));
+  await page.locator('#cancelled').click();
+  await expect(page.locator('body')).toHaveAttribute('data-cancelled', 'true');
+  await expect(page.locator('#paging-area')).not.toHaveAttribute('data-cast-paging-mask-active');
+});
+
 test('real HTMX cleanup retires ordering controls inside a surviving form', async ({ page }) => {
   await page.route('**/ordering', route => route.fulfill({ body: '<div id="div_id_o"><select name="o"><option value="a">A</option><option value="b" selected>B</option></select></div>' }));
   await page.evaluate(() => {

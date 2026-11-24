@@ -4,7 +4,7 @@ const PAGING_MASK_ACTIVE_ATTR = "data-cast-paging-mask-active";
 const PAGING_HAS_PODLOVE_ATTR = "data-cast-podlove-present";
 const PAGING_MASK_SETTLE_DELAY_MS = 300;
 
-let beforeRequestHandler: ((event: Event) => void) | null = null;
+let beforeSendHandler: ((event: Event) => void) | null = null;
 let beforeTransitionHandler: ((event: Event) => void) | null = null;
 let afterSettleHandler: ((event: Event) => void) | null = null;
 let historyRestoreHandler: ((event: Event) => void) | null = null;
@@ -179,11 +179,10 @@ export function initPagingContentVisibility(): void {
 
   syncPagingAreaPodlovePresence();
 
-  if (!beforeRequestHandler) {
-    beforeRequestHandler = (event: Event) => {
-      // A source-level listener may cancel the request; HTMX then never sends
-      // it or fires its terminal events, so it must not take ownership.
-      if (event.defaultPrevented || !eventTargetsPagingArea(event)) {
+  if (!beforeSendHandler) {
+    beforeSendHandler = (event: Event) => {
+      // HTMX emits beforeSend only after beforeRequest has finished without a veto.
+      if (!eventTargetsPagingArea(event)) {
         return;
       }
       clearPagingMaskTimeout();
@@ -196,7 +195,7 @@ export function initPagingContentVisibility(): void {
       }
       activatePagingMask();
     };
-    doc.addEventListener("htmx:beforeRequest", beforeRequestHandler);
+    doc.addEventListener("htmx:beforeSend", beforeSendHandler);
   }
 
   if (!beforeTransitionHandler) {
@@ -283,8 +282,8 @@ export function destroyPagingContentVisibility(): void {
   if (beforeTransitionHandler) {
     doc.removeEventListener("htmx:beforeTransition", beforeTransitionHandler);
   }
-  if (beforeRequestHandler) {
-    doc.removeEventListener("htmx:beforeRequest", beforeRequestHandler);
+  if (beforeSendHandler) {
+    doc.removeEventListener("htmx:beforeSend", beforeSendHandler);
   }
   if (afterSettleHandler) {
     doc.removeEventListener("htmx:afterSettle", afterSettleHandler);
@@ -303,7 +302,7 @@ export function destroyPagingContentVisibility(): void {
   retireAreas();
   activeRequest = undefined;
   requestGeneration++;
-  beforeRequestHandler = null;
+  beforeSendHandler = null;
   beforeTransitionHandler = null;
   afterSettleHandler = null;
   historyRestoreHandler = null;

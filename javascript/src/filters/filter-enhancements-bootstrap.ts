@@ -36,7 +36,7 @@ export function initFilterEnhancementsBootstrap(): void {
       }
       runFilterEnhancements(target);
     };
-    document.body.addEventListener("htmx:afterSwap", afterSwapHandler);
+    document.addEventListener("htmx:afterSwap", afterSwapHandler);
     afterSwapBound = true;
   }
 }
@@ -53,7 +53,7 @@ export function destroyFilterEnhancementsBootstrap(): void {
   }
 
   if (afterSwapHandler) {
-    document.body.removeEventListener("htmx:afterSwap", afterSwapHandler);
+    document.removeEventListener("htmx:afterSwap", afterSwapHandler);
   }
   afterSwapBound = false;
   afterSwapHandler = null;
