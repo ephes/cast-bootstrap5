@@ -520,10 +520,12 @@ A concurrent save refuses the stale result; rerun `just messages` after finishin
 the edit. A caught publication error or interruption restores only files still
 owned by that attempt, preserving later permission changes and translator saves,
 including atomic saves of identical bytes. Such a save may leave a PO needing
-recompilation, so review and regenerate the pair before committing. If restoring an owned catalog fails,
-or its ownership cannot be verified during rollback, the error reports its
-original copy under `.cache/messages-recovery-*/`.
-Review that copy against any subsequent translator edits before restoring it.
+recompilation, so review and regenerate the pair before committing. If restoring
+an owned catalog fails or its ownership cannot be verified during rollback, the
+error reports its original copy under `.cache/messages-recovery-*/`.
+Failures while removing obsolete backup copies are attached to the original
+error with their paths, and cleanup still attempts the other obsolete copies.
+Review the retained original against subsequent translator edits before restoring it.
 The lock coordinates these commands; unrelated editors must use the same lock
 for strict exclusion, since an unsynchronized save can still race the final
 check and rename. Avoid editing during publication. An uncatchable process

@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Preserve translation publication errors and recovery paths when backup cleanup
+  fails, and continue removing the other obsolete copies.
+
 - Detect permission changes during translation generation and preserve later
   catalog permission changes during publication rollback.
 

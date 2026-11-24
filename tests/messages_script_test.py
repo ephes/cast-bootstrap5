@@ -160,6 +160,47 @@ def test_failed_restore_retains_only_the_owned_backup(package, monkeypatch):
     assert not list(package.parent.glob(".messages-*"))
 
 
+def test_backup_cleanup_preserves_publication_error_and_continues(package, monkeypatch):
+    po = messages.CATALOGS[0].relative_to(package)
+    mo = po.with_suffix(".mo")
+    extra = po.parent / "extra.po"
+    (package / extra).write_bytes(b"extra catalog")
+    paths = [po, mo, extra]
+    initial = messages.source_generations(paths)
+    (package.parent / ".cache").mkdir()
+    failure = OSError("publication failed")
+    attempted = []
+    unlink = Path.unlink
+
+    def fail_first_cleanup(path, *args, **kwargs):
+        if path in obsolete:
+            attempted.append(path)
+            if len(attempted) == 1:
+                raise OSError("backup unlink failed")
+        return unlink(path, *args, **kwargs)
+
+    def closed_stderr(_text):
+        raise ValueError("stderr is closed")
+
+    monkeypatch.setattr(messages, "sys", SimpleNamespace(stderr=SimpleNamespace(write=closed_stderr)))
+    with pytest.raises(OSError, match="publication failed") as caught:
+        with messages.catalog_backups(package, paths, initial) as (backups, retained):
+            retained.add(po)
+            obsolete = {backups[mo], backups[extra]}
+            failure.add_note(f"Original catalog retained at {backups[po]}")
+            monkeypatch.setattr(Path, "unlink", fail_first_cleanup)
+            raise failure
+
+    assert caught.value is failure
+    assert backups[po].read_bytes() == (package / po).read_bytes()
+    assert any(str(backups[po]) in note for note in failure.__notes__)
+    assert set(attempted) == obsolete
+    failed, removed = attempted
+    assert failed.is_file()
+    assert not removed.exists()
+    assert any("backup unlink failed" in note and str(failed) in note for note in failure.__notes__)
+
+
 def test_unverifiable_rollback_ownership_retains_the_backup(package, monkeypatch):
     before = snapshot(package)
     po = Path("locale/de/LC_MESSAGES/django.po")

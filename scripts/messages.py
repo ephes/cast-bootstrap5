@@ -13,7 +13,7 @@ import shutil
 import stat
 import sys
 from collections.abc import Iterable
-from contextlib import contextmanager, nullcontext
+from contextlib import contextmanager, nullcontext, suppress
 from pathlib import Path
 from tempfile import TemporaryDirectory, mkdtemp
 from typing import BinaryIO, NamedTuple
@@ -209,6 +209,16 @@ def catalog_backups(staged: Path, paths: list[Path], initial: dict):
     directory = Path(mkdtemp(prefix="messages-recovery-", dir=PACKAGE.parent / ".cache"))
     backups = {}
     retained = set()
+    failure = None
+
+    def report_cleanup_error(path, error):
+        note = f"Could not clean translation backup path {path}: {error}"
+        if failure is not None:
+            failure.add_note(note)
+        else:
+            with suppress(Exception):
+                print(note, file=sys.stderr)
+
     try:
         for relative in paths:
             if initial[relative] is not None:
@@ -217,15 +227,22 @@ def catalog_backups(staged: Path, paths: list[Path], initial: dict):
                 shutil.copy2(staged / relative, saved)
                 backups[relative] = saved
         yield backups, retained
+    except BaseException as error:
+        failure = error
+        raise
     finally:
-        try:
-            if retained:
-                for relative in backups.keys() - retained:
-                    backups[relative].unlink(missing_ok=True)
-            else:
-                shutil.rmtree(directory)
-        except OSError as cleanup_error:
-            print(f"Could not clean translation backups in {directory}: {cleanup_error}", file=sys.stderr)
+        if retained:
+            for relative in backups.keys() - retained:
+                saved = backups[relative]
+                try:
+                    saved.unlink(missing_ok=True)
+                except OSError as error:
+                    report_cleanup_error(saved, error)
+        else:
+            def report_tree_cleanup_error(_function, path, exc_info):
+                report_cleanup_error(path, exc_info[1])
+
+            shutil.rmtree(directory, onerror=report_tree_cleanup_error)
 
 
 def publish(staged: Path, backups: dict, retained: set, paths: list[Path], expected: dict, owned: dict) -> None:
@@ -310,5 +327,5 @@ if __name__ == "__main__":
     try:
         sys.exit(main(check="--check" in sys.argv[1:]))
     except (SourcesChanged, SourceBudgetExceeded, UnsupportedSource) as error:
-        print(error, file=sys.stderr)
+        print(error, *getattr(error, "__notes__", ()), sep="\n", file=sys.stderr)
         sys.exit(1)
