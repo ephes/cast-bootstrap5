@@ -212,6 +212,9 @@ makes the queued callback a no-op.
 
 While an HTMX pagination request for `#paging-area` is running, a list that
 contains Podlove players is masked so the players do not flash during the swap.
+The list and its visible player iframes are masked at `htmx:beforeSend`.
+Cancelling `htmx:beforeRequest` leaves the current paging state intact, even
+when a listener registered after the theme cancels the request.
 The mask and the fade state are removed again when the new content has settled.
 Each request owns its state through HTMX's public `detail.xhr` identity. A late
 transition, settle, error or unmask timer from an older request cannot clear the

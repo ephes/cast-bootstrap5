@@ -1224,5 +1224,5 @@ if (document.body) {
 }
 
 if (typeof document !== "undefined") {
-  document.addEventListener("htmx:beforeRequest", remaskVisiblePagingIframes, true);
+  document.addEventListener("htmx:beforeSend", remaskVisiblePagingIframes, true);
 }

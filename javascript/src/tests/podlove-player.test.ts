@@ -761,7 +761,7 @@ describe('PodlovePlayerElement', () => {
     }
   });
 
-  it('should remask visible paging-area iframes on pagination beforeRequest and restore them on timeout', () => {
+  it('should remask visible paging-area iframes only when HTMX sends the pagination request and restore them on timeout', () => {
     vi.useFakeTimers();
 
     try {
@@ -786,7 +786,11 @@ describe('PodlovePlayerElement', () => {
       iframe.style.opacity = '1';
       iframe.style.pointerEvents = 'auto';
 
+      document.addEventListener('htmx:beforeRequest', event => event.preventDefault(), { once: true });
       paginationLink.dispatchEvent(new CustomEvent('htmx:beforeRequest', { bubbles: true, cancelable: true }));
+      expect(iframe.getAttribute('data-cast-paging-remask')).toBeNull();
+
+      paginationLink.dispatchEvent(new CustomEvent('htmx:beforeSend', { bubbles: true }));
 
       expect(container?.getAttribute('data-cast-mask-active')).toBe('true');
       expect(iframe.getAttribute('data-cast-iframe-masked')).toBe('true');
@@ -851,7 +855,7 @@ describe('PodlovePlayerElement', () => {
       expect(iframe?.style.opacity).toBe('1');
 
       pagingArea.setAttribute('data-cast-paging-mask-active', 'true');
-      paginationLink.dispatchEvent(new CustomEvent('htmx:beforeRequest', { bubbles: true, cancelable: true }));
+      paginationLink.dispatchEvent(new CustomEvent('htmx:beforeSend', { bubbles: true }));
       expect(iframe?.getAttribute('data-cast-paging-remask')).toBe('true');
       expect(iframe?.style.opacity).toBe('0');
 

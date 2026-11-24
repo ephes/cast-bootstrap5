@@ -28,11 +28,11 @@ describe("paging-content-visibility", () => {
     const b = new XMLHttpRequest();
     const emit = (type: string, xhr: XMLHttpRequest, target: Element) =>
       document.dispatchEvent(new CustomEvent(type, { cancelable: true, detail: { target, xhr } }));
-    emit("htmx:beforeRequest", a, old);
+    emit("htmx:beforeSend", a, old);
     emit("htmx:afterSettle", a, old);
     const next = old.cloneNode(true) as Element;
     old.replaceWith(next);
-    emit("htmx:beforeRequest", b, next);
+    emit("htmx:beforeSend", b, next);
     emit(terminal, a, old);
     vi.advanceTimersByTime(500);
     expect(next.getAttribute("data-cast-paging-mask-active")).toBe("true");
@@ -136,7 +136,7 @@ describe("paging-content-visibility", () => {
       const event = new CustomEvent(type, { bubbles: true, cancelable: true, detail: { target: pagingArea, xhr } });
       pagingArea.dispatchEvent(event);
     };
-    emit("htmx:beforeRequest", a);
+    emit("htmx:beforeSend", a);
     const cancel = (event: Event) => event.preventDefault();
     pagingArea.addEventListener("htmx:beforeRequest", cancel);
     emit("htmx:beforeRequest", b);
@@ -146,13 +146,13 @@ describe("paging-content-visibility", () => {
     expect(pagingArea.hasAttribute("data-cast-paging-mask-active")).toBe(false);
   });
 
-  it("activates a podlove paging mask on beforeRequest and clears it after settle delay", () => {
+  it("activates a podlove paging mask on beforeSend and clears it after settle delay", () => {
     vi.useFakeTimers();
     const pagingArea = document.querySelector("#paging-area") as HTMLElement;
     pagingArea.innerHTML = "<podlove-player></podlove-player>";
     initPagingContentVisibility();
 
-    document.dispatchEvent(new CustomEvent("htmx:beforeRequest", { detail: { target: pagingArea } }));
+    document.dispatchEvent(new CustomEvent("htmx:beforeSend", { detail: { target: pagingArea } }));
     expect(pagingArea.getAttribute("data-cast-paging-mask-active")).toBe("true");
 
     document.dispatchEvent(new CustomEvent("htmx:afterSettle", { detail: { target: pagingArea } }));
@@ -170,7 +170,7 @@ describe("paging-content-visibility", () => {
     const pagingArea = document.querySelector("#paging-area") as HTMLElement;
     initPagingContentVisibility();
 
-    document.dispatchEvent(new CustomEvent("htmx:beforeRequest", { detail: { target: pagingArea } }));
+    document.dispatchEvent(new CustomEvent("htmx:beforeSend", { detail: { target: pagingArea } }));
     expect(pagingArea.getAttribute("data-cast-paging-mask-active")).toBeNull();
   });
 
@@ -202,19 +202,19 @@ describe("paging-content-visibility", () => {
     pagingArea.innerHTML = "<podlove-player></podlove-player>";
     initPagingContentVisibility();
 
-    document.dispatchEvent(new CustomEvent("htmx:beforeRequest", { detail: { target: pagingArea } }));
+    document.dispatchEvent(new CustomEvent("htmx:beforeSend", { detail: { target: pagingArea } }));
     expect(pagingArea.getAttribute("data-cast-paging-mask-active")).toBe("true");
 
     document.dispatchEvent(new CustomEvent("htmx:responseError", { detail: { target: pagingArea } }));
     expect(pagingArea.getAttribute("data-cast-paging-mask-active")).toBeNull();
 
-    document.dispatchEvent(new CustomEvent("htmx:beforeRequest", { detail: { target: pagingArea } }));
+    document.dispatchEvent(new CustomEvent("htmx:beforeSend", { detail: { target: pagingArea } }));
     expect(pagingArea.getAttribute("data-cast-paging-mask-active")).toBe("true");
 
     document.dispatchEvent(new CustomEvent("htmx:sendAbort", { detail: { target: pagingArea } }));
     expect(pagingArea.getAttribute("data-cast-paging-mask-active")).toBeNull();
 
-    document.dispatchEvent(new CustomEvent("htmx:beforeRequest", { detail: { target: pagingArea } }));
+    document.dispatchEvent(new CustomEvent("htmx:beforeSend", { detail: { target: pagingArea } }));
     expect(pagingArea.getAttribute("data-cast-paging-mask-active")).toBe("true");
 
     document.dispatchEvent(new CustomEvent("htmx:swapError", { detail: { target: pagingArea } }));
@@ -230,7 +230,7 @@ describe("paging-content-visibility", () => {
       initPagingContentVisibility();
 
       // A masked request that fails in transport: no response, no settle.
-      document.dispatchEvent(new CustomEvent("htmx:beforeRequest", { detail: { target: pagingArea } }));
+      document.dispatchEvent(new CustomEvent("htmx:beforeSend", { detail: { target: pagingArea } }));
       expect(pagingArea.getAttribute("data-cast-paging-mask-active")).toBe("true");
       document.dispatchEvent(new CustomEvent(failureEvent, { detail: { target: pagingArea } }));
 
@@ -240,14 +240,14 @@ describe("paging-content-visibility", () => {
       expect(pagingArea.querySelector("podlove-player")).not.toBeNull();
 
       // A settle of an earlier request must not leave a timer that unmasks the next request early.
-      document.dispatchEvent(new CustomEvent("htmx:beforeRequest", { detail: { target: pagingArea } }));
+      document.dispatchEvent(new CustomEvent("htmx:beforeSend", { detail: { target: pagingArea } }));
       document.dispatchEvent(new CustomEvent("htmx:afterSettle", { detail: { target: pagingArea } }));
-      document.dispatchEvent(new CustomEvent("htmx:beforeRequest", { detail: { target: pagingArea } }));
+      document.dispatchEvent(new CustomEvent("htmx:beforeSend", { detail: { target: pagingArea } }));
       document.dispatchEvent(new CustomEvent(failureEvent, { detail: { target: pagingArea } }));
       expect(pagingArea.getAttribute("data-cast-paging-mask-active")).toBeNull();
       expect(vi.getTimerCount()).toBe(0);
 
-      document.dispatchEvent(new CustomEvent("htmx:beforeRequest", { detail: { target: pagingArea } }));
+      document.dispatchEvent(new CustomEvent("htmx:beforeSend", { detail: { target: pagingArea } }));
       vi.advanceTimersByTime(1000);
       expect(pagingArea.getAttribute("data-cast-paging-mask-active")).toBe("true");
     }
@@ -272,7 +272,7 @@ describe("paging-content-visibility", () => {
       pagingArea.innerHTML = "<podlove-player></podlove-player>";
       initPagingContentVisibility();
 
-      document.dispatchEvent(new CustomEvent("htmx:beforeRequest", { detail: { target: pagingArea } }));
+      document.dispatchEvent(new CustomEvent("htmx:beforeSend", { detail: { target: pagingArea } }));
       document.dispatchEvent(new CustomEvent(failureEvent, { detail: { target: otherArea } }));
 
       expect(pagingArea.getAttribute("data-cast-paging-mask-active")).toBe("true");
@@ -422,7 +422,7 @@ describe("paging-content-visibility", () => {
     initPagingContentVisibility();
 
     const beforeTransitionCalls = addEventListenerSpy.mock.calls.filter(([name]) => name === "htmx:beforeTransition");
-    const beforeRequestCalls = addEventListenerSpy.mock.calls.filter(([name]) => name === "htmx:beforeRequest");
+    const beforeSendCalls = addEventListenerSpy.mock.calls.filter(([name]) => name === "htmx:beforeSend");
     const afterSettleCalls = addEventListenerSpy.mock.calls.filter(([name]) => name === "htmx:afterSettle");
     const historyRestoreCalls = addEventListenerSpy.mock.calls.filter(([name]) => name === "htmx:historyRestore");
     const responseErrorCalls = addEventListenerSpy.mock.calls.filter(([name]) => name === "htmx:responseError");
@@ -432,7 +432,7 @@ describe("paging-content-visibility", () => {
     const timeoutCalls = addEventListenerSpy.mock.calls.filter(([name]) => name === "htmx:timeout");
 
     expect(beforeTransitionCalls).toHaveLength(1);
-    expect(beforeRequestCalls).toHaveLength(1);
+    expect(beforeSendCalls).toHaveLength(1);
     expect(afterSettleCalls).toHaveLength(1);
     expect(historyRestoreCalls).toHaveLength(1);
     expect(responseErrorCalls).toHaveLength(1);
@@ -447,7 +447,7 @@ describe("paging-content-visibility", () => {
     initPagingContentVisibility();
 
     expect(() => {
-      document.dispatchEvent(new CustomEvent("htmx:beforeRequest", { detail: { target: document.body } }));
+      document.dispatchEvent(new CustomEvent("htmx:beforeSend", { detail: { target: document.body } }));
       document.dispatchEvent(new CustomEvent("htmx:beforeTransition", { detail: { target: document.body } }));
       document.dispatchEvent(new CustomEvent("htmx:afterSettle", { detail: { target: document.body } }));
       document.dispatchEvent(new CustomEvent("htmx:responseError", { detail: { target: document.body } }));

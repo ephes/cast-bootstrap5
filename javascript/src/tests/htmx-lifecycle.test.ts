@@ -68,6 +68,31 @@ test('real HTMX settle keeps the mask owned by the newer XHR', async () => {
   } finally { document.removeEventListener('htmx:afterSettle', settled); }
 });
 
+test('a late beforeRequest veto neither starts paging nor retires an active request', async () => {
+  vi.useFakeTimers();
+  document.body.innerHTML = '<button id="a"></button><button id="b"></button><div id="paging-area"><podlove-player></podlove-player></div>';
+  const api = htmx();
+  initPagingContentVisibility();
+  const pagingArea = document.getElementById('paging-area')!;
+  const vetoRequest = () => {
+    document.addEventListener('htmx:beforeRequest', event => event.preventDefault(), { once: true });
+    return api.ajax('GET', '/b', { source: '#b', target: '#paging-area' });
+  };
+  await vetoRequest();
+  expect(ControlledXHR.requests).toHaveLength(0);
+  expect(pagingArea.hasAttribute('data-cast-paging-mask-active')).toBe(false);
+
+  const a = api.ajax('GET', '/a', { source: '#a', target: '#paging-area', swap: 'innerHTML settle:0ms' });
+  await vetoRequest();
+  expect(ControlledXHR.requests).toHaveLength(1);
+  expect(pagingArea.getAttribute('data-cast-paging-mask-active')).toBe('true');
+
+  ControlledXHR.requests[0].finish('<podlove-player></podlove-player>');
+  await a;
+  vi.advanceTimersByTime(300);
+  expect(pagingArea.hasAttribute('data-cast-paging-mask-active')).toBe(false);
+});
+
 test('real HTMX cleanup releases reset listeners before replacing controls in a surviving form', async () => {
   vi.useFakeTimers();
   document.body.innerHTML = '<button id="source"></button><form><div id="slot"></div></form>';

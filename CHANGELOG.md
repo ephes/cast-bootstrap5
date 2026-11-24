@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Mask the paging list and player iframes only when HTMX is about to send
+  the request, so late cancellation preserves the current paging state.
+
 - Reuse matching prefetch links with mixed-case or multiple relation tokens,
   while preserving externally owned hints during teardown.
 

@@ -8,7 +8,7 @@
     "name": "ordering-options"
   },
   "src/audio/podlove-player.ts": {
-    "file": "podlovePlayer-BFFwyM6I.js",
+    "file": "podlovePlayer-rCm7Cjeg.js",
     "name": "podlovePlayer",
     "src": "src/audio/podlove-player.ts",
     "isEntry": true
@@ -48,7 +48,7 @@
     ]
   },
   "src/theme/paging-content-visibility.ts": {
-    "file": "pagingContentVisibility-DOHBRUcq.js",
+    "file": "pagingContentVisibility-BtMxxN72.js",
     "name": "pagingContentVisibility",
     "src": "src/theme/paging-content-visibility.ts",
     "isEntry": true
