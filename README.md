@@ -580,7 +580,10 @@ selects and skips unavailable reset choices. Enabled selections retain ordinary 
 submission and emit one bubbling `input` followed by `change` when the selection
 changes. External changes dispatched through `input` or `change`, and form
 resets, synchronize the displayed label and active option. Initialization is
-idempotent. The replacement button's accessible name includes both the field
+idempotent. Removing the modal releases its ordering pill listeners, including
+the reset listener on an associated external form, and cancels pending reset
+updates. Reconnecting builds one set of pills from the current select value.
+The replacement button's accessible name includes both the field
 label and the current selected value, including after selection changes and reset.
 
 `initFilterEnhancementsBootstrap()` owns one pending DOMContentLoaded callback
