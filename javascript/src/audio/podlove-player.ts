@@ -591,11 +591,11 @@ class PodlovePlayerElement extends HTMLElement {
       return isPagingMaskActive();
     };
 
-    const reveal = (iframe: HTMLIFrameElement | null) => {
+    const reveal = (iframe: HTMLIFrameElement) => {
       if (this.initVersion !== expectedVersion) {
         return;
       }
-      if (!(iframe instanceof HTMLIFrameElement) || !container.contains(iframe)) {
+      if (iframe !== latestIframe || !container.contains(iframe)) {
         return;
       }
       if (shouldHoldReveal(iframe)) {
@@ -646,6 +646,10 @@ class PodlovePlayerElement extends HTMLElement {
       }
       processedIframes.add(iframe);
       latestIframe = iframe;
+      if (this.iframeRevealDelayTimeoutId !== null) {
+        window.clearTimeout(this.iframeRevealDelayTimeoutId);
+        this.iframeRevealDelayTimeoutId = null;
+      }
       this.getOrCreateRevealShield(container);
       const facadeSpinner = container.querySelector(`.${FACADE_LOADING_CLASS}`);
       if (facadeSpinner) facadeSpinner.remove();
@@ -689,7 +693,7 @@ class PodlovePlayerElement extends HTMLElement {
       }
       const revealTimeoutMs =
         container.style.colorScheme === "dark" ? IFRAME_REVEAL_TIMEOUT_DARK_MS : IFRAME_REVEAL_TIMEOUT_MS;
-      this.iframeRevealTimeoutId = window.setTimeout(() => reveal(latestIframe), revealTimeoutMs);
+      this.iframeRevealTimeoutId = window.setTimeout(() => reveal(iframe), revealTimeoutMs);
     };
 
     const setupAllIframes = () => {

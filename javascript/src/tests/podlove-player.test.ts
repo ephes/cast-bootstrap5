@@ -761,6 +761,37 @@ describe('PodlovePlayerElement', () => {
     }
   });
 
+  it('should preserve the replacement fallback when an older iframe has a pending reveal', async () => {
+    vi.useFakeTimers();
+    try {
+      document.documentElement.setAttribute('data-bs-theme', 'light');
+      const host = startSourcePlayer(true)!;
+      const container = host.closest('.podlove-player-container')!;
+      const first = document.createElement('iframe');
+      host.append(first);
+      await Promise.resolve();
+      first.dispatchEvent(new Event('load'));
+
+      const replacement = document.createElement('iframe');
+      host.append(replacement);
+      await Promise.resolve();
+
+      vi.advanceTimersByTime(2499);
+      expect(first.style.opacity).toBe('0');
+      expect(replacement.style.opacity).toBe('0');
+      expect(container.getAttribute('data-cast-mask-active')).toBe('true');
+      expect(container.querySelector('.podlove-player-reveal-shield')).not.toBeNull();
+      expect(container.querySelector('.podlove-facade-inner')).not.toBeNull();
+
+      vi.advanceTimersByTime(1);
+      expect(first.style.opacity).toBe('0');
+      expect(replacement.style.opacity).toBe('1');
+      expect(container.getAttribute('data-cast-mask-active')).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('should remask visible paging-area iframes only when HTMX sends the pagination request and restore them on timeout', () => {
     vi.useFakeTimers();
 
