@@ -275,7 +275,6 @@ export function initThemeSwitcher(root: ParentNode | Element = getDocument() as 
 }
 
 export function destroyThemeSwitcher(): void {
-  sessionMode = null;
   const win = getWindow();
   if (win && storageHandler) win.removeEventListener("storage", storageHandler);
   storageHandler = null;

@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Keep color choices made with blocked storage when the theme switcher is
+  destroyed and reinitialized on the same page.
+
 - Allow a bounded post-link prefetch retry after an owned prefetch link is
   detached, reusing any live matching link.
 
