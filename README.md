@@ -54,13 +54,14 @@ the current filter combination has no matching posts. While destinations are
 visible, they take visual priority over the live full-text no-results message.
 When a longer query refreshes an open list, the settled destinations remain
 visible but temporarily non-selectable until the matching response arrives.
-Escape dismisses the list and retires queued and in-flight suggestion work;
-late success or failure cannot reopen it or announce results. New input or an
-arrow key can deliberately request suggestions again; an arrow key never restarts
-a debounce or request that is still pending. Returned queries must match
-Cast's normalization: remove NUL, fold whitespace and ASCII hyphens to spaces,
-trim, then cap at 500 Unicode code points and remove trailing spaces. A mismatched
-query is unavailable and is never cached.
+Escape dismisses an open list. Tab and Shift+Tab dismiss suggestions while
+allowing normal focus movement. Dismissal cancels queued and in-flight suggestion
+work, so late responses cannot reopen the list or announce results. New input or
+an arrow key can deliberately request suggestions again and reuse cached results.
+An arrow key leaves any pending debounce or request running. Returned queries
+must match Cast's normalization, which removes NUL, folds whitespace and ASCII
+hyphens to spaces, trims, then caps at 500 Unicode code points and removes trailing
+spaces. A mismatched query is unavailable and is never cached.
 IME input is supported: suggestions wait until composition ends, and composition
 keys retain their input-method behavior. This also means keyboards that keep
 Latin words in an active composition session show suggestions after the word
@@ -96,6 +97,9 @@ JSON response. Cancellation also cancels the body reader. A timeout clears the l
 suggestions are unavailable; ordinary Enter and submit-button searches remain
 usable. Superseded requests are cancelled silently. Removing the modal element from
 the page disconnects typeahead and cancels its request and deadline timer.
+Disconnecting clears the rendered options, active selection and status message.
+After reconnecting, cached suggestions can be reused for a matching query and
+filter selection.
 Closing the modal cancels queued and in-flight facet and suggestion requests,
 clears loading indicators and closes the suggestion list. Late responses cannot
 change filters or announce results. Reopening reconnects suggestions once and

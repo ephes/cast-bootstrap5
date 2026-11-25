@@ -164,6 +164,41 @@ describe("CastSearchTypeahead", () => {
     controller.disconnect();
   });
 
+  it.each(["debounce", "in flight"])("Tab dismisses suggestions with a request %s", async pending => {
+    let finish!: (value: Response) => void;
+    const fetchMock = vi.fn().mockImplementationOnce(() => response("py", pythonSuggestions))
+      .mockImplementationOnce(() => new Promise<Response>(resolve => { finish = resolve; }));
+    vi.stubGlobal("fetch", fetchMock);
+    const { controller, input, listbox, status, loading } = setup();
+    input.value = "py";
+    input.dispatchEvent(new Event("input"));
+    await vi.advanceTimersByTimeAsync(225);
+    expect(listbox.hidden).toBe(false);
+
+    input.value = "pyt";
+    input.dispatchEvent(new Event("input"));
+    if (pending === "in flight") await vi.advanceTimersByTimeAsync(525);
+    expect(listbox.getAttribute("aria-busy")).toBe("true");
+
+    const tab = new KeyboardEvent("keydown", { key: "Tab", cancelable: true });
+    expect(input.dispatchEvent(tab)).toBe(true);
+    expect(document.activeElement).toBe(input);
+    if (pending === "in flight") finish(await response("pyt", pythonSuggestions));
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(listbox.hidden).toBe(true);
+    expect(listbox.getAttribute("aria-busy")).toBe("false");
+    expect(loading.hidden).toBe(true);
+    expect(status.textContent).toBe("");
+    const requestCount = pending === "in flight" ? 2 : 1;
+    expect(fetchMock).toHaveBeenCalledTimes(requestCount);
+
+    input.value = "py";
+    input.dispatchEvent(new Event("input"));
+    expect(listbox.hidden).toBe(false);
+    expect(fetchMock).toHaveBeenCalledTimes(requestCount);
+    controller.disconnect();
+  });
+
   it("keeps an in-flight request when arrowing before it answers", async () => {
     let finish!: (value: Response) => void;
     let signal!: AbortSignal;
@@ -1010,6 +1045,43 @@ describe("CastSearchTypeahead", () => {
     expect(vi.getTimerCount()).toBe(0);
     await vi.advanceTimersByTimeAsync(5000);
     expect(status.textContent).toBe("2 suggestions available.");
+  });
+
+  it("reconnects without stale options and reuses cached results by query", async () => {
+    const fetchMock = vi.fn().mockImplementationOnce(() => response("py", pythonSuggestions))
+      .mockImplementationOnce(() => response("dj", [{ id: 3, title: "Django", url: "/django/" }]));
+    vi.stubGlobal("fetch", fetchMock);
+    const navigate = vi.fn();
+    const { controller, input, listbox, status } = setup({ navigate });
+    input.value = "py";
+    input.dispatchEvent(new Event("input"));
+    await vi.advanceTimersByTimeAsync(225);
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown" }));
+    expect(input.getAttribute("aria-activedescendant")).toBe("suggestions-option-2");
+
+    controller.disconnect();
+    input.value = "dj";
+    controller.connect();
+    controller.connect();
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown" }));
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+    expect(listbox.hidden).toBe(true);
+    expect(listbox.children).toHaveLength(0);
+    expect(input.hasAttribute("aria-activedescendant")).toBe(false);
+    expect(status.textContent).toBe("");
+    expect(navigate).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(225);
+    expect(listbox.hidden).toBe(false);
+    expect(listbox.textContent).toBe("Django");
+    expect(new URL(fetchMock.mock.calls[1][0]).searchParams.get("search")).toBe("dj");
+
+    input.value = "py";
+    input.dispatchEvent(new Event("input"));
+    await vi.advanceTimersByTimeAsync(225);
+    expect(listbox.textContent).toContain("Python newest");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    controller.disconnect();
   });
 
   it("disconnects listeners and cancels scheduled work", async () => {
