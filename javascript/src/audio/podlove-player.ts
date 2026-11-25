@@ -591,11 +591,11 @@ class PodlovePlayerElement extends HTMLElement {
       return isPagingMaskActive();
     };
 
-    const reveal = (iframe: HTMLIFrameElement | null) => {
+    const reveal = (iframe: HTMLIFrameElement) => {
       if (this.initVersion !== expectedVersion) {
         return;
       }
-      if (!(iframe instanceof HTMLIFrameElement) || !container.contains(iframe)) {
+      if (iframe !== latestIframe || !container.contains(iframe)) {
         return;
       }
       if (shouldHoldReveal(iframe)) {
@@ -640,12 +640,29 @@ class PodlovePlayerElement extends HTMLElement {
       this.iframeRevealDelayTimeoutId = window.setTimeout(() => reveal(iframe), revealDelayMs);
     };
 
+    const setRevealTarget = (iframe: HTMLIFrameElement | null) => {
+      latestIframe = iframe;
+      if (this.iframeRevealDelayTimeoutId !== null) {
+        window.clearTimeout(this.iframeRevealDelayTimeoutId);
+        this.iframeRevealDelayTimeoutId = null;
+      }
+      if (this.iframeRevealTimeoutId !== null) {
+        window.clearTimeout(this.iframeRevealTimeoutId);
+        this.iframeRevealTimeoutId = null;
+      }
+      if (iframe) {
+        const revealTimeoutMs =
+          container.style.colorScheme === "dark" ? IFRAME_REVEAL_TIMEOUT_DARK_MS : IFRAME_REVEAL_TIMEOUT_MS;
+        this.iframeRevealTimeoutId = window.setTimeout(() => reveal(iframe), revealTimeoutMs);
+      }
+    };
+
     const setupIframe = (iframe: HTMLIFrameElement) => {
       if (processedIframes.has(iframe)) {
         return;
       }
       processedIframes.add(iframe);
-      latestIframe = iframe;
+      setRevealTarget(iframe);
       this.getOrCreateRevealShield(container);
       const facadeSpinner = container.querySelector(`.${FACADE_LOADING_CLASS}`);
       if (facadeSpinner) facadeSpinner.remove();
@@ -684,27 +701,35 @@ class PodlovePlayerElement extends HTMLElement {
         },
         { once: true }
       );
-      if (this.iframeRevealTimeoutId !== null) {
-        window.clearTimeout(this.iframeRevealTimeoutId);
-      }
-      const revealTimeoutMs =
-        container.style.colorScheme === "dark" ? IFRAME_REVEAL_TIMEOUT_DARK_MS : IFRAME_REVEAL_TIMEOUT_MS;
-      this.iframeRevealTimeoutId = window.setTimeout(() => reveal(latestIframe), revealTimeoutMs);
     };
 
-    const setupAllIframes = () => {
+    const reconcileIframes = () => {
       const iframes = container.querySelectorAll("iframe");
       iframes.forEach((iframe) => {
         if (iframe instanceof HTMLIFrameElement) {
           setupIframe(iframe);
         }
       });
+      if (latestIframe && container.contains(latestIframe)) {
+        return;
+      }
+      // A surviving iframe may have spent its one-shot load listener already.
+      // Give the last iframe still awaiting its first reveal a fresh fallback.
+      let survivor: HTMLIFrameElement | null = null;
+      iframes.forEach((iframe) => {
+        if (processedIframes.has(iframe) &&
+            iframe.getAttribute(IFRAME_MASKED_ATTR) === "true" &&
+            iframe.getAttribute(PAGING_REMASK_ATTR) !== "true") {
+          survivor = iframe;
+        }
+      });
+      if (survivor !== latestIframe) {
+        setRevealTarget(survivor);
+      }
     };
-    setupAllIframes();
+    reconcileIframes();
 
-    this.iframeObserver = new MutationObserver(() => {
-      setupAllIframes();
-    });
+    this.iframeObserver = new MutationObserver(reconcileIframes);
     this.iframeObserver.observe(container, { childList: true, subtree: true });
   }
 

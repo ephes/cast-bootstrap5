@@ -161,6 +161,11 @@ state, including while it is being revealed. The embed skin stays at its initial
 color mode for that instance; the next player load uses the current theme.
 The theme does not attempt to replace an embed to update its cosmetics.
 
+If the embed adds a replacement iframe during loading, the reveal waits for
+the replacement's load or fallback timeout, even while the older iframe
+remains in the player. If the replacement is removed, a surviving iframe
+still waiting for its first reveal gets a fresh fallback timeout.
+
 If `data-config` already includes `color_scheme`, the player receives the URL
 verbatim. Otherwise the theme appends `color_scheme` before any fragment when
 it has a light or dark mode to pass, preserving the existing query encoding.
