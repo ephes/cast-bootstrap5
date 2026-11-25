@@ -5,6 +5,9 @@
 - Retire gallery opening listeners and pending image loading when Bootstrap
   throws during modal opening, so a thumbnail can be activated again.
 
+- Restore gallery focus to the thumbnail that opened the modal when Bootstrap
+  ignores another thumbnail click during closing.
+
 - Release the original paging mask and refresh player presence when an HTMX
   paging response settles on a different target.
 

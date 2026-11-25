@@ -618,8 +618,10 @@ interactive controls, modified keys and end-of-gallery keys retain native behavi
 Modified clicks, non-primary clicks, cancelled events, and links with a download
 or another browsing target keep their native browser behavior. After Escape or
 the close button finishes hiding the modal, focus returns to the opening
-thumbnail if it is still connected. Removing the gallery clears that focus
-ownership; another active modal keeps its focus.
+thumbnail if it is still connected. Focus follows the thumbnail whose opening
+Bootstrap accepts. Clicks ignored during closing and cancelled opening attempts
+leave focus restoration with the accepted opener. Removing the gallery clears
+that focus ownership. Another active modal keeps its focus.
 
 Previous/next footer buttons retain their DOM identity during image changes.
 Keyboard focus stays on the activated button, moves to the available opposite

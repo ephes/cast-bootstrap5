@@ -87,11 +87,7 @@ export default class ImageGalleryBs5 extends HTMLElement {
         return modal.matches(".modal") && (modal.closest("image-gallery-bs5") === this || modal === this.currentModal);
     }
 
-    private showModal(modal: HTMLElement | null): void {
-        if (!modal) {
-            return;
-        }
-
+    private showModal(modal: HTMLElement, trigger: HTMLAnchorElement): void {
         const bootstrap = (window as unknown as { bootstrap?: any }).bootstrap;
         const modalApi = bootstrap?.Modal;
         if (modalApi) {
@@ -108,7 +104,6 @@ export default class ImageGalleryBs5 extends HTMLElement {
                 modal.removeEventListener("shown.bs.modal", markShown);
                 markShown();
                 if (this.currentModal === modal && this.loadingSequence === sequence) {
-                    this.openingTrigger = null;
                     this.cancelImageLoading();
                 }
             };
@@ -126,6 +121,8 @@ export default class ImageGalleryBs5 extends HTMLElement {
                 modal.removeEventListener("shown.bs.modal", markShown);
             } else if (opening.event.defaultPrevented) {
                 cancelOpening();
+            } else if (this.currentModal === modal) {
+                this.openingTrigger = trigger;
             }
             return;
         }
@@ -135,6 +132,7 @@ export default class ImageGalleryBs5 extends HTMLElement {
         modal.removeAttribute("aria-hidden");
         modal.setAttribute("aria-modal", "true");
         document.body.classList.add("modal-open");
+        this.openingTrigger = trigger;
     }
 
     private getModalBody(modal: HTMLElement | null): HTMLElement | null {
@@ -281,13 +279,6 @@ export default class ImageGalleryBs5 extends HTMLElement {
     private cancelImageLoading(): void {
         this.clearPendingImageListeners();
         if (this.currentModal) this.setLoadingState(this.currentModal, false);
-    }
-
-    private showModalImmediately(modal: HTMLElement | null): void {
-        if (!modal) {
-            return;
-        }
-        this.showModal(modal);
     }
 
     private bindModalEvents(modal: HTMLElement): void {
@@ -482,8 +473,7 @@ export default class ImageGalleryBs5 extends HTMLElement {
         if (!img || !modal || !this.setModalImage(img, modal)) return;
         event.preventDefault();
         event.stopPropagation();
-        this.openingTrigger = link;
-        this.showModalImmediately(modal);
+        this.showModal(modal, link);
     }
 
     private handleFooterClick(event: Event) {
