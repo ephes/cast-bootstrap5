@@ -792,6 +792,44 @@ describe('PodlovePlayerElement', () => {
     }
   });
 
+  it('should rearm the fallback for a masked iframe when its replacement is removed', async () => {
+    vi.useFakeTimers();
+    try {
+      document.documentElement.setAttribute('data-bs-theme', 'light');
+      const host = startSourcePlayer(true)!;
+      const container = host.closest('.podlove-player-container')!;
+      const first = document.createElement('iframe');
+      host.append(first);
+      await Promise.resolve();
+      first.dispatchEvent(new Event('load'));
+
+      const replacement = document.createElement('iframe');
+      host.append(replacement);
+      await Promise.resolve();
+      expect(replacement.getAttribute('data-cast-iframe-masked')).toBe('true');
+      replacement.dispatchEvent(new Event('load'));
+
+      vi.advanceTimersByTime(50);
+      replacement.remove();
+      await Promise.resolve();
+
+      vi.advanceTimersByTime(2499);
+      expect(first.style.opacity).toBe('0');
+      expect(container.getAttribute('data-cast-mask-active')).toBe('true');
+      expect(container.querySelector('.podlove-player-reveal-shield')).not.toBeNull();
+
+      vi.advanceTimersByTime(1);
+      expect(first.style.opacity).toBe('1');
+      expect(first.getAttribute('data-cast-iframe-masked')).toBeNull();
+      expect(container.getAttribute('data-cast-mask-active')).toBeNull();
+
+      vi.advanceTimersByTime(200);
+      expect(container.querySelector('.podlove-player-reveal-shield')).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('should remask visible paging-area iframes only when HTMX sends the pagination request and restore them on timeout', () => {
     vi.useFakeTimers();
 

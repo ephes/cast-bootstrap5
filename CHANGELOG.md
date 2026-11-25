@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Restart the Podlove reveal fallback for a surviving masked iframe when
+  the replacement iframe is removed.
+
 - Keep the Podlove loading mask in place until the replacement iframe loads
   or reaches its fallback timeout when an older iframe still has a pending reveal.
 

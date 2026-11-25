@@ -163,7 +163,8 @@ The theme does not attempt to replace an embed to update its cosmetics.
 
 If the embed adds a replacement iframe during loading, the reveal waits for
 the replacement's load or fallback timeout, even while the older iframe
-remains in the player.
+remains in the player. If the replacement is removed, a surviving iframe
+still waiting for its first reveal gets a fresh fallback timeout.
 
 If `data-config` already includes `color_scheme`, the player receives the URL
 verbatim. Otherwise the theme appends `color_scheme` before any fragment when
