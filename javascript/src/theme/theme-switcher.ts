@@ -187,7 +187,7 @@ export function handleThemeSelection(target: Element): void {
   if (hidden) {
     hidden.value = selectedTheme;
   }
-  form.submit();
+  form.requestSubmit();
 }
 
 function isTypingTarget(target: EventTarget | null): boolean {

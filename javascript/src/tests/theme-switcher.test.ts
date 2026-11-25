@@ -59,8 +59,10 @@ function createStorageMock(): StorageMock {
 function createSwitcherMarkup(id: string): string {
   return `
     <div id="${id}" data-cast-theme-switcher>
-      <form>
+      <form action="/select-theme/" method="post" class="cast-theme-form">
+        <input type="hidden" name="csrfmiddlewaretoken" value="test-token">
         <input type="hidden" name="template_base_dir" value="bootstrap5">
+        <input type="hidden" name="next" value="/posts/">
         <button type="button" data-cast-theme-value="mode:auto" data-cast-theme-mode="auto"><span>System</span><span class="cast-theme-check"></span></button>
         <button type="button" data-cast-theme-value="mode:light" data-cast-theme-mode="light"><span>Light</span><span class="cast-theme-check"></span></button>
         <button type="button" data-cast-theme-value="mode:dark" data-cast-theme-mode="dark"><span>Dark</span><span class="cast-theme-check"></span></button>
@@ -214,21 +216,34 @@ describe("theme-switcher", () => {
     expect(document.getElementById("b")?.querySelector("[data-cast-theme-label]")?.textContent).toBe("Light");
   });
 
-  it("submits the theme form when selecting template theme", async () => {
+  it("dispatches one cancellable submit with the theme fields and keeps color modes local", async () => {
     document.body.innerHTML = createSwitcherMarkup("a");
 
     const module = await loadModule();
     module.initThemeSwitcher();
 
     const form = document.querySelector("form") as HTMLFormElement;
-    const submitSpy = vi.spyOn(form, "submit").mockImplementation(() => {});
+    const directSubmit = vi.spyOn(form, "submit").mockImplementation(() => {});
+    const submits = vi.fn((event: SubmitEvent) => {
+      event.preventDefault();
+      return Object.fromEntries(new FormData(form));
+    });
+    form.addEventListener("submit", submits);
 
-    const button = document.querySelector('[data-cast-theme-value="theme:alt"]') as HTMLButtonElement;
-    button.click();
+    form.querySelector<HTMLButtonElement>('[data-cast-theme-value="mode:dark"]')!.click();
+    expect(document.documentElement.getAttribute("data-bs-theme")).toBe("dark");
+    expect(submits).not.toHaveBeenCalled();
 
-    const hidden = form.querySelector('input[name="template_base_dir"]') as HTMLInputElement;
-    expect(hidden.value).toBe("alt");
-    expect(submitSpy).toHaveBeenCalledTimes(1);
+    form.querySelector<HTMLButtonElement>('[data-cast-theme-value="theme:alt"]')!.click();
+
+    expect(submits).toHaveBeenCalledOnce();
+    expect(submits.mock.calls[0][0].defaultPrevented).toBe(true);
+    expect(submits).toHaveReturnedWith({
+      csrfmiddlewaretoken: "test-token",
+      template_base_dir: "alt",
+      next: "/posts/",
+    });
+    expect(directSubmit).not.toHaveBeenCalled();
   });
 
   it("reacts to system changes only when in auto mode", async () => {

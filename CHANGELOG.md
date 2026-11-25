@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Submit template-theme changes through the native form event so host pages
+  can intercept the POST.
+
 - Refresh scroll-to-top visibility and keyboard availability when content
   changes the page height at a fixed scroll position.
 

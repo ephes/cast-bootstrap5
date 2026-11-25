@@ -694,6 +694,11 @@ be called again after teardown.
 
 ## Theme preference
 
+Selecting a template theme emits a native `submit` event on the theme form.
+By default the form posts the selected `template_base_dir`, CSRF token and
+return URL. Host pages can handle the event and call `preventDefault()` to
+keep the current page open. Color-mode selections apply locally.
+
 The color mode (Auto, Light, or Dark) is stored in localStorage under
 `cast-theme`. If the browser refuses the write (private or restricted contexts,
 exceeded quota), the choice still applies for the rest of the page session,
