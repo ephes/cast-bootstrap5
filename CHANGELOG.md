@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Cancel pending typeahead work when Tab dismisses suggestions, so late responses
+  cannot reopen the list while focus stays on the search input.
+
+- Clear displayed suggestions on disconnect so a reconnected search field
+  cannot select options from a previous query.
+
 - Merge a plain blockquote targeted by an HTMX swap with its contiguous plain
   siblings on either side.
 

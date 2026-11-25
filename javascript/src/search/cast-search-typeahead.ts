@@ -183,10 +183,7 @@ export default class CastSearchTypeahead {
     listbox.removeEventListener("click", this.handleClick);
     listbox.removeEventListener("pointermove", this.handlePointerMove);
     listbox.removeEventListener("auxclick", this.handleAuxClick);
-    this.clearTimers();
-    this.abortRequest();
-    this.close();
-    this.setBusy(false);
+    this.invalidateSuggestions();
   }
 
   facetStateChanged(refresh = true): void {
@@ -244,19 +241,17 @@ export default class CastSearchTypeahead {
       return;
     }
 
-    if (event.key === "Escape" && this.isOpen()) {
-      event.preventDefault();
-      event.stopPropagation();
+    const dismissWithEscape = event.key === "Escape" && this.isOpen();
+    if (dismissWithEscape || event.key === "Tab") {
+      if (dismissWithEscape) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
       this.clearDebounce();
       this.abortRequest();
       this.close();
       this.setBusy(false);
       this.announce("");
-      return;
-    }
-
-    if (event.key === "Tab") {
-      this.close();
       return;
     }
 
@@ -619,11 +614,6 @@ export default class CastSearchTypeahead {
       clearTimeout(this.loadingTimer);
       this.loadingTimer = null;
     }
-  }
-
-  private clearTimers(): void {
-    this.clearDebounce();
-    this.clearLoadingTimer();
   }
 
   private abortRequest(): void {
