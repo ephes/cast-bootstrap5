@@ -6,8 +6,15 @@ import {
 } from "@/theme/paging-content-visibility";
 
 describe("paging-content-visibility", () => {
+  let xhr: XMLHttpRequest;
+
+  function emit(type: string, detail: { target?: Element; elt?: Element }, request = xhr): void {
+    document.dispatchEvent(new CustomEvent(type, { detail: { ...detail, xhr: request } }));
+  }
+
   beforeEach(() => {
     destroyPagingContentVisibility();
+    xhr = new XMLHttpRequest();
     document.body.innerHTML = '<div id="paging-area"></div><div id="other-area"></div>';
     vi.spyOn(window, "scrollTo").mockImplementation(() => {});
     Object.defineProperty(window, "scrollY", { configurable: true, value: 0 });
@@ -46,11 +53,12 @@ describe("paging-content-visibility", () => {
     const pagingArea = document.querySelector("#paging-area") as HTMLElement;
     initPagingContentVisibility();
 
-    document.dispatchEvent(new CustomEvent("htmx:beforeTransition", { detail: { target: pagingArea } }));
+    emit("htmx:beforeSend", { target: pagingArea });
+    emit("htmx:beforeTransition", { target: pagingArea });
     expect(window.scrollTo).toHaveBeenCalledWith(0, 0);
     expect(pagingArea.classList.contains("vt-active")).toBe(true);
 
-    document.dispatchEvent(new CustomEvent("htmx:afterSettle", { detail: { target: pagingArea } }));
+    emit("htmx:afterSettle", { target: pagingArea });
     expect(pagingArea.classList.contains("vt-active")).toBe(false);
   });
 
@@ -58,7 +66,8 @@ describe("paging-content-visibility", () => {
     const pagingArea = document.querySelector("#paging-area") as HTMLElement;
     initPagingContentVisibility();
 
-    document.dispatchEvent(new CustomEvent("htmx:beforeTransition", { detail: { elt: pagingArea } }));
+    emit("htmx:beforeSend", { target: pagingArea });
+    emit("htmx:beforeTransition", { elt: pagingArea });
     expect(pagingArea.classList.contains("vt-active")).toBe(true);
   });
 
@@ -67,7 +76,8 @@ describe("paging-content-visibility", () => {
     const otherArea = document.querySelector("#other-area") as HTMLElement;
     initPagingContentVisibility();
 
-    document.dispatchEvent(new CustomEvent("htmx:beforeTransition", { detail: { target: otherArea } }));
+    emit("htmx:beforeSend", { target: pagingArea });
+    emit("htmx:beforeTransition", { target: otherArea });
     expect(pagingArea.classList.contains("vt-active")).toBe(false);
   });
 
@@ -76,9 +86,10 @@ describe("paging-content-visibility", () => {
     Object.defineProperty(window, "scrollY", { configurable: true, value: 500 });
     initPagingContentVisibility();
 
+    emit("htmx:beforeSend", { target: pagingArea });
     const event = new CustomEvent("htmx:beforeTransition", {
       cancelable: true,
-      detail: { target: pagingArea },
+      detail: { target: pagingArea, xhr },
     });
     document.dispatchEvent(event);
 
@@ -92,9 +103,10 @@ describe("paging-content-visibility", () => {
     pagingArea.innerHTML = "<podlove-player></podlove-player>";
     initPagingContentVisibility();
 
+    emit("htmx:beforeSend", { target: pagingArea });
     const event = new CustomEvent("htmx:beforeTransition", {
       cancelable: true,
-      detail: { target: pagingArea },
+      detail: { target: pagingArea, xhr },
     });
     document.dispatchEvent(event);
 
@@ -119,8 +131,9 @@ describe("paging-content-visibility", () => {
     initPagingContentVisibility();
     expect(pagingArea.getAttribute("data-cast-podlove-present")).toBe("true");
 
+    emit("htmx:beforeSend", { target: pagingArea });
     pagingArea.innerHTML = '<article class="post-card">No player</article>';
-    document.dispatchEvent(new CustomEvent("htmx:afterSettle", { detail: { target: pagingArea } }));
+    emit("htmx:afterSettle", { target: pagingArea });
 
     expect(pagingArea.getAttribute("data-cast-podlove-present")).toBeNull();
   });
@@ -152,10 +165,10 @@ describe("paging-content-visibility", () => {
     pagingArea.innerHTML = "<podlove-player></podlove-player>";
     initPagingContentVisibility();
 
-    document.dispatchEvent(new CustomEvent("htmx:beforeSend", { detail: { target: pagingArea } }));
+    emit("htmx:beforeSend", { target: pagingArea });
     expect(pagingArea.getAttribute("data-cast-paging-mask-active")).toBe("true");
 
-    document.dispatchEvent(new CustomEvent("htmx:afterSettle", { detail: { target: pagingArea } }));
+    emit("htmx:afterSettle", { target: pagingArea });
     expect(pagingArea.getAttribute("data-cast-paging-mask-active")).toBe("true");
 
     vi.advanceTimersByTime(299);
@@ -170,7 +183,7 @@ describe("paging-content-visibility", () => {
     const pagingArea = document.querySelector("#paging-area") as HTMLElement;
     initPagingContentVisibility();
 
-    document.dispatchEvent(new CustomEvent("htmx:beforeSend", { detail: { target: pagingArea } }));
+    emit("htmx:beforeSend", { target: pagingArea });
     expect(pagingArea.getAttribute("data-cast-paging-mask-active")).toBeNull();
   });
 
@@ -178,22 +191,25 @@ describe("paging-content-visibility", () => {
     const pagingArea = document.querySelector("#paging-area") as HTMLElement;
     initPagingContentVisibility();
 
-    document.dispatchEvent(new CustomEvent("htmx:beforeTransition", { detail: { target: pagingArea } }));
+    emit("htmx:beforeSend", { target: pagingArea });
+    emit("htmx:beforeTransition", { target: pagingArea });
     expect(pagingArea.classList.contains("vt-active")).toBe(true);
 
-    document.dispatchEvent(new CustomEvent("htmx:responseError", { detail: { target: pagingArea } }));
+    emit("htmx:responseError", { target: pagingArea });
     expect(pagingArea.classList.contains("vt-active")).toBe(false);
 
-    document.dispatchEvent(new CustomEvent("htmx:beforeTransition", { detail: { target: pagingArea } }));
+    emit("htmx:beforeSend", { target: pagingArea });
+    emit("htmx:beforeTransition", { target: pagingArea });
     expect(pagingArea.classList.contains("vt-active")).toBe(true);
 
-    document.dispatchEvent(new CustomEvent("htmx:sendAbort", { detail: { target: pagingArea } }));
+    emit("htmx:sendAbort", { target: pagingArea });
     expect(pagingArea.classList.contains("vt-active")).toBe(false);
 
-    document.dispatchEvent(new CustomEvent("htmx:beforeTransition", { detail: { target: pagingArea } }));
+    emit("htmx:beforeSend", { target: pagingArea });
+    emit("htmx:beforeTransition", { target: pagingArea });
     expect(pagingArea.classList.contains("vt-active")).toBe(true);
 
-    document.dispatchEvent(new CustomEvent("htmx:swapError", { detail: { target: pagingArea } }));
+    emit("htmx:swapError", { target: pagingArea });
     expect(pagingArea.classList.contains("vt-active")).toBe(false);
   });
 
@@ -202,22 +218,22 @@ describe("paging-content-visibility", () => {
     pagingArea.innerHTML = "<podlove-player></podlove-player>";
     initPagingContentVisibility();
 
-    document.dispatchEvent(new CustomEvent("htmx:beforeSend", { detail: { target: pagingArea } }));
+    emit("htmx:beforeSend", { target: pagingArea });
     expect(pagingArea.getAttribute("data-cast-paging-mask-active")).toBe("true");
 
-    document.dispatchEvent(new CustomEvent("htmx:responseError", { detail: { target: pagingArea } }));
+    emit("htmx:responseError", { target: pagingArea });
     expect(pagingArea.getAttribute("data-cast-paging-mask-active")).toBeNull();
 
-    document.dispatchEvent(new CustomEvent("htmx:beforeSend", { detail: { target: pagingArea } }));
+    emit("htmx:beforeSend", { target: pagingArea });
     expect(pagingArea.getAttribute("data-cast-paging-mask-active")).toBe("true");
 
-    document.dispatchEvent(new CustomEvent("htmx:sendAbort", { detail: { target: pagingArea } }));
+    emit("htmx:sendAbort", { target: pagingArea });
     expect(pagingArea.getAttribute("data-cast-paging-mask-active")).toBeNull();
 
-    document.dispatchEvent(new CustomEvent("htmx:beforeSend", { detail: { target: pagingArea } }));
+    emit("htmx:beforeSend", { target: pagingArea });
     expect(pagingArea.getAttribute("data-cast-paging-mask-active")).toBe("true");
 
-    document.dispatchEvent(new CustomEvent("htmx:swapError", { detail: { target: pagingArea } }));
+    emit("htmx:swapError", { target: pagingArea });
     expect(pagingArea.getAttribute("data-cast-paging-mask-active")).toBeNull();
   });
 
@@ -230,9 +246,9 @@ describe("paging-content-visibility", () => {
       initPagingContentVisibility();
 
       // A masked request that fails in transport: no response, no settle.
-      document.dispatchEvent(new CustomEvent("htmx:beforeSend", { detail: { target: pagingArea } }));
+      emit("htmx:beforeSend", { target: pagingArea });
       expect(pagingArea.getAttribute("data-cast-paging-mask-active")).toBe("true");
-      document.dispatchEvent(new CustomEvent(failureEvent, { detail: { target: pagingArea } }));
+      emit(failureEvent, { target: pagingArea });
 
       expect(pagingArea.getAttribute("data-cast-paging-mask-active")).toBeNull();
       expect(pagingArea.classList.contains("vt-active")).toBe(false);
@@ -240,14 +256,14 @@ describe("paging-content-visibility", () => {
       expect(pagingArea.querySelector("podlove-player")).not.toBeNull();
 
       // A settle of an earlier request must not leave a timer that unmasks the next request early.
-      document.dispatchEvent(new CustomEvent("htmx:beforeSend", { detail: { target: pagingArea } }));
-      document.dispatchEvent(new CustomEvent("htmx:afterSettle", { detail: { target: pagingArea } }));
-      document.dispatchEvent(new CustomEvent("htmx:beforeSend", { detail: { target: pagingArea } }));
-      document.dispatchEvent(new CustomEvent(failureEvent, { detail: { target: pagingArea } }));
+      emit("htmx:beforeSend", { target: pagingArea });
+      emit("htmx:afterSettle", { target: pagingArea });
+      emit("htmx:beforeSend", { target: pagingArea });
+      emit(failureEvent, { target: pagingArea });
       expect(pagingArea.getAttribute("data-cast-paging-mask-active")).toBeNull();
       expect(vi.getTimerCount()).toBe(0);
 
-      document.dispatchEvent(new CustomEvent("htmx:beforeSend", { detail: { target: pagingArea } }));
+      emit("htmx:beforeSend", { target: pagingArea });
       vi.advanceTimersByTime(1000);
       expect(pagingArea.getAttribute("data-cast-paging-mask-active")).toBe("true");
     }
@@ -257,10 +273,11 @@ describe("paging-content-visibility", () => {
     const pagingArea = document.querySelector("#paging-area") as HTMLElement;
     initPagingContentVisibility();
 
-    document.dispatchEvent(new CustomEvent("htmx:beforeTransition", { detail: { target: pagingArea } }));
+    emit("htmx:beforeSend", { target: pagingArea });
+    emit("htmx:beforeTransition", { target: pagingArea });
     expect(pagingArea.classList.contains("vt-active")).toBe(true);
 
-    document.dispatchEvent(new CustomEvent(failureEvent, { detail: { elt: pagingArea } }));
+    emit(failureEvent, { elt: pagingArea });
     expect(pagingArea.classList.contains("vt-active")).toBe(false);
   });
 
@@ -272,8 +289,8 @@ describe("paging-content-visibility", () => {
       pagingArea.innerHTML = "<podlove-player></podlove-player>";
       initPagingContentVisibility();
 
-      document.dispatchEvent(new CustomEvent("htmx:beforeSend", { detail: { target: pagingArea } }));
-      document.dispatchEvent(new CustomEvent(failureEvent, { detail: { target: otherArea } }));
+      emit("htmx:beforeSend", { target: pagingArea });
+      emit(failureEvent, { target: otherArea }, new XMLHttpRequest());
 
       expect(pagingArea.getAttribute("data-cast-paging-mask-active")).toBe("true");
     }
@@ -290,7 +307,7 @@ describe("paging-content-visibility", () => {
       expect(removeEventListenerSpy.mock.calls.filter(([removed]) => removed === name)).toHaveLength(1);
     }
     pagingArea.classList.add("vt-active");
-    document.dispatchEvent(new CustomEvent("htmx:sendError", { detail: { target: pagingArea } }));
+    emit("htmx:sendError", { target: pagingArea });
     expect(pagingArea.classList.contains("vt-active")).toBe(true);
   });
 
@@ -299,10 +316,11 @@ describe("paging-content-visibility", () => {
     const otherArea = document.querySelector("#other-area") as HTMLElement;
     initPagingContentVisibility();
 
-    document.dispatchEvent(new CustomEvent("htmx:beforeTransition", { detail: { target: pagingArea } }));
+    emit("htmx:beforeSend", { target: pagingArea });
+    emit("htmx:beforeTransition", { target: pagingArea });
     expect(pagingArea.classList.contains("vt-active")).toBe(true);
 
-    document.dispatchEvent(new CustomEvent("htmx:responseError", { detail: { target: otherArea } }));
+    emit("htmx:responseError", { target: otherArea }, new XMLHttpRequest());
     expect(pagingArea.classList.contains("vt-active")).toBe(true);
   });
 
@@ -447,10 +465,10 @@ describe("paging-content-visibility", () => {
     initPagingContentVisibility();
 
     expect(() => {
-      document.dispatchEvent(new CustomEvent("htmx:beforeSend", { detail: { target: document.body } }));
-      document.dispatchEvent(new CustomEvent("htmx:beforeTransition", { detail: { target: document.body } }));
-      document.dispatchEvent(new CustomEvent("htmx:afterSettle", { detail: { target: document.body } }));
-      document.dispatchEvent(new CustomEvent("htmx:responseError", { detail: { target: document.body } }));
+      emit("htmx:beforeSend", { target: document.body });
+      emit("htmx:beforeTransition", { target: document.body });
+      emit("htmx:afterSettle", { target: document.body });
+      emit("htmx:responseError", { target: document.body });
     }).not.toThrow();
   });
 });

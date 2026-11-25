@@ -6,6 +6,7 @@ const PAGING_MASK_SETTLE_DELAY_MS = 300;
 
 let beforeSendHandler: ((event: Event) => void) | null = null;
 let beforeTransitionHandler: ((event: Event) => void) | null = null;
+let beforeSwapHandler: ((event: Event) => void) | null = null;
 let afterSettleHandler: ((event: Event) => void) | null = null;
 let historyRestoreHandler: ((event: Event) => void) | null = null;
 let cleanupHandler: ((event: Event) => void) | null = null;
@@ -16,6 +17,7 @@ type HtmxEventDetail = {
   xhr?: XMLHttpRequest;
   target?: EventTarget | null;
   elt?: EventTarget | null;
+  shouldSwap?: boolean;
 };
 
 let activeRequest: XMLHttpRequest | undefined;
@@ -23,7 +25,8 @@ let requestGeneration = 0;
 const ownedAreas = new Set<HTMLElement>();
 
 function ownsRequest(event: Event): boolean {
-  return (event as CustomEvent<HtmxEventDetail>).detail?.xhr === activeRequest;
+  return activeRequest !== undefined &&
+    (event as CustomEvent<HtmxEventDetail>).detail?.xhr === activeRequest;
 }
 
 function retireAreas(): void {
@@ -160,9 +163,18 @@ function schedulePagingMaskDeactivation(delayMs: number): void {
   }, delayMs);
 }
 
-// Every way an htmx request can end without htmx:afterSettle. A network
-// failure (htmx:sendError) or a timeout (htmx:timeout) never produces a
-// response, so neither htmx:responseError nor the settle cleanup follows.
+function retireRequest(): void {
+  deactivatePagingArea();
+  clearPagingMaskTimeout();
+  retireAreas();
+  deactivatePagingMask();
+  activeRequest = undefined;
+  requestGeneration++;
+  syncPagingAreaPodlovePresence();
+}
+
+// Transport failures have no response or settle event, so listen for them
+// alongside HTTP and swap errors.
 const FAILED_REQUEST_EVENTS = [
   "htmx:responseError",
   "htmx:sendError",
@@ -182,12 +194,13 @@ export function initPagingContentVisibility(): void {
   if (!beforeSendHandler) {
     beforeSendHandler = (event: Event) => {
       // HTMX emits beforeSend only after beforeRequest has finished without a veto.
-      if (!eventTargetsPagingArea(event)) {
+      const xhr = (event as CustomEvent<HtmxEventDetail>).detail?.xhr;
+      if (!xhr || !eventTargetsPagingArea(event)) {
         return;
       }
       clearPagingMaskTimeout();
       retireAreas();
-      activeRequest = (event as CustomEvent<HtmxEventDetail>).detail?.xhr;
+      activeRequest = xhr;
       requestGeneration++;
       syncPagingAreaPodlovePresence();
       if (!pagingAreaContainsPodlovePlayer()) {
@@ -215,9 +228,30 @@ export function initPagingContentVisibility(): void {
     doc.addEventListener("htmx:beforeTransition", beforeTransitionHandler);
   }
 
+  if (!beforeSwapHandler) {
+    beforeSwapHandler = (event: Event) => {
+      const detail = (event as CustomEvent<HtmxEventDetail>).detail;
+      const xhr = detail?.xhr;
+      if (!xhr || xhr !== activeRequest) {
+        return;
+      }
+
+      // Read HTMX's decision after later listeners can override shouldSwap.
+      const generation = requestGeneration;
+      queueMicrotask(() => {
+        if (generation === requestGeneration && xhr === activeRequest &&
+            (detail.shouldSwap === false || event.defaultPrevented)) {
+          retireRequest();
+        }
+      });
+    };
+    doc.addEventListener("htmx:beforeSwap", beforeSwapHandler);
+  }
+
   if (!afterSettleHandler) {
     afterSettleHandler = (event: Event) => {
-      if (!eventTargetsPagingArea(event) || !ownsRequest(event)) {
+      // The response can retarget a request that already owns the paging mask.
+      if (!ownsRequest(event)) {
         return;
       }
       deactivatePagingArea();
@@ -256,16 +290,10 @@ export function initPagingContentVisibility(): void {
 
   if (!cleanupHandler) {
     cleanupHandler = (event: Event) => {
-      if (!eventTargetsPagingArea(event) || !ownsRequest(event)) {
+      if (!ownsRequest(event)) {
         return;
       }
-      deactivatePagingArea();
-      clearPagingMaskTimeout();
-      retireAreas();
-      deactivatePagingMask();
-      activeRequest = undefined;
-      requestGeneration++;
-      syncPagingAreaPodlovePresence();
+      retireRequest();
     };
     for (const eventName of FAILED_REQUEST_EVENTS) {
       doc.addEventListener(eventName, cleanupHandler);
@@ -284,6 +312,9 @@ export function destroyPagingContentVisibility(): void {
   }
   if (beforeSendHandler) {
     doc.removeEventListener("htmx:beforeSend", beforeSendHandler);
+  }
+  if (beforeSwapHandler) {
+    doc.removeEventListener("htmx:beforeSwap", beforeSwapHandler);
   }
   if (afterSettleHandler) {
     doc.removeEventListener("htmx:afterSettle", afterSettleHandler);
@@ -304,6 +335,7 @@ export function destroyPagingContentVisibility(): void {
   requestGeneration++;
   beforeSendHandler = null;
   beforeTransitionHandler = null;
+  beforeSwapHandler = null;
   afterSettleHandler = null;
   historyRestoreHandler = null;
   cleanupHandler = null;
