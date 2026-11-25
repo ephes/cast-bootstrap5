@@ -618,8 +618,10 @@ interactive controls, modified keys and end-of-gallery keys retain native behavi
 Modified clicks, non-primary clicks, cancelled events, and links with a download
 or another browsing target keep their native browser behavior. After Escape or
 the close button finishes hiding the modal, focus returns to the opening
-thumbnail if it is still connected. Removing the gallery clears that focus
-ownership; another active modal keeps its focus.
+thumbnail if it is still connected. Focus follows the thumbnail whose opening
+Bootstrap accepts. Clicks ignored during closing and cancelled opening attempts
+leave focus restoration with the accepted opener. Removing the gallery clears
+that focus ownership. Another active modal keeps its focus.
 
 Previous/next footer buttons retain their DOM identity during image changes.
 Keyboard focus stays on the activated button, moves to the available opposite
@@ -634,6 +636,10 @@ image” to follow its full-size link. Switching images, closing the modal, or
 removing the gallery cancels pending listeners and deadlines; old attempts cannot
 change a later image's state. A vetoed Bootstrap hide keeps the pending load,
 spinner and deadline active, so error recovery remains available.
+If Bootstrap throws while opening the modal, the gallery cancels the pending
+image load, removes the opening listeners and reports the original error.
+Activating a thumbnail again starts a fresh gallery attempt; whether the modal
+then opens depends on Bootstrap's own modal state after its failure.
 
 The enlarged image copies the selected thumbnail's full-size image metadata,
 including empty alternative text. Attributes absent from the selected image are

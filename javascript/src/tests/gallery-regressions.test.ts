@@ -10,8 +10,8 @@ function fixture() {
     gallery.innerHTML = `
         <div class="cast-gallery-container"><a data-bs-target="#regression-modal"><picture>
         <source data-modal-src="first.avif" data-modal-srcset="first.avif 1000w" data-modal-sizes="100vw" type="image/avif" />
-        <img id="first" alt="First" data-next="second" data-prev="false" data-modal-src="first.jpg" data-modal-srcset="first.jpg 1000w" data-modal-sizes="100vw" data-modal-width="1000" data-modal-height="500" /></picture></a></div>
-        <picture><source /><img id="second" alt="" data-modal-src="second.jpg" data-prev="first" data-next="false" /></picture>
+        <img id="first" alt="First" data-next="second" data-prev="false" data-modal-src="first.jpg" data-modal-srcset="first.jpg 1000w" data-modal-sizes="100vw" data-modal-width="1000" data-modal-height="500" /></picture></a>
+        <a data-bs-target="#regression-modal"><picture><source /><img id="second" alt="" data-modal-src="second.jpg" data-prev="first" data-next="false" /></picture></a></div>
         <div id="regression-modal" class="modal fade" tabindex="-1"><div class="modal-dialog"><div class="modal-content">
         <div class="modal-body"><a><picture><source /><img /></picture></a></div><div class="modal-footer"></div>
         </div></div></div>`;
@@ -198,6 +198,53 @@ test("cancelled Bootstrap opening can be disposed on disconnect", () => {
     expect(document.querySelector(".modal-backdrop")).toBeNull();
 });
 
+test("a Bootstrap show failure retires the attempt and allows a clean retry", () => {
+    vi.useFakeTimers();
+    const gallery = fixture();
+    const modal = gallery.querySelector<HTMLElement>(".modal")!;
+    const add = vi.spyOn(modal, "addEventListener");
+    const remove = vi.spyOn(modal, "removeEventListener");
+    const failure = new Error("Bootstrap show failed");
+    const errors: unknown[] = [];
+    window.addEventListener("error", event => {
+        errors.push(event.error);
+        event.preventDefault();
+    }, { once: true });
+    const dispatchShow = () => modal.dispatchEvent(new Event("show.bs.modal", { cancelable: true }));
+    const show = vi.fn(dispatchShow).mockImplementationOnce(() => {
+        dispatchShow();
+        throw failure;
+    });
+    (window as any).bootstrap = { Modal: { getOrCreateInstance: () => ({ show }), getInstance: () => null } };
+
+    open(gallery);
+    expect(errors).toEqual([failure]);
+    const body = modal.querySelector(".modal-body")!;
+    expect(body.getAttribute("aria-busy")).toBe("false");
+    expect(vi.getTimerCount()).toBe(0);
+    modal.querySelector("img")!.dispatchEvent(new Event("error"));
+    expect(body.querySelector('[role="alert"]')).toBeNull();
+    for (const event of ["show.bs.modal", "shown.bs.modal"]) {
+        const listeners = add.mock.calls.filter(([type]) => type === event);
+        expect(listeners).toHaveLength(1);
+        expect(remove).toHaveBeenCalledWith(event, listeners[0][1]);
+    }
+    const trigger = gallery.querySelector<HTMLAnchorElement>(".cast-gallery-container > a")!;
+    const focus = vi.spyOn(trigger, "focus");
+    modal.dispatchEvent(new Event("hidden.bs.modal"));
+    expect(focus).not.toHaveBeenCalled();
+
+    open(gallery);
+    expect(show).toHaveBeenCalledTimes(2);
+    expect(body.getAttribute("aria-busy")).toBe("true");
+    expect(add.mock.calls.filter(([type]) => type === "shown.bs.modal")).toHaveLength(2);
+    expect(remove.mock.calls.filter(([type]) => type === "shown.bs.modal")).toHaveLength(1);
+    modal.dispatchEvent(new Event("shown.bs.modal"));
+    modal.querySelector("img")!.dispatchEvent(new Event("load"));
+    expect(body.getAttribute("aria-busy")).toBe("false");
+    expect(vi.getTimerCount()).toBe(0);
+});
+
 test.each([
     { ctrlKey: true }, { metaKey: true }, { shiftKey: true }, { altKey: true },
     { button: 1 }, { button: 2 },
@@ -258,6 +305,36 @@ test.each(["escape", "button"])("closing with %s restores the keyboard opener af
     expect(document.activeElement).not.toBe(link);
     vi.advanceTimersByTime(30);
     expect(document.activeElement).toBe(link);
+});
+
+test("a thumbnail click ignored during closing keeps focus with the original opener", () => {
+    vi.useFakeTimers();
+    const Modal = bootstrapModal();
+    const gallery = fixture();
+    const [first, second] = gallery.querySelectorAll<HTMLAnchorElement>(".cast-gallery-container > a");
+    first.href = "#first-original";
+    second.href = "#second-original";
+    const modal = open(gallery);
+    vi.advanceTimersByTime(30);
+    const hidden = vi.fn();
+    const show = vi.fn();
+    modal.addEventListener("hidden.bs.modal", hidden);
+    modal.addEventListener("show.bs.modal", show);
+
+    Modal.getInstance(modal).hide();
+    expect(hidden).not.toHaveBeenCalled();
+    second.click();
+    expect(show).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(30);
+    expect(hidden).toHaveBeenCalledOnce();
+    expect(document.activeElement).toBe(first);
+
+    second.click();
+    expect(show).toHaveBeenCalledOnce();
+    vi.advanceTimersByTime(30);
+    Modal.getInstance(modal).hide();
+    vi.advanceTimersByTime(30);
+    expect(document.activeElement).toBe(second);
 });
 
 test.each(["gallery", "trigger", "other-modal"])("closing does not restore stale focus: %s", (reason) => {
@@ -347,6 +424,8 @@ test("cancelled opening retires pending image listeners and deadline", () => {
     vi.useFakeTimers();
     bootstrapModal();
     const gallery = fixture();
+    const trigger = gallery.querySelector<HTMLAnchorElement>(".cast-gallery-container > a")!;
+    const focus = vi.spyOn(trigger, "focus");
     const modal = gallery.querySelector<HTMLElement>(".modal")!;
     modal.addEventListener("show.bs.modal", event => event.preventDefault(), { once: true });
     open(gallery);
@@ -356,6 +435,8 @@ test("cancelled opening retires pending image listeners and deadline", () => {
     modal.querySelector("img")!.dispatchEvent(new Event("error"));
     expect(body.querySelector('[role="alert"]')).toBeNull();
     expect(vi.getTimerCount()).toBe(0);
+    modal.dispatchEvent(new Event("hidden.bs.modal"));
+    expect(focus).not.toHaveBeenCalled();
 });
 
 test("vetoed Bootstrap hide preserves the pending image deadline and retry", async () => {

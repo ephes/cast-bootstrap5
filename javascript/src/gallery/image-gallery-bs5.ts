@@ -11,7 +11,7 @@ export default class ImageGalleryBs5 extends HTMLElement {
     private pendingError: (() => void) | null = null;
     private imageDeadline: ReturnType<typeof setTimeout> | null = null;
     private loadingSequence: number;
-    private showingModal: HTMLElement | null = null;
+    private showingAttempt: { modal: HTMLElement } | null = null;
     private closingModal: HTMLElement | null = null;
     private openingTrigger: HTMLAnchorElement | null = null;
     private boundModalHide = (event: Event) => {
@@ -87,34 +87,42 @@ export default class ImageGalleryBs5 extends HTMLElement {
         return modal.matches(".modal") && (modal.closest("image-gallery-bs5") === this || modal === this.currentModal);
     }
 
-    private showModal(modal: HTMLElement | null): void {
-        if (!modal) {
-            return;
-        }
-
+    private showModal(modal: HTMLElement, trigger: HTMLAnchorElement): void {
         const bootstrap = (window as unknown as { bootstrap?: any }).bootstrap;
         const modalApi = bootstrap?.Modal;
         if (modalApi) {
-            const instance = modalApi.getOrCreateInstance(modal);
-            const opening = { event: null as Event | null };
+            const opening = { modal, event: null as Event | null };
+            const sequence = this.loadingSequence;
             const markOpening = (event: Event) => {
                 opening.event = event;
-                this.showingModal = modal;
+                this.showingAttempt = opening;
             };
             const markShown = () => {
-                if (this.showingModal === modal) this.showingModal = null;
+                if (this.showingAttempt === opening) this.showingAttempt = null;
+            };
+            const cancelOpening = () => {
+                modal.removeEventListener("shown.bs.modal", markShown);
+                markShown();
+                if (this.currentModal === modal && this.loadingSequence === sequence) {
+                    this.cancelImageLoading();
+                }
             };
             modal.addEventListener("show.bs.modal", markOpening, { once: true });
             modal.addEventListener("shown.bs.modal", markShown, { once: true });
-            instance.show();
-            modal.removeEventListener("show.bs.modal", markOpening);
-            if (!opening.event || opening.event.defaultPrevented) {
+            try {
+                modalApi.getOrCreateInstance(modal).show();
+            } catch (error) {
+                cancelOpening();
+                throw error;
+            } finally {
+                modal.removeEventListener("show.bs.modal", markOpening);
+            }
+            if (!opening.event) {
                 modal.removeEventListener("shown.bs.modal", markShown);
-                if (opening.event?.defaultPrevented) {
-                    markShown();
-                    this.openingTrigger = null;
-                    this.cancelImageLoading();
-                }
+            } else if (opening.event.defaultPrevented) {
+                cancelOpening();
+            } else if (this.currentModal === modal) {
+                this.openingTrigger = trigger;
             }
             return;
         }
@@ -124,6 +132,7 @@ export default class ImageGalleryBs5 extends HTMLElement {
         modal.removeAttribute("aria-hidden");
         modal.setAttribute("aria-modal", "true");
         document.body.classList.add("modal-open");
+        this.openingTrigger = trigger;
     }
 
     private getModalBody(modal: HTMLElement | null): HTMLElement | null {
@@ -272,13 +281,6 @@ export default class ImageGalleryBs5 extends HTMLElement {
         if (this.currentModal) this.setLoadingState(this.currentModal, false);
     }
 
-    private showModalImmediately(modal: HTMLElement | null): void {
-        if (!modal) {
-            return;
-        }
-        this.showModal(modal);
-    }
-
     private bindModalEvents(modal: HTMLElement): void {
         modal.removeEventListener("hide.bs.modal", this.boundModalHide);
         modal.addEventListener("hide.bs.modal", this.boundModalHide);
@@ -350,7 +352,7 @@ export default class ImageGalleryBs5 extends HTMLElement {
                     }
                 };
                 const hide = () => instance.hide();
-                if (this.closingModal === modal || this.showingModal === modal || modal.classList.contains("show") || modal.style.display === "block") {
+                if (this.closingModal === modal || this.showingAttempt?.modal === modal || modal.classList.contains("show") || modal.style.display === "block") {
                     modal.addEventListener("hidden.bs.modal", dispose, { once: true });
                     // hide() is ignored during Bootstrap's opening transition.
                     modal.addEventListener("shown.bs.modal", hide, { once: true });
@@ -365,7 +367,7 @@ export default class ImageGalleryBs5 extends HTMLElement {
             }
         }
         this.currentModal = null;
-        this.showingModal = null;
+        this.showingAttempt = null;
         this.currentImage = null;
     }
 
@@ -471,8 +473,7 @@ export default class ImageGalleryBs5 extends HTMLElement {
         if (!img || !modal || !this.setModalImage(img, modal)) return;
         event.preventDefault();
         event.stopPropagation();
-        this.openingTrigger = link;
-        this.showModalImmediately(modal);
+        this.showModal(modal, link);
     }
 
     private handleFooterClick(event: Event) {
