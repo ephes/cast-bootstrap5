@@ -281,7 +281,8 @@ function parseModalFacetResponse(payload: unknown): ModalFacetResponse | null {
     if (group.options.length > FACET_MAX_GROUP_OPTIONS || totalOptions > FACET_MAX_TOTAL_OPTIONS) return null;
     const options: ModalFacetOption[] = [];
     for (const option of group.options) {
-      if (!isRecord(option) || typeof option.slug !== "string" || typeof option.name !== "string" || !isFacetCount(option.count)) {
+      if (!isRecord(option) || typeof option.slug !== "string" || option.slug === "" ||
+          typeof option.name !== "string" || !isFacetCount(option.count)) {
         return null;
       }
       options.push({ slug: option.slug, name: option.name, count: option.count });

@@ -1345,6 +1345,7 @@ describe("cast-search-modal", () => {
     ["non-array options", { options: {} }],
     ["null option", { options: [null] }],
     ["non-string slug", { options: [{ slug: 1, name: "Synthetic", count: 1 }] }],
+    ["reserved empty slug", { selected: "", options: [{ slug: "", name: "Duplicate All", count: 1 }] }],
     ["missing name", { options: [{ slug: "synthetic", count: 1 }] }],
     ["negative option count", { options: [{ slug: "synthetic", name: "Synthetic", count: -1 }] }],
     ["nonfinite option count", { options: [{ slug: "synthetic", name: "Synthetic", count: Infinity }] }],
@@ -1384,6 +1385,11 @@ describe("cast-search-modal", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(document.querySelector<HTMLInputElement>('input[name="tag_facets"]')!.value).toBe("django");
     expect(document.querySelector<HTMLInputElement>('input[name="category_facets"]')!.value).toBe("til");
+    const dateGroup = document.querySelector('[data-cast-facet-group="date_facets"]')!;
+    const allLinks = dateGroup.querySelectorAll("a.cast-facet-all-option");
+    expect(allLinks).toHaveLength(1);
+    expect(dateGroup.querySelectorAll("a.selected")).toEqual(allLinks);
+    expect(form.querySelector('input[name="date_facets"]')).toBeNull();
     expect(document.querySelector("[data-cast-facet-status]")!.textContent).toBe("Filters updated.");
   });
 
