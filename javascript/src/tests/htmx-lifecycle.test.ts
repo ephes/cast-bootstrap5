@@ -13,12 +13,15 @@ class ControlledXHR extends EventTarget {
   response = '';
   responseText = '';
   responseURL = window.location.href;
+  responseHeaders: Record<string, string> = { 'content-type': 'text/html' };
   onload: (() => void) | null = null;
   open() { /* transport is completed explicitly below */ }
   setRequestHeader() {}
   overrideMimeType() {}
-  getAllResponseHeaders() { return 'Content-Type: text/html\r\n'; }
-  getResponseHeader() { return null; }
+  getAllResponseHeaders() {
+    return Object.entries(this.responseHeaders).map(([name, value]) => `${name}: ${value}\r\n`).join('');
+  }
+  getResponseHeader(name: string) { return this.responseHeaders[name.toLowerCase()] ?? null; }
   send() { ControlledXHR.requests.push(this); }
   finish(html: string) { this.response = this.responseText = html; this.onload?.(); }
 }
@@ -125,6 +128,40 @@ test('a later HTMX beforeSwap listener can opt a paging 204 into a delayed swap'
   expect(area.getAttribute(mask)).toBe('true');
   vi.advanceTimersByTime(300);
   expect(area.hasAttribute(mask)).toBe(false);
+});
+
+test('real HTMX retargeted settle releases the paging mask and refreshes player presence', async () => {
+  vi.useFakeTimers();
+  document.body.innerHTML = `
+    <button id="next"></button><button id="unrelated"></button>
+    <div id="paging-area"><div id="player-slot"><podlove-player></podlove-player></div></div>
+    <div id="response-target"></div>`;
+  const api = htmx();
+  initPagingContentVisibility();
+  const area = document.getElementById('paging-area')!;
+  const mask = 'data-cast-paging-mask-active';
+  const presence = 'data-cast-podlove-present';
+  const paging = api.ajax('GET', '/next', { source: '#next', target: area, swap: 'innerHTML settle:0ms' });
+  expect(area.getAttribute(mask)).toBe('true');
+
+  const unrelated = api.ajax('GET', '/player', {
+    source: '#unrelated', target: '#player-slot', swap: 'innerHTML settle:0ms',
+  });
+  ControlledXHR.requests[1].finish('<p>Player removed</p>');
+  await unrelated;
+  vi.advanceTimersByTime(300);
+  expect(area.getAttribute(mask)).toBe('true');
+  expect(area.getAttribute(presence)).toBe('true');
+
+  const pagingXHR = ControlledXHR.requests[0];
+  pagingXHR.responseHeaders['hx-retarget'] = '#response-target';
+  pagingXHR.finish('<p>Retargeted response</p>');
+  await paging;
+  expect(document.getElementById('response-target')!.textContent).toBe('Retargeted response');
+  expect(area.textContent).toBe('Player removed');
+  vi.advanceTimersByTime(300);
+  expect(area.hasAttribute(mask)).toBe(false);
+  expect(area.hasAttribute(presence)).toBe(false);
 });
 
 test('a late beforeRequest veto neither starts paging nor retires an active request', async () => {

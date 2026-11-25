@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Release the original paging mask and refresh player presence when an HTMX
+  paging response settles on a different target.
+
 - Release the Podlove paging mask when HTMX completes a response without
   swapping, including HTTP 204 under the default response rules.
 
