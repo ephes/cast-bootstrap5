@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Renew the temporary Podlove iframe mask when pagination requests overlap,
+  preserving the loading mask for iframes awaiting their first reveal.
+
+- Preserve Podlove configuration URL encoding and fragments when selecting a
+  color scheme, leaving URLs with an explicit `color_scheme` intact.
+
 - Cancel pending typeahead work when Tab dismisses suggestions, so late responses
   cannot reopen the list while focus stays on the search input.
 

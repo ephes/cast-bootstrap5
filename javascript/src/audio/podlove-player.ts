@@ -46,6 +46,7 @@ const PAGING_REMASK_ATTR = "data-cast-paging-remask";
 const PAGING_REMASK_RESTORE_MS = 1600;
 const PAGING_MASK_ACTIVE_ATTR = "data-cast-paging-mask-active";
 const IFRAME_REVEAL_RETRY_WHILE_PAGING_MASK_MS = 50;
+const pagingRemaskTimers = new WeakMap<HTMLIFrameElement, number>();
 
 function waitForPageLoad(): Promise<void> {
   if (document.readyState === "complete") {
@@ -230,17 +231,20 @@ function appendColorScheme(configUrl: string): string {
 
   const hashIndex = configUrl.indexOf("#");
   const base = hashIndex === -1 ? configUrl : configUrl.slice(0, hashIndex);
-  const hash = hashIndex === -1 ? "" : configUrl.slice(hashIndex + 1);
+  const hash = hashIndex === -1 ? "" : configUrl.slice(hashIndex);
   const queryIndex = base.indexOf("?");
-  const path = queryIndex === -1 ? base : base.slice(0, queryIndex);
-  const query = queryIndex === -1 ? "" : base.slice(queryIndex + 1);
-  const params = new URLSearchParams(query);
-  if (!params.has(COLOR_SCHEME_PARAM)) {
-    params.set(COLOR_SCHEME_PARAM, colorScheme);
+  const query = queryIndex === -1 ? "" : base.slice(queryIndex);
+  if (new URLSearchParams(query).has(COLOR_SCHEME_PARAM)) {
+    return configUrl;
   }
-  const queryString = params.toString();
-  const hashSuffix = hash ? `#${hash}` : "";
-  return queryString ? `${path}?${queryString}${hashSuffix}` : `${path}${hashSuffix}`;
+
+  let separator = "";
+  if (queryIndex === -1) {
+    separator = "?";
+  } else if (query.length > 1 && !query.endsWith("&")) {
+    separator = "&";
+  }
+  return `${base}${separator}${COLOR_SCHEME_PARAM}=${colorScheme}${hash}`;
 }
 
 function getReservedMinHeightPx(): number {
@@ -251,9 +255,7 @@ function getReservedMinHeightPx(): number {
 }
 
 function forceMaskIframeForPaging(container: HTMLElement, iframe: HTMLIFrameElement): void {
-  if (iframe.getAttribute(PAGING_REMASK_ATTR) === "true") {
-    return;
-  }
+  window.clearTimeout(pagingRemaskTimers.get(iframe));
   iframe.setAttribute(PAGING_REMASK_ATTR, "true");
   iframe.setAttribute(IFRAME_MASKED_ATTR, "true");
   iframe.style.opacity = "0";
@@ -262,7 +264,8 @@ function forceMaskIframeForPaging(container: HTMLElement, iframe: HTMLIFrameElem
   iframe.style.colorScheme = "inherit";
   container.setAttribute(CONTAINER_MASK_ACTIVE_ATTR, "true");
 
-  window.setTimeout(() => {
+  const timeout = window.setTimeout(() => {
+    pagingRemaskTimers.delete(iframe);
     if (!iframe.isConnected || iframe.getAttribute(PAGING_REMASK_ATTR) !== "true") {
       return;
     }
@@ -274,10 +277,11 @@ function forceMaskIframeForPaging(container: HTMLElement, iframe: HTMLIFrameElem
     iframe.style.pointerEvents = "";
     iframe.style.removeProperty("background-color");
     iframe.style.removeProperty("color-scheme");
-    if (!container.querySelector(`iframe[${PAGING_REMASK_ATTR}="true"]`)) {
+    if (!container.querySelector(`iframe[${IFRAME_MASKED_ATTR}="true"]`)) {
       container.removeAttribute(CONTAINER_MASK_ACTIVE_ATTR);
     }
   }, PAGING_REMASK_RESTORE_MS);
+  pagingRemaskTimers.set(iframe, timeout);
 }
 
 function remaskVisiblePagingIframes(event: Event): void {
@@ -302,7 +306,8 @@ function remaskVisiblePagingIframes(event: Event): void {
       if (!(iframe instanceof HTMLIFrameElement)) {
         return;
       }
-      if (iframe.getAttribute(IFRAME_MASKED_ATTR) === "true") {
+      if (iframe.getAttribute(IFRAME_MASKED_ATTR) === "true" &&
+          iframe.getAttribute(PAGING_REMASK_ATTR) !== "true") {
         return;
       }
       forceMaskIframeForPaging(container, iframe);
