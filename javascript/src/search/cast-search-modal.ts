@@ -6,6 +6,7 @@ import { activeFocusTrap, isFocusDestination, createFocusTrap, type FocusTrapCon
 import CastSearchTypeahead from "@/search/cast-search-typeahead";
 
 const connectedSearchModals = new Set<CastSearchModal>();
+const initializedOrderingSelects = new WeakSet<HTMLSelectElement>();
 
 const DEFAULT_TRIGGER_SELECTOR = "[data-cast-search-trigger]";
 const ORDERING_DEFAULT = "-visible_date";
@@ -98,6 +99,11 @@ function findFacetGroupElement(modal: HTMLElement, groupName: FacetGroupName): H
 }
 
 export function buildOrderingPills(root: ParentNode | Element): void {
+  connectOrderingPills(root);
+}
+
+function connectOrderingPills(root: ParentNode | Element): () => void {
+  const disposers: Array<() => void> = [];
   findOrderingContainers(root).forEach((orderContainer) => {
     if (orderContainer.dataset.castOrderingPills === "true") return;
     const select = orderContainer.querySelector<HTMLSelectElement>('select[name="o"]');
@@ -106,10 +112,14 @@ export function buildOrderingPills(root: ParentNode | Element): void {
     const options = Array.from(select.options).filter((option) => option.value !== "");
     if (options.length === 0) return;
     const defaultOption = options.find((option) => option.value === ORDERING_DEFAULT);
-    if (select.value === "" && defaultOption && !isOrderingOptionDisabled(select, defaultOption)) {
+    if (!initializedOrderingSelects.has(select) && select.value === "" &&
+        defaultOption && !isOrderingOptionDisabled(select, defaultOption)) {
       select.value = defaultOption.value;
     }
+    initializedOrderingSelects.add(select);
 
+    const listeners = new AbortController();
+    const { signal } = listeners;
     const pillsDiv = document.createElement("div");
     pillsDiv.className = "cast-ordering-pills";
     const pills: HTMLButtonElement[] = [];
@@ -135,29 +145,50 @@ export function buildOrderingPills(root: ParentNode | Element): void {
         sync();
         select.dispatchEvent(new Event("input", { bubbles: true }));
         select.dispatchEvent(new Event("change", { bubbles: true }));
-      });
+      }, { signal });
       pillsDiv.appendChild(pill);
     });
 
-    select.addEventListener("input", sync);
-    select.addEventListener("change", sync);
+    select.addEventListener("input", sync, { signal });
+    select.addEventListener("change", sync, { signal });
     const form = select.form;
+    let resetTimer: ReturnType<typeof setTimeout> | undefined;
     const onReset = (): void => {
       if (!select.isConnected) {
         form?.removeEventListener("reset", onReset);
         return;
       }
       // Native reset restores the selection after dispatching the event.
-      setTimeout(sync, 0);
+      clearTimeout(resetTimer);
+      resetTimer = setTimeout(() => {
+        resetTimer = undefined;
+        sync();
+      }, 0);
     };
     form?.addEventListener("reset", onReset);
+    const priorAttributes = ["tabindex", "aria-hidden"].map(name => [name, select.getAttribute(name)] as const);
+    const display = select.style.getPropertyValue("display");
+    const displayPriority = select.style.getPropertyPriority("display");
     sync();
     select.setAttribute("tabindex", "-1");
     select.setAttribute("aria-hidden", "true");
     select.style.display = "none";
     orderContainer.appendChild(pillsDiv);
     orderContainer.dataset.castOrderingPills = "true";
+    disposers.push(() => {
+      listeners.abort();
+      form?.removeEventListener("reset", onReset);
+      clearTimeout(resetTimer);
+      pillsDiv.remove();
+      for (const [name, value] of priorAttributes) {
+        if (value === null) select.removeAttribute(name);
+        else select.setAttribute(name, value);
+      }
+      select.style.setProperty("display", display, displayPriority);
+      delete orderContainer.dataset.castOrderingPills;
+    });
   });
+  return () => disposers.forEach(dispose => dispose());
 }
 
 export function initModalFacetToggles(modal: HTMLElement): void {
@@ -281,7 +312,8 @@ function parseModalFacetResponse(payload: unknown): ModalFacetResponse | null {
     if (group.options.length > FACET_MAX_GROUP_OPTIONS || totalOptions > FACET_MAX_TOTAL_OPTIONS) return null;
     const options: ModalFacetOption[] = [];
     for (const option of group.options) {
-      if (!isRecord(option) || typeof option.slug !== "string" || typeof option.name !== "string" || !isFacetCount(option.count)) {
+      if (!isRecord(option) || typeof option.slug !== "string" || option.slug === "" ||
+          typeof option.name !== "string" || !isFacetCount(option.count)) {
         return null;
       }
       options.push({ slug: option.slug, name: option.name, count: option.count });
@@ -316,6 +348,7 @@ function isDisabledLink(link: HTMLAnchorElement): boolean {
 
 export default class CastSearchModal extends HTMLElement {
   private releaseBodyScroll: (() => void) | null = null;
+  private disposeOrderingPills: (() => void) | null = null;
   private trigger: HTMLElement | null;
   private overlay: HTMLElement | null;
   private modal: HTMLElement | null;
@@ -398,7 +431,7 @@ export default class CastSearchModal extends HTMLElement {
 
     this.focusTrap = createFocusTrap(this.modal);
     initModalFacetToggles(this.modal);
-    buildOrderingPills(this.modal);
+    this.disposeOrderingPills = connectOrderingPills(this.modal);
     this.initializeFacetInputsFromSelection();
     this.captureStateFromForm();
     this.markAllFacetLinks();
@@ -418,6 +451,8 @@ export default class CastSearchModal extends HTMLElement {
     this.state.requestSeq += 1;
     this.abortInFlightRequest();
     this.typeahead?.disconnect();
+    this.disposeOrderingPills?.();
+    this.disposeOrderingPills = null;
     this.setLoading(false);
     this.unbindListeners();
     this.focusTrap?.deactivate();

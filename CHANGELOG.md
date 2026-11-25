@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Release search-modal ordering pill listeners and pending form reset work when
+  the modal is removed. Reconnecting restores one set of ordering pills.
+
+- Reject dynamic facet responses that use the reserved empty slug in an
+  ordinary option, preserving the current filters and the single “All” choice.
+
 - Reject suggestion and facet responses deeper than 64 JSON containers before
   recursive parsing can exhaust the stack. Ordinary search remains available.
 
