@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Release the Podlove paging mask when HTMX completes a response without
+  swapping, including HTTP 204 under the default response rules.
+
 - Release search-modal ordering pill listeners and pending form reset work when
   the modal is removed. Reconnecting restores one set of ordering pills.
 

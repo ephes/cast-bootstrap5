@@ -231,6 +231,9 @@ If another pagination request starts while a player iframe is temporarily
 masked, its restore timer restarts. Iframes still waiting for their first
 reveal keep their own loading mask.
 The mask and the fade state are removed again when the new content has settled.
+When HTMX skips the swap, as with a default HTTP 204 response, the existing
+content is unmasked immediately. Custom response rules that enable a swap
+keep the mask until the normal settle cleanup.
 Each request owns its state through HTMX's public `detail.xhr` identity. A late
 transition, settle, error or unmask timer from an older request cannot clear the
 newer request's state, even after the paging element is replaced.

@@ -68,6 +68,65 @@ test('real HTMX settle keeps the mask owned by the newer XHR', async () => {
   } finally { document.removeEventListener('htmx:afterSettle', settled); }
 });
 
+test('real HTMX 204 releases its own paging mask and preserves a newer swap', async () => {
+  vi.useFakeTimers();
+  document.body.innerHTML = '<button id="empty"></button><button id="next"></button><div id="paging-area"><podlove-player></podlove-player></div>';
+  const api = htmx();
+  initPagingContentVisibility();
+  const area = document.getElementById('paging-area')!;
+  const mask = 'data-cast-paging-mask-active';
+
+  const stale = api.ajax('GET', '/empty', { source: '#empty', target: area });
+  expect(area.getAttribute(mask)).toBe('true');
+  const next = api.ajax('GET', '/next', { source: '#next', target: area, swap: 'innerHTML settle:0ms' });
+  ControlledXHR.requests[0].status = 204;
+  ControlledXHR.requests[0].finish('');
+  await stale;
+  expect(area.getAttribute(mask)).toBe('true');
+
+  ControlledXHR.requests[1].finish('<p>Next page</p><podlove-player></podlove-player>');
+  await next;
+  expect(area.textContent).toBe('Next page');
+  expect(area.getAttribute(mask)).toBe('true');
+  vi.advanceTimersByTime(300);
+  expect(area.hasAttribute(mask)).toBe(false);
+
+  const empty = api.ajax('GET', '/empty', { source: '#empty', target: area });
+  expect(area.getAttribute(mask)).toBe('true');
+  ControlledXHR.requests[2].status = 204;
+  ControlledXHR.requests[2].finish('');
+  await empty;
+  expect(area.hasAttribute(mask)).toBe(false);
+  expect(area.textContent).toBe('Next page');
+});
+
+test('a later HTMX beforeSwap listener can opt a paging 204 into a delayed swap', async () => {
+  vi.useFakeTimers();
+  document.body.innerHTML = '<div id="paging-area"><podlove-player></podlove-player></div>';
+  const api = htmx();
+  initPagingContentVisibility();
+  const area = document.getElementById('paging-area')!;
+  const mask = 'data-cast-paging-mask-active';
+  document.addEventListener('htmx:beforeSwap', event => {
+    const detail = (event as CustomEvent<{ shouldSwap: boolean; serverResponse: string }>).detail;
+    detail.shouldSwap = true;
+    detail.serverResponse = '<p>Custom page</p>';
+  }, { once: true });
+
+  const request = api.ajax('GET', '/custom', { target: area, swap: 'innerHTML swap:400ms settle:0ms' });
+  ControlledXHR.requests[0].status = 204;
+  ControlledXHR.requests[0].finish('');
+  await request;
+  vi.advanceTimersByTime(399);
+  expect(area.getAttribute(mask)).toBe('true');
+  expect(area.querySelector('podlove-player')).not.toBeNull();
+  vi.advanceTimersByTime(1);
+  expect(area.textContent).toBe('Custom page');
+  expect(area.getAttribute(mask)).toBe('true');
+  vi.advanceTimersByTime(300);
+  expect(area.hasAttribute(mask)).toBe(false);
+});
+
 test('a late beforeRequest veto neither starts paging nor retires an active request', async () => {
   vi.useFakeTimers();
   document.body.innerHTML = '<button id="a"></button><button id="b"></button><div id="paging-area"><podlove-player></podlove-player></div>';
