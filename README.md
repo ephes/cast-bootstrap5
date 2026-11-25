@@ -661,8 +661,11 @@ at activation: reduced motion jumps immediately; otherwise it scrolls smoothly.
 Template overrides using a link keep native link navigation. Ordinary scrolling
 never moves focus, and a focused scroll-to-top button stays visible and exposed
 to assistive technology until focus leaves it.
-Viewport updates own at most one animation frame. Teardown or a button
-replacement cancels and invalidates that frame; rebinding starts fresh.
+With ResizeObserver, content height changes such as late-loading images or
+expanded disclosures refresh the visibility threshold and tab order even at
+a fixed scroll position. Scroll, viewport resize and content resize updates
+share one pending animation frame. Teardown or button replacement disconnects
+the observer and cancels and invalidates that frame.
 If the destination declines focus, scrolling still happens and the button
 immediately removes its temporary focus `tabindex`. A focused destination
 keeps the attribute until blur, even after button replacement or teardown, so
@@ -690,6 +693,11 @@ swap listener; it leaves already rendered content in place. Initialization can
 be called again after teardown.
 
 ## Theme preference
+
+Selecting a template theme emits a native `submit` event on the theme form.
+By default the form posts the selected `template_base_dir`, CSRF token and
+return URL. Host pages can handle the event and call `preventDefault()` to
+keep the current page open. Color-mode selections apply locally.
 
 The color mode (Auto, Light, or Dark) is stored in localStorage under
 `cast-theme`. If the browser refuses the write (private or restricted contexts,

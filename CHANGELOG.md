@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Submit template-theme changes through the native form event so host pages
+  can intercept the POST.
+
+- Refresh scroll-to-top visibility and keyboard availability when content
+  changes the page height at a fixed scroll position.
+
 - Release the paging mask when an HTMX `beforeOnLoad` veto cancels response
   processing, preserving the mask for any newer paging request.
 
