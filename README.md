@@ -87,6 +87,8 @@ Both readers also reject duplicate JSON member names in any object, including
 names that become identical after Unicode escape decoding. Contradictory query,
 destination or facet evidence fails the entire update; existing filters and
 ordinary form search remain available.
+Both readers accept up to 64 nested JSON objects and arrays, counting the root
+container as level one. Deeper responses use the same search fallback.
 Each suggestion request accumulates at most 64 KiB of response-body bytes through a
 standard stream reader before JSON parsing, independently of Content-Length
 (including absent or understated lengths). Exceeding the budget cancels the body
@@ -648,10 +650,10 @@ never moves focus, and a focused scroll-to-top button stays visible and exposed
 to assistive technology until focus leaves it.
 Viewport updates own at most one animation frame. Teardown or a button
 replacement cancels and invalidates that frame; rebinding starts fresh.
-A temporary focus `tabindex` is removed on blur, button replacement or teardown
-if it still has the value set by the button. While the destination keeps focus,
-replacement or teardown defers removal to its blur so focus stays in place.
-Later changes to the value are preserved.
+If the destination declines focus, scrolling still happens and the button
+immediately removes its temporary focus `tabindex`. A focused destination
+keeps the attribute until blur, even after button replacement or teardown, so
+focus stays in place. Later changes to the value are preserved.
 
 ## Post content enhancements
 

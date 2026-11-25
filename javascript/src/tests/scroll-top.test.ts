@@ -281,7 +281,7 @@ describe("scroll-top accessible activation", () => {
     expect(heading.getAttribute("tabindex")).toBe("-1");
   });
 
-  it.each(["destroy", "replace"])("releases an unfocused destination's tabindex and blur handler on %s", (retire) => {
+  it("releases the tabindex and blur handler immediately when the destination declines focus", () => {
     initScrollTop();
     const heading = document.querySelector("h1")!;
     const button = document.querySelector("button")!;
@@ -289,13 +289,6 @@ describe("scroll-top accessible activation", () => {
     button.click();
     focus.mockRestore();
     expect(document.activeElement).not.toBe(heading);
-    expect(heading.getAttribute("tabindex")).toBe("-1");
-
-    if (retire === "destroy") destroyScrollTop();
-    else {
-      button.replaceWith(button.cloneNode());
-      document.dispatchEvent(new CustomEvent("htmx:afterSwap"));
-    }
     expect(heading.hasAttribute("tabindex")).toBe(false);
 
     heading.tabIndex = -1;

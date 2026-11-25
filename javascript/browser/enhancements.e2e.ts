@@ -6,6 +6,31 @@ test.beforeEach(async ({ page }) => {
   await expect(page.locator('body')).toHaveAttribute('data-ready', 'true');
 });
 
+test('scroll to top releases tabindex after a hidden heading declines focus', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.evaluate(() => {
+    document.body.insertAdjacentHTML('beforeend', `
+      <main style="min-height: 200vh"><h1 hidden>Heading</h1></main>
+      <button type="button" class="cast-scroll-top" style="position: fixed; bottom: 0">Top</button>`);
+    window.scrollTo(0, 500);
+  });
+  await page.addScriptTag({ type: 'module', url: '/src/theme/scroll-top.ts' });
+  const button = page.getByRole('button', { name: 'Top' });
+  const heading = page.locator('h1');
+  await expect(button).toHaveAttribute('tabindex', '0');
+  await button.click();
+  await expect(button).toBeFocused();
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
+
+  await heading.evaluate(element => element.removeAttribute('hidden'));
+  await expect(heading).not.toHaveAttribute('tabindex');
+  await button.press('Enter');
+  await expect(heading).toBeFocused();
+  await expect(heading).toHaveAttribute('tabindex', '-1');
+  await heading.evaluate(element => element.blur());
+  await expect(heading).not.toHaveAttribute('tabindex');
+});
+
 test('actual HTMX requests keep the newer paging mask when the older request settles', async ({ page }) => {
   const a = page.waitForRequest('**/paging/a');
   const b = page.waitForRequest('**/paging/b');

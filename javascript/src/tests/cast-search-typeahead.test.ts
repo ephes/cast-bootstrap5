@@ -101,6 +101,30 @@ describe("CastSearchTypeahead", () => {
     controller.disconnect();
   });
 
+  it("rejects an over-depth response and accepts a retry at the depth limit", async () => {
+    const responseAtDepth = (depth: number) => new Response(JSON.stringify({
+      query: "py",
+      suggestions: pythonSuggestions,
+      metadata: Array.from({ length: depth - 1 }).reduce<unknown>(value => [value], null),
+    }));
+    const tooDeep = responseAtDepth(65);
+    const fetchMock = vi.fn().mockResolvedValueOnce(tooDeep).mockResolvedValueOnce(responseAtDepth(64));
+    vi.stubGlobal("fetch", fetchMock);
+    const { controller, input, listbox, status } = setup();
+    input.value = "py";
+    input.dispatchEvent(new Event("input"));
+    await vi.advanceTimersByTimeAsync(225);
+    expect(listbox.children).toHaveLength(0);
+    expect(status.textContent).toBe("Suggestions unavailable. You can still search.");
+    expect(tooDeep.body?.locked).toBe(false);
+
+    input.dispatchEvent(new Event("input"));
+    await vi.advanceTimersByTimeAsync(225);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(listbox.children).toHaveLength(2);
+    controller.disconnect();
+  });
+
   it.each([
     ["  py--thon  ", "py thon"], ["py\0-thon", "py thon"],
     ["py\u001c--thon", "py thon"], ["py\u0085thon", "py thon"],
