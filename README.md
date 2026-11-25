@@ -165,6 +165,12 @@ state, including while it is being revealed. The embed skin stays at its initial
 color mode for that instance; the next player load uses the current theme.
 The theme does not attempt to replace an embed to update its cosmetics.
 
+If `data-config` already includes `color_scheme`, the player receives the URL
+verbatim. Otherwise the theme appends `color_scheme` before any fragment when
+it has a light or dark mode to pass, preserving the existing query encoding.
+For externally signed URLs that cover the query, include `color_scheme` before
+signing the URL so the theme leaves the signed URL intact.
+
 A document accepts one canonical `data-embed` implementation URL. Relative URLs
 resolve against the document base and fragments are ignored; paths and query
 strings remain distinct. Matching requests share pending script loads and retries.
@@ -219,6 +225,9 @@ contains Podlove players is masked so the players do not flash during the swap.
 The list and its visible player iframes are masked at `htmx:beforeSend`.
 Cancelling `htmx:beforeRequest` leaves the current paging state intact, even
 when a listener registered after the theme cancels the request.
+If another pagination request starts while a player iframe is temporarily
+masked, its restore timer restarts. Iframes still waiting for their first
+reveal keep their own loading mask.
 The mask and the fade state are removed again when the new content has settled.
 Each request owns its state through HTMX's public `detail.xhr` identity. A late
 transition, settle, error or unmask timer from an older request cannot clear the

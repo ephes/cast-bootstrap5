@@ -813,6 +813,49 @@ describe('PodlovePlayerElement', () => {
     }
   });
 
+  it('renews the paging mask after overlapping pagination requests', () => {
+    vi.useFakeTimers();
+
+    try {
+      document.body.innerHTML = `
+        <div id="paging-area">
+          <div class="podlove-player-container" data-cast-mask-active="true">
+            <iframe id="ready"></iframe>
+            <iframe id="loading" data-cast-iframe-masked="true" style="opacity: 0"></iframe>
+          </div>
+          <nav class="pagination"><a>2</a><a>3</a></nav>
+        </div>`;
+      const container = document.querySelector('.podlove-player-container')!;
+      const ready = container.querySelector<HTMLIFrameElement>('#ready')!;
+      const loading = container.querySelector<HTMLIFrameElement>('#loading')!;
+      const [pageTwo, pageThree] = document.querySelectorAll('.pagination a');
+
+      pageTwo.dispatchEvent(new CustomEvent('htmx:beforeSend', { bubbles: true }));
+      expect(ready.getAttribute('data-cast-paging-remask')).toBe('true');
+      vi.advanceTimersByTime(1599);
+      pageThree.dispatchEvent(new CustomEvent('htmx:beforeSend', { bubbles: true }));
+
+      vi.advanceTimersByTime(1); // Original restore deadline.
+      expect(ready.getAttribute('data-cast-paging-remask')).toBe('true');
+      expect(ready.style.opacity).toBe('0');
+      expect(ready.style.pointerEvents).toBe('none');
+
+      vi.advanceTimersByTime(1598);
+      expect(ready.getAttribute('data-cast-paging-remask')).toBe('true');
+      vi.advanceTimersByTime(1); // Renewed restore deadline.
+      expect(ready.getAttribute('data-cast-paging-remask')).toBeNull();
+      expect(ready.getAttribute('data-cast-iframe-masked')).toBeNull();
+      expect(ready.style.opacity).toBe('1');
+      expect(ready.style.pointerEvents).toBe('');
+      expect(loading.getAttribute('data-cast-paging-remask')).toBeNull();
+      expect(loading.getAttribute('data-cast-iframe-masked')).toBe('true');
+      expect(loading.style.opacity).toBe('0');
+      expect(container.getAttribute('data-cast-mask-active')).toBe('true');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('should keep reveal deferred while paging mask is active even when iframe load fires', async () => {
     vi.useFakeTimers();
     const originalPodlovePlayer = global.podlovePlayer;
@@ -948,6 +991,29 @@ describe('PodlovePlayerElement', () => {
       playerHost,
       '/api/audios/podlove/63/post/75/',
       '/api/audios/player_config/?color_scheme=light'
+    );
+  });
+
+  it.each([
+    [
+      '/config?label=some%20words&sig=%2f~&%63olor_scheme=light#player',
+      '/config?label=some%20words&sig=%2f~&%63olor_scheme=light#player',
+    ],
+    [
+      '/config?label=some%20words&sig=%2f~&flag#player',
+      '/config?label=some%20words&sig=%2f~&flag&color_scheme=dark#player',
+    ],
+    ['/config?#', '/config?color_scheme=dark#'],
+    ['/config??color_scheme=light', '/config??color_scheme=light&color_scheme=dark'],
+  ])('preserves config URL encoding when selecting a theme (%s)', (configUrl, expectedUrl) => {
+    document.documentElement.setAttribute('data-bs-theme', 'dark');
+    const playerHost = setupAndTrigger(configUrl);
+
+    expect(playerHost).not.toBeNull();
+    expect(global.podlovePlayer).toHaveBeenCalledWith(
+      playerHost,
+      '/api/audios/podlove/63/post/75/',
+      expectedUrl
     );
   });
 
