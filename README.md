@@ -228,6 +228,8 @@ The mask and the fade state are removed again when the new content has settled.
 When HTMX skips the swap, as with a default HTTP 204 response, the existing
 content is unmasked immediately. Custom response rules that enable a swap
 keep the mask until the normal settle cleanup.
+If a listener cancels response processing at `htmx:beforeOnLoad`, the current
+content is unmasked after the event finishes dispatching.
 Each request owns its state through HTMX's public `detail.xhr` identity.
 When `HX-Retarget` directs a response elsewhere, its settle event still
 releases the original paging mask and refreshes player presence in the
@@ -257,12 +259,12 @@ navigation are unchanged. The theme retains at most 32 owned prefetch nodes/cach
 entries across HTMX swaps, evicting the oldest entry before admitting a new URL.
 Eviction and teardown remove only theme-owned nodes; foreign head links stay in
 place and are reused without adding cache entries. Revisiting an evicted URL may
-prefetch it again. A failed owned fetch removes its node and allows one further
-user-triggered attempt, with no automatic retry. After two attempts, failures
-remain suppressed until eviction or teardown resets that URL's budget. In-flight
-and successful retained nodes deduplicate further triggers.
+prefetch it again. A failed insertion or fetch discards the attempted node and
+allows one further user-triggered attempt, with no automatic retry. After two
+attempts, failures remain suppressed until eviction or teardown resets that
+URL's budget. In-flight and successful retained nodes deduplicate further triggers.
 The focused regressions run with
-`cd javascript && npx vitest run src/tests/post-link-prefetch.test.ts src/tests/paging-content-visibility.test.ts`.
+`cd javascript && npx vitest run src/tests/post-link-prefetch.test.ts src/tests/paging-content-visibility.test.ts src/tests/htmx-lifecycle.test.ts`.
 
 ## Dynamic search facets
 

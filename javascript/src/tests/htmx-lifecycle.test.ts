@@ -103,6 +103,44 @@ test('real HTMX 204 releases its own paging mask and preserves a newer swap', as
   expect(area.textContent).toBe('Next page');
 });
 
+test.each(['htmx:beforeOnLoad', 'htmx:before-on-load'])('a late %s veto only releases its paging request', async (eventName) => {
+  vi.useFakeTimers();
+  document.body.innerHTML = '<button id="a"></button><button id="b"></button><div id="paging-area"><p>Current page</p><podlove-player></podlove-player></div>';
+  const api = htmx();
+  initPagingContentVisibility();
+  const area = document.getElementById('paging-area')!;
+  const mask = 'data-cast-paging-mask-active';
+  const request = (source: string) => api.ajax('GET', `/${source}`, {
+    source: `#${source}`, target: area, swap: 'innerHTML settle:0ms',
+  });
+  const vetoNextResponse = () => {
+    document.addEventListener(eventName, event => event.preventDefault(), { once: true });
+  };
+
+  const standalone = request('a');
+  expect(area.getAttribute(mask)).toBe('true');
+  vetoNextResponse();
+  ControlledXHR.requests[0].finish('<p>Vetoed page</p>');
+  await standalone;
+  expect(area.hasAttribute(mask)).toBe(false);
+  expect(area.textContent).toBe('Current page');
+
+  const older = request('a');
+  vetoNextResponse();
+  ControlledXHR.requests[1].finish('<p>Stale page</p>');
+  const newer = request('b');
+  await older;
+  expect(area.getAttribute(mask)).toBe('true');
+  expect(area.textContent).toBe('Current page');
+
+  ControlledXHR.requests[2].finish('<p>Next page</p>');
+  await newer;
+  expect(area.textContent).toBe('Next page');
+  expect(area.getAttribute(mask)).toBe('true');
+  vi.advanceTimersByTime(300);
+  expect(area.hasAttribute(mask)).toBe(false);
+});
+
 test('a later HTMX beforeSwap listener can opt a paging 204 into a delayed swap', async () => {
   vi.useFakeTimers();
   document.body.innerHTML = '<div id="paging-area"><podlove-player></podlove-player></div>';

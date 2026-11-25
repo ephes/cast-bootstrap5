@@ -328,6 +328,38 @@ describe("post-link-prefetch", () => {
     expect(getPrefetchLinks()).toEqual([retry]);
   });
 
+  it.each([false, true])("retries after an insertion throws (attached first: %s)", (attachFirst) => {
+    document.body.innerHTML = '<a href="/retry/#section" data-cast-prefetch>Post</a>';
+    const anchor = document.querySelector("a")!;
+    const head = document.head;
+    const appendChild = head.appendChild.bind(head);
+    const append = vi.spyOn(head, "appendChild").mockImplementationOnce((node) => {
+      if (attachFirst) appendChild(node);
+      throw new Error("Prefetch insertion failed");
+    });
+    const onFocus = vi.fn();
+    anchor.addEventListener("focusin", onFocus);
+    const trigger = () => anchor.dispatchEvent(new Event("focusin", { bubbles: true, cancelable: true }));
+    initPostLinkPrefetch();
+    try {
+      expect(trigger()).toBe(true);
+      expect(onFocus).toHaveBeenCalledOnce();
+      expect(getPrefetchLinks()).toHaveLength(0);
+      expect(trigger()).toBe(true);
+      const links = getPrefetchLinks();
+      expect(links).toHaveLength(1);
+      const [retry] = links;
+      expect(retry.href).toBe(new URL("/retry/", window.location.href).href);
+      retry.dispatchEvent(new Event("error"));
+      expect(trigger()).toBe(true);
+      expect(append).toHaveBeenCalledTimes(2);
+      expect(getPrefetchLinks()).toHaveLength(0);
+      expect(anchor.getAttribute("href")).toBe("/retry/#section");
+    } finally {
+      append.mockRestore();
+    }
+  });
+
   it("stops retrying repeated errors until the URL leaves the bounded cache", () => {
     document.body.innerHTML = '<a href="/failed/" data-cast-prefetch>Post</a>';
     initPostLinkPrefetch();

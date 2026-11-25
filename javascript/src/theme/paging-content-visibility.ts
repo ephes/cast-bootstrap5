@@ -5,6 +5,7 @@ const PAGING_HAS_PODLOVE_ATTR = "data-cast-podlove-present";
 const PAGING_MASK_SETTLE_DELAY_MS = 300;
 
 let beforeSendHandler: ((event: Event) => void) | null = null;
+let beforeOnLoadHandler: ((event: Event) => void) | null = null;
 let beforeTransitionHandler: ((event: Event) => void) | null = null;
 let beforeSwapHandler: ((event: Event) => void) | null = null;
 let afterSettleHandler: ((event: Event) => void) | null = null;
@@ -211,6 +212,24 @@ export function initPagingContentVisibility(): void {
     doc.addEventListener("htmx:beforeSend", beforeSendHandler);
   }
 
+  if (!beforeOnLoadHandler) {
+    beforeOnLoadHandler = (event: Event) => {
+      if (!ownsRequest(event)) {
+        return;
+      }
+
+      // A later listener can veto response handling before HTMX reaches beforeSwap.
+      const generation = requestGeneration;
+      queueMicrotask(() => {
+        if (event.defaultPrevented && generation === requestGeneration && ownsRequest(event)) {
+          retireRequest();
+        }
+      });
+    };
+    doc.addEventListener("htmx:beforeOnLoad", beforeOnLoadHandler);
+    doc.addEventListener("htmx:before-on-load", beforeOnLoadHandler);
+  }
+
   if (!beforeTransitionHandler) {
     beforeTransitionHandler = (event: Event) => {
       if (!eventTargetsPagingArea(event) || !ownsRequest(event)) {
@@ -313,6 +332,10 @@ export function destroyPagingContentVisibility(): void {
   if (beforeSendHandler) {
     doc.removeEventListener("htmx:beforeSend", beforeSendHandler);
   }
+  if (beforeOnLoadHandler) {
+    doc.removeEventListener("htmx:beforeOnLoad", beforeOnLoadHandler);
+    doc.removeEventListener("htmx:before-on-load", beforeOnLoadHandler);
+  }
   if (beforeSwapHandler) {
     doc.removeEventListener("htmx:beforeSwap", beforeSwapHandler);
   }
@@ -334,6 +357,7 @@ export function destroyPagingContentVisibility(): void {
   activeRequest = undefined;
   requestGeneration++;
   beforeSendHandler = null;
+  beforeOnLoadHandler = null;
   beforeTransitionHandler = null;
   beforeSwapHandler = null;
   afterSettleHandler = null;

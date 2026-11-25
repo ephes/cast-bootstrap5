@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Release the paging mask when an HTMX `beforeOnLoad` veto cancels response
+  processing, preserving the mask for any newer paging request.
+
+- Discard failed post-link prefetch insertions and allow one user-triggered
+  retry while preserving ordinary link interactions.
+
 - Retire gallery opening listeners and pending image loading when Bootstrap
   throws during modal opening, so a later thumbnail activation starts a fresh
   gallery attempt.
