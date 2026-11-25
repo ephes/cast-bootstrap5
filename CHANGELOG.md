@@ -3,7 +3,8 @@
 ## Unreleased
 
 - Retire gallery opening listeners and pending image loading when Bootstrap
-  throws during modal opening, so a thumbnail can be activated again.
+  throws during modal opening, so a later thumbnail activation starts a fresh
+  gallery attempt.
 
 - Restore gallery focus to the thumbnail that opened the modal when Bootstrap
   ignores another thumbnail click during closing.
