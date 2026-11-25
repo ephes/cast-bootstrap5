@@ -21,9 +21,6 @@
 - Reject dynamic facet responses that use the reserved empty slug in an
   ordinary option, preserving the current filters and the single “All” choice.
 
-- Reject suggestion and facet responses deeper than 64 JSON containers before
-  recursive parsing can exhaust the stack. Ordinary search remains available.
-
 - Release the scroll-to-top button's temporary tabindex immediately when its
   destination declines focus. The page still scrolls to the top.
 
@@ -96,9 +93,6 @@
 - Index native radio groups once per Tab keypress to avoid quadratic focus work,
   preserving focused/checked/fallback order, external checked members and form
   and shadow-root ownership.
-
-- Reject duplicate decoded JSON member names in suggestion and facet responses
-  before caching or rendering, retaining ordinary search and current filters.
 
 - Serialize catalog checks/updates and refuse stale source generations before
   publication; roll back only outputs still owned by the failed attempt so

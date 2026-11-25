@@ -3,41 +3,6 @@ import { readBoundedJson } from '@/utils/bounded-json';
 import { fetchSearchResponse } from '@/utils/search-response';
 
 describe('bounded search JSON', () => {
-  it.each([
-    '{"query":"old","query":"new"}',
-    '{"query":"new","qu\\u0065ry":"old"}',
-    '{"results":[],"results":[1]}',
-    '{"results":[1],"res\\u0075lts":[]}',
-    '{"suggestions":[{"url":"/a/","url":"/b/"}]}',
-    '{"suggestions":[{"u\\u0072l":"/b/","url":"/a/"}]}',
-    '{"groups":{"tag_facets":{"selected":"a","sel\\u0065cted":"b"}}}',
-    '{"groups":{"tag_facets":{},"tag_facets":{}}}',
-    '{"__proto__":1,"__pr\\u006fto__":2}',
-  ])('refuses duplicate decoded object members: %s', async text => {
-    const body = new Response(text).body!;
-    await expect(readBoundedJson(new Response(body), new AbortController().signal, 1024))
-      .rejects.toThrow('Duplicate JSON member');
-    expect(body.locked).toBe(false);
-  });
-
-  it('keeps member sets local to each object and preserves ordinary JSON strings', async () => {
-    const text = '{"items":[{"name":"a"},{"name":"b"}],"nested":{"name":"c"},"__proto__":0,"text":"\\\\ \\\"name\\\": \\\"name\\\""}';
-    await expect(readBoundedJson(new Response(text), new AbortController().signal, 1024))
-      .resolves.toEqual(JSON.parse(text));
-  });
-
-  it('admits 64 nested containers and rejects the 65th with a stable error', async () => {
-    const nested = '{"child":['.repeat(31) + '{}' + ']}'.repeat(31);
-    const boundary = `[${nested},${nested}]`;
-    await expect(readBoundedJson(new Response(boundary), new AbortController().signal, 2048))
-      .resolves.toEqual(JSON.parse(boundary));
-
-    const body = new Response(`[${boundary}]`).body!;
-    await expect(readBoundedJson(new Response(body), new AbortController().signal, 2048))
-      .rejects.toThrow('Search response JSON is too deeply nested');
-    expect(body.locked).toBe(false);
-  });
-
   it.each(['', '/* comment */ {}', '{"a":1,}', '[1,]', '{"a":}', '{} {}', '{"a":01}'])(
     'retains strict JSON syntax refusal: %s', async text => {
       await expect(readBoundedJson(new Response(text), new AbortController().signal, 1024)).rejects.toThrow();

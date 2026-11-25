@@ -83,12 +83,6 @@ status, redirect or final URL have their unread bodies cancelled immediately.
 Cleanup is not awaited and cannot delay or replace the ordinary search fallback.
 Both readers require valid UTF-8, including across stream chunks. Invalid bytes or a truncated character
 reject the whole response before caching or changing the page.
-Both readers also reject duplicate JSON member names in any object, including
-names that become identical after Unicode escape decoding. Contradictory query,
-destination or facet evidence fails the entire update; existing filters and
-ordinary form search remain available.
-Both readers accept up to 64 nested JSON objects and arrays, counting the root
-container as level one. Deeper responses use the same search fallback.
 Each suggestion request accumulates at most 64 KiB of response-body bytes through a
 standard stream reader before JSON parsing, independently of Content-Length
 (including absent or understated lengths). Exceeding the budget cancels the body
