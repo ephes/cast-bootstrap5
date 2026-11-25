@@ -634,6 +634,9 @@ image” to follow its full-size link. Switching images, closing the modal, or
 removing the gallery cancels pending listeners and deadlines; old attempts cannot
 change a later image's state. A vetoed Bootstrap hide keeps the pending load,
 spinner and deadline active, so error recovery remains available.
+If Bootstrap throws while opening the modal, the gallery cancels the pending
+image load, removes the opening listeners and reports the original error.
+Activating a thumbnail again starts a fresh attempt.
 
 The enlarged image copies the selected thumbnail's full-size image metadata,
 including empty alternative text. Attributes absent from the selected image are

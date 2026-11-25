@@ -198,6 +198,53 @@ test("cancelled Bootstrap opening can be disposed on disconnect", () => {
     expect(document.querySelector(".modal-backdrop")).toBeNull();
 });
 
+test("a Bootstrap show failure retires the attempt and allows a clean retry", () => {
+    vi.useFakeTimers();
+    const gallery = fixture();
+    const modal = gallery.querySelector<HTMLElement>(".modal")!;
+    const add = vi.spyOn(modal, "addEventListener");
+    const remove = vi.spyOn(modal, "removeEventListener");
+    const failure = new Error("Bootstrap show failed");
+    const errors: unknown[] = [];
+    window.addEventListener("error", event => {
+        errors.push(event.error);
+        event.preventDefault();
+    }, { once: true });
+    const dispatchShow = () => modal.dispatchEvent(new Event("show.bs.modal", { cancelable: true }));
+    const show = vi.fn(dispatchShow).mockImplementationOnce(() => {
+        dispatchShow();
+        throw failure;
+    });
+    (window as any).bootstrap = { Modal: { getOrCreateInstance: () => ({ show }), getInstance: () => null } };
+
+    open(gallery);
+    expect(errors).toEqual([failure]);
+    const body = modal.querySelector(".modal-body")!;
+    expect(body.getAttribute("aria-busy")).toBe("false");
+    expect(vi.getTimerCount()).toBe(0);
+    modal.querySelector("img")!.dispatchEvent(new Event("error"));
+    expect(body.querySelector('[role="alert"]')).toBeNull();
+    for (const event of ["show.bs.modal", "shown.bs.modal"]) {
+        const listeners = add.mock.calls.filter(([type]) => type === event);
+        expect(listeners).toHaveLength(1);
+        expect(remove).toHaveBeenCalledWith(event, listeners[0][1]);
+    }
+    const trigger = gallery.querySelector<HTMLAnchorElement>(".cast-gallery-container > a")!;
+    const focus = vi.spyOn(trigger, "focus");
+    modal.dispatchEvent(new Event("hidden.bs.modal"));
+    expect(focus).not.toHaveBeenCalled();
+
+    open(gallery);
+    expect(show).toHaveBeenCalledTimes(2);
+    expect(body.getAttribute("aria-busy")).toBe("true");
+    expect(add.mock.calls.filter(([type]) => type === "shown.bs.modal")).toHaveLength(2);
+    expect(remove.mock.calls.filter(([type]) => type === "shown.bs.modal")).toHaveLength(1);
+    modal.dispatchEvent(new Event("shown.bs.modal"));
+    modal.querySelector("img")!.dispatchEvent(new Event("load"));
+    expect(body.getAttribute("aria-busy")).toBe("false");
+    expect(vi.getTimerCount()).toBe(0);
+});
+
 test.each([
     { ctrlKey: true }, { metaKey: true }, { shiftKey: true }, { altKey: true },
     { button: 1 }, { button: 2 },

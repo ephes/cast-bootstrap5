@@ -11,7 +11,7 @@ export default class ImageGalleryBs5 extends HTMLElement {
     private pendingError: (() => void) | null = null;
     private imageDeadline: ReturnType<typeof setTimeout> | null = null;
     private loadingSequence: number;
-    private showingModal: HTMLElement | null = null;
+    private showingAttempt: { modal: HTMLElement } | null = null;
     private closingModal: HTMLElement | null = null;
     private openingTrigger: HTMLAnchorElement | null = null;
     private boundModalHide = (event: Event) => {
@@ -95,26 +95,37 @@ export default class ImageGalleryBs5 extends HTMLElement {
         const bootstrap = (window as unknown as { bootstrap?: any }).bootstrap;
         const modalApi = bootstrap?.Modal;
         if (modalApi) {
-            const instance = modalApi.getOrCreateInstance(modal);
-            const opening = { event: null as Event | null };
+            const opening = { modal, event: null as Event | null };
+            const sequence = this.loadingSequence;
             const markOpening = (event: Event) => {
                 opening.event = event;
-                this.showingModal = modal;
+                this.showingAttempt = opening;
             };
             const markShown = () => {
-                if (this.showingModal === modal) this.showingModal = null;
+                if (this.showingAttempt === opening) this.showingAttempt = null;
             };
-            modal.addEventListener("show.bs.modal", markOpening, { once: true });
-            modal.addEventListener("shown.bs.modal", markShown, { once: true });
-            instance.show();
-            modal.removeEventListener("show.bs.modal", markOpening);
-            if (!opening.event || opening.event.defaultPrevented) {
+            const cancelOpening = () => {
                 modal.removeEventListener("shown.bs.modal", markShown);
-                if (opening.event?.defaultPrevented) {
-                    markShown();
+                markShown();
+                if (this.currentModal === modal && this.loadingSequence === sequence) {
                     this.openingTrigger = null;
                     this.cancelImageLoading();
                 }
+            };
+            modal.addEventListener("show.bs.modal", markOpening, { once: true });
+            modal.addEventListener("shown.bs.modal", markShown, { once: true });
+            try {
+                modalApi.getOrCreateInstance(modal).show();
+            } catch (error) {
+                cancelOpening();
+                throw error;
+            } finally {
+                modal.removeEventListener("show.bs.modal", markOpening);
+            }
+            if (!opening.event) {
+                modal.removeEventListener("shown.bs.modal", markShown);
+            } else if (opening.event.defaultPrevented) {
+                cancelOpening();
             }
             return;
         }
@@ -350,7 +361,7 @@ export default class ImageGalleryBs5 extends HTMLElement {
                     }
                 };
                 const hide = () => instance.hide();
-                if (this.closingModal === modal || this.showingModal === modal || modal.classList.contains("show") || modal.style.display === "block") {
+                if (this.closingModal === modal || this.showingAttempt?.modal === modal || modal.classList.contains("show") || modal.style.display === "block") {
                     modal.addEventListener("hidden.bs.modal", dispose, { once: true });
                     // hide() is ignored during Bootstrap's opening transition.
                     modal.addEventListener("shown.bs.modal", hide, { once: true });
@@ -365,7 +376,7 @@ export default class ImageGalleryBs5 extends HTMLElement {
             }
         }
         this.currentModal = null;
-        this.showingModal = null;
+        this.showingAttempt = null;
         this.currentImage = null;
     }
 
