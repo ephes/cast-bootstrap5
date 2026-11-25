@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Release the paging mask when an HTMX `beforeOnLoad` veto cancels response
+  processing, preserving the mask for any newer paging request.
+
 - Discard failed post-link prefetch insertions and allow one user-triggered
   retry while preserving ordinary link interactions.
 
