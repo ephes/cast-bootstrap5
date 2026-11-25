@@ -24,6 +24,7 @@ describe("scroll-top", () => {
   afterEach(() => {
     destroyScrollTop();
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
 
   it("keeps the button hidden when page is short", () => {
@@ -91,6 +92,56 @@ describe("scroll-top", () => {
     expect(button.classList.contains("is-visible")).toBe(true);
     expect(button.getAttribute("aria-hidden")).toBe("false");
     expect(button.tabIndex).toBe(0);
+  });
+
+  it("refreshes the threshold on content resize and retires observers with their bindings", () => {
+    const observers: TestResizeObserver[] = [];
+    class TestResizeObserver {
+      observe = vi.fn<ResizeObserver["observe"]>();
+      disconnect = vi.fn();
+
+      constructor(readonly notify: () => void) {
+        observers.push(this);
+      }
+    }
+    vi.stubGlobal("ResizeObserver", TestResizeObserver);
+    const frames: FrameRequestCallback[] = [];
+    vi.mocked(window.requestAnimationFrame).mockImplementation(callback => frames.push(callback));
+
+    setViewport({ scrollY: 300, innerHeight: 900, scrollHeight: 1400 });
+    initScrollTop();
+    const button = document.querySelector<HTMLButtonElement>("button")!;
+    expect(button.tabIndex).toBe(0);
+    expect(observers).toHaveLength(1);
+    const [original] = observers;
+    expect(original.observe.mock.calls.some(([target]) => target === document.body)).toBe(true);
+
+    setViewport({ scrollY: 300, innerHeight: 900, scrollHeight: 1700 });
+    original.notify();
+    window.dispatchEvent(new Event("resize"));
+    original.notify();
+    expect(frames).toHaveLength(1);
+    frames[0](0);
+    expect(button.tabIndex).toBe(-1);
+    expect(button.getAttribute("aria-hidden")).toBe("true");
+
+    button.replaceWith(button.cloneNode());
+    document.dispatchEvent(new CustomEvent("htmx:afterSwap"));
+    expect(original.disconnect).toHaveBeenCalledOnce();
+    expect(observers).toHaveLength(2);
+    original.notify();
+    expect(frames).toHaveLength(1);
+
+    const replacement = observers[1];
+    setViewport({ scrollY: 300, innerHeight: 900, scrollHeight: 1400 });
+    replacement.notify();
+    expect(frames).toHaveLength(2);
+    frames[1](0);
+    expect(document.querySelector("button")!.tabIndex).toBe(0);
+    destroyScrollTop();
+    expect(replacement.disconnect).toHaveBeenCalledOnce();
+    replacement.notify();
+    expect(frames).toHaveLength(2);
   });
 
   it("scrolls to top when clicked", () => {

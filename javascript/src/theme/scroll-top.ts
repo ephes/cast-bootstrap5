@@ -96,15 +96,8 @@ function bindButtonListeners(button: HTMLElement): void {
   let frame: number | null = null;
   let focusDestination: HTMLElement | null = null;
   let releaseFocusTabindex: (() => void) | null = null;
-  retireButtonBinding = () => {
-    // Removing tabindex from the focused destination would make browsers move
-    // focus to <body>; its self-removing blur listener releases it later.
-    if (focusDestination !== doc.activeElement) releaseFocusTabindex?.();
-    active = false;
-    if (frame !== null) win.cancelAnimationFrame(frame);
-  };
   const viewportHandler = () => {
-    if (ticking) {
+    if (!active || ticking) {
       return;
     }
     ticking = true;
@@ -114,6 +107,17 @@ function bindButtonListeners(button: HTMLElement): void {
       if (!active || trackedButton !== button || !button.isConnected) return;
       updateButtonState(button);
     });
+  };
+  const resizeObserver = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(viewportHandler);
+  resizeObserver?.observe(doc.documentElement, { box: "border-box" });
+  if (doc.body) resizeObserver?.observe(doc.body, { box: "border-box" });
+  retireButtonBinding = () => {
+    // Removing tabindex from the focused destination would make browsers move
+    // focus to <body>; its self-removing blur listener releases it later.
+    if (focusDestination !== doc.activeElement) releaseFocusTabindex?.();
+    active = false;
+    resizeObserver?.disconnect();
+    if (frame !== null) win.cancelAnimationFrame(frame);
   };
   scrollHandler = viewportHandler;
   resizeHandler = viewportHandler;

@@ -31,6 +31,40 @@ test('scroll to top releases tabindex after a hidden heading declines focus', as
   await expect(heading).not.toHaveAttribute('tabindex');
 });
 
+test('scroll to top tracks content height at a fixed scroll position', async ({ page }) => {
+  await page.evaluate(async () => {
+    document.body.style.margin = '0';
+    document.body.style.overflowAnchor = 'none';
+    document.body.insertAdjacentHTML('beforeend', `
+      <main style="height: calc(100vh + 500px); display: flow-root"><h1>Heading</h1></main>
+      <button type="button" class="cast-scroll-top" style="position: fixed; bottom: 0">Top</button>`);
+    await new Promise<void>(resolve => {
+      window.addEventListener('scroll', () => resolve(), { once: true });
+      window.scrollTo(0, 300);
+    });
+  });
+  await page.addScriptTag({ type: 'module', url: '/src/theme/scroll-top.ts' });
+  const button = page.locator('.cast-scroll-top');
+  const main = page.locator('main');
+  await expect(button).toHaveClass(/is-visible/);
+  await expect(button).toHaveAttribute('tabindex', '0');
+  await page.evaluate(() => {
+    document.body.dataset.scrolled = 'false';
+    window.addEventListener('scroll', () => { document.body.dataset.scrolled = 'true'; }, { once: true });
+  });
+
+  await main.evaluate(element => { element.style.height = 'calc(100vh + 800px)'; });
+  await expect(button).not.toHaveClass(/is-visible/);
+  await expect(button).toHaveAttribute('tabindex', '-1');
+  await expect(button).toHaveAttribute('aria-hidden', 'true');
+
+  await main.evaluate(element => { element.style.height = 'calc(100vh + 500px)'; });
+  await expect(button).toHaveClass(/is-visible/);
+  await expect(button).toHaveAttribute('tabindex', '0');
+  await expect(page.locator('body')).toHaveAttribute('data-scrolled', 'false');
+  expect(await page.evaluate(() => window.scrollY)).toBe(300);
+});
+
 test('actual HTMX requests keep the newer paging mask when the older request settles', async ({ page }) => {
   const a = page.waitForRequest('**/paging/a');
   const b = page.waitForRequest('**/paging/b');
