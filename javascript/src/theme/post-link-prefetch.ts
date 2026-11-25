@@ -6,7 +6,7 @@ let touchStartHandler: ((event: Event) => void) | null = null;
 
 const PREFETCH_MAX_ENTRIES = 32;
 const PREFETCH_MAX_ATTEMPTS = 2;
-type PrefetchEntry = { link: HTMLLinkElement | null; attempts: number };
+type PrefetchEntry = { link: HTMLLinkElement | null; attempts: number; inserting: boolean };
 // Insertion order bounds both owned nodes and retry/dedup state across swaps.
 const prefetchedUrls = new Map<string, PrefetchEntry>();
 
@@ -102,7 +102,7 @@ function prefetchUrl(url: string): void {
   }
 
   let entry = prefetchedUrls.get(url);
-  if (entry?.link || (entry && entry.attempts >= PREFETCH_MAX_ATTEMPTS)) return;
+  if (entry && (entry.link || entry.inserting || entry.attempts >= PREFETCH_MAX_ATTEMPTS)) return;
   if (hasExistingPrefetchLink(doc, url)) return;
 
   if (!entry) {
@@ -111,7 +111,7 @@ function prefetchUrl(url: string): void {
       retireLink(prefetchedUrls.get(oldest)!);
       prefetchedUrls.delete(oldest);
     }
-    entry = { link: null, attempts: 0 };
+    entry = { link: null, attempts: 0, inserting: false };
     prefetchedUrls.set(url, entry);
   }
   const ownedEntry = entry;
@@ -119,13 +119,26 @@ function prefetchUrl(url: string): void {
   link.rel = "prefetch";
   link.as = "document";
   link.href = url;
-  ownedEntry.link = link;
   ownedEntry.attempts += 1;
+  ownedEntry.inserting = true;
+  try {
+    doc.head.appendChild(link);
+  } catch {
+    // A host hook can throw even after attaching the speculative link.
+    link.remove();
+    return;
+  } finally {
+    ownedEntry.inserting = false;
+  }
+  if (prefetchedUrls.get(url) !== ownedEntry) {
+    link.remove();
+    return;
+  }
+  ownedEntry.link = link;
   link.onerror = () => {
     if (prefetchedUrls.get(url) !== ownedEntry || ownedEntry.link !== link) return;
     retireLink(ownedEntry);
   };
-  doc.head.appendChild(link);
 }
 
 function handlePrefetchEvent(event: Event): void {
