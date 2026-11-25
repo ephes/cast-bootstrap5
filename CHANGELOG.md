@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Reject suggestion and facet responses deeper than 64 JSON containers before
+  recursive parsing can exhaust the stack. Ordinary search remains available.
+
+- Release the scroll-to-top button's temporary tabindex immediately when its
+  destination declines focus. The page still scrolls to the top.
+
 - Renew the temporary Podlove iframe mask when pagination requests overlap,
   preserving the loading mask for iframes awaiting their first reveal.
 

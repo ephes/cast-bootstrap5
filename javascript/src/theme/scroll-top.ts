@@ -144,6 +144,9 @@ function bindButtonListeners(button: HTMLElement): void {
       destination.addEventListener("blur", release);
     }
     destination.focus({ preventScroll: true });
+    if (focusDestination === destination && doc.activeElement !== destination) {
+      releaseFocusTabindex?.();
+    }
     const reducedMotion = win.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
     win.scrollTo({ top: 0, behavior: reducedMotion ? "instant" : "smooth" });
   };

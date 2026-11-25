@@ -1,9 +1,23 @@
 import { visit } from "jsonc-parser";
 
+const MAX_JSON_CONTAINER_DEPTH = 64;
+
 function parseUnambiguousJson(text: string): unknown {
   const objects: Set<string>[] = [];
+  let depth = 0;
+  const enterContainer = () => {
+    if (++depth > MAX_JSON_CONTAINER_DEPTH) {
+      throw new Error("Search response JSON is too deeply nested");
+    }
+  };
+  const leaveContainer = () => { depth--; };
   visit(text, {
-    onObjectBegin: () => { objects.push(new Set()); },
+    onArrayBegin: enterContainer,
+    onArrayEnd: leaveContainer,
+    onObjectBegin: () => {
+      enterContainer();
+      objects.push(new Set());
+    },
     onObjectProperty: (name) => {
       // The visitor supplies decoded names, including Unicode escapes. Keep a
       // separate set per object so sibling objects may reuse the same names.
@@ -11,7 +25,10 @@ function parseUnambiguousJson(text: string): unknown {
       if (members.has(name)) throw new Error("Duplicate JSON member");
       members.add(name);
     },
-    onObjectEnd: () => { objects.pop(); },
+    onObjectEnd: () => {
+      objects.pop();
+      leaveContainer();
+    },
     onError: () => { throw new Error("Invalid JSON response"); },
   }, { disallowComments: true, allowTrailingComma: false, allowEmptyContent: false });
   return JSON.parse(text);

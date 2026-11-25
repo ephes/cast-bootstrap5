@@ -26,6 +26,18 @@ describe('bounded search JSON', () => {
       .resolves.toEqual(JSON.parse(text));
   });
 
+  it('admits 64 nested containers and rejects the 65th with a stable error', async () => {
+    const nested = '{"child":['.repeat(31) + '{}' + ']}'.repeat(31);
+    const boundary = `[${nested},${nested}]`;
+    await expect(readBoundedJson(new Response(boundary), new AbortController().signal, 2048))
+      .resolves.toEqual(JSON.parse(boundary));
+
+    const body = new Response(`[${boundary}]`).body!;
+    await expect(readBoundedJson(new Response(body), new AbortController().signal, 2048))
+      .rejects.toThrow('Search response JSON is too deeply nested');
+    expect(body.locked).toBe(false);
+  });
+
   it.each(['', '/* comment */ {}', '{"a":1,}', '[1,]', '{"a":}', '{} {}', '{"a":01}'])(
     'retains strict JSON syntax refusal: %s', async text => {
       await expect(readBoundedJson(new Response(text), new AbortController().signal, 1024)).rejects.toThrow();
