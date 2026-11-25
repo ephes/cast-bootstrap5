@@ -113,7 +113,7 @@ describe("theme-switcher", () => {
     const write = vi.spyOn(storageMock, 'setItem').mockImplementation(() => { throw new Error('denied'); });
     if (denyReads) vi.spyOn(storageMock, 'getItem').mockImplementation(() => { throw new Error('denied'); });
     document.body.innerHTML = createSwitcherMarkup('a');
-    await loadModule();
+    const module = await loadModule();
     (document.querySelector('[data-cast-theme-value="mode:dark"]') as HTMLButtonElement).click();
     expect(write).toHaveBeenCalledTimes(1);
     expect(document.querySelector('[data-cast-theme-label]')?.textContent).toBe('Dark');
@@ -126,6 +126,15 @@ describe("theme-switcher", () => {
     document.body.dispatchEvent(new CustomEvent('htmx:afterSwap', { detail: { target }, bubbles: true }));
     for (const label of document.querySelectorAll('[data-cast-theme-label]')) expect(label.textContent).toBe('Dark');
     expect(document.documentElement.getAttribute('data-bs-theme')).toBe('dark');
+
+    module.destroyThemeSwitcher();
+    document.body.innerHTML = createSwitcherMarkup("remounted");
+    module.initThemeSwitcher();
+
+    expect(document.documentElement.getAttribute("data-bs-theme")).toBe("dark");
+    expect(document.querySelector('[data-cast-theme-mode="dark"]')?.getAttribute("aria-pressed")).toBe("true");
+    expect(document.querySelector('[data-cast-theme-mode="light"]')?.getAttribute("aria-pressed")).toBe("false");
+    expect(document.querySelector('[data-cast-theme-mode="auto"]')?.getAttribute("aria-pressed")).toBe("false");
   });
 
   it("syncs cross-tab storage changes once and unregisters on destroy", async () => {

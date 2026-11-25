@@ -265,6 +265,7 @@ export function initPagingContentVisibility(): void {
       });
     };
     doc.addEventListener("htmx:beforeSwap", beforeSwapHandler);
+    doc.addEventListener("htmx:before-swap", beforeSwapHandler);
   }
 
   if (!afterSettleHandler) {
@@ -338,6 +339,7 @@ export function destroyPagingContentVisibility(): void {
   }
   if (beforeSwapHandler) {
     doc.removeEventListener("htmx:beforeSwap", beforeSwapHandler);
+    doc.removeEventListener("htmx:before-swap", beforeSwapHandler);
   }
   if (afterSettleHandler) {
     doc.removeEventListener("htmx:afterSettle", afterSettleHandler);

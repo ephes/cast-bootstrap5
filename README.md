@@ -233,8 +233,10 @@ The mask and the fade state are removed again when the new content has settled.
 When HTMX skips the swap, as with a default HTTP 204 response, the existing
 content is unmasked immediately. Custom response rules that enable a swap
 keep the mask until the normal settle cleanup.
-If a listener cancels response processing at `htmx:beforeOnLoad`, the current
-content is unmasked after the event finishes dispatching.
+If a listener cancels response processing at `htmx:beforeOnLoad` or
+`htmx:beforeSwap`, the current content is unmasked after the event finishes
+dispatching. The kebab-case aliases `htmx:before-on-load` and `htmx:before-swap`
+have the same cleanup behavior.
 Each request owns its state through HTMX's public `detail.xhr` identity.
 When `HX-Retarget` directs a response elsewhere, its settle event still
 releases the original paging mask and refreshes player presence in the
@@ -264,10 +266,10 @@ navigation are unchanged. The theme retains at most 32 owned prefetch nodes/cach
 entries across HTMX swaps, evicting the oldest entry before admitting a new URL.
 Eviction and teardown remove only theme-owned nodes; foreign head links stay in
 place and are reused without adding cache entries. Revisiting an evicted URL may
-prefetch it again. A failed insertion or fetch discards the attempted node and
-allows one further user-triggered attempt, with no automatic retry. After two
-attempts, failures remain suppressed until eviction or teardown resets that
-URL's budget. In-flight and successful retained nodes deduplicate further triggers.
+prefetch it again. If an insertion or fetch fails, or an owned link is detached,
+the next interaction can prefetch that URL again if no matching live link
+exists. Each URL gets up to two attempts until eviction or teardown resets its
+budget. There is no automatic retry.
 The focused regressions run with
 `cd javascript && npx vitest run src/tests/post-link-prefetch.test.ts src/tests/paging-content-visibility.test.ts src/tests/htmx-lifecycle.test.ts`.
 
@@ -713,7 +715,8 @@ synchronize on localStorage changes (including clearing storage), updating the
 root and all switchers. A denied-write session choice remains authoritative.
 Delegated clicks and bubbling HTMX swap events use the document, so replacing
 the body keeps the new switchers synchronized and interactive. Destroying the
-switcher unregisters those handlers and storage synchronization.
+switcher unregisters those handlers and storage synchronization. Reinitializing
+it on the same page restores the session choice until a preference write succeeds.
 
 Every element marked `data-cast-theme-switcher` (the navigation menu and the
 styleguide's floating toggle) is driven by `src/theme/theme-switcher.ts`, so all

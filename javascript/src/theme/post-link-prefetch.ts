@@ -102,6 +102,7 @@ function prefetchUrl(url: string): void {
   }
 
   let entry = prefetchedUrls.get(url);
+  if (entry?.link && !entry.link.isConnected) retireLink(entry);
   if (entry && (entry.link || entry.inserting || entry.attempts >= PREFETCH_MAX_ATTEMPTS)) return;
   if (hasExistingPrefetchLink(doc, url)) return;
 
