@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Release the paging mask when a host vetoes an HTMX response using
+  `htmx:before-swap`, preserving any newer request's mask.
+
 - Keep color choices made with blocked storage when the theme switcher is
   destroyed and reinitialized on the same page.
 

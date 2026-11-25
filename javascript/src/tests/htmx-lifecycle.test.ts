@@ -103,7 +103,9 @@ test('real HTMX 204 releases its own paging mask and preserves a newer swap', as
   expect(area.textContent).toBe('Next page');
 });
 
-test.each(['htmx:beforeOnLoad', 'htmx:before-on-load'])('a late %s veto only releases its paging request', async (eventName) => {
+test.each([
+  'htmx:beforeOnLoad', 'htmx:before-on-load', 'htmx:beforeSwap', 'htmx:before-swap',
+])('a late %s veto only releases its paging request', async (eventName) => {
   vi.useFakeTimers();
   document.body.innerHTML = '<button id="a"></button><button id="b"></button><div id="paging-area"><p>Current page</p><podlove-player></podlove-player></div>';
   const api = htmx();
