@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Allow a bounded post-link prefetch retry after an owned prefetch link is
+  detached, reusing any live matching link.
+
 - Restart the Podlove reveal fallback for a surviving masked iframe when
   the replacement iframe is removed.
 

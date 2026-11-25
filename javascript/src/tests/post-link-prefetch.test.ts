@@ -328,6 +328,38 @@ describe("post-link-prefetch", () => {
     expect(getPrefetchLinks()).toEqual([retry]);
   });
 
+  it("replaces a detached owned link once and deduplicates a live external replacement", () => {
+    document.body.innerHTML = '<a href="/detached/" data-cast-prefetch>Post</a>';
+    const anchor = document.querySelector("a")!;
+    const focus = () => anchor.dispatchEvent(new FocusEvent("focusin", { bubbles: true }));
+    initPostLinkPrefetch();
+
+    focus();
+    const [first] = getPrefetchLinks();
+    first.remove();
+
+    const external = document.createElement("link");
+    external.rel = "prefetch";
+    external.href = first.href;
+    document.head.append(external);
+    focus();
+    expect(getPrefetchLinks()).toEqual([external]);
+
+    external.remove();
+    focus();
+    expect(getPrefetchLinks()).toHaveLength(1);
+    const [retry] = getPrefetchLinks();
+    expect(retry).not.toBe(first);
+    expect(retry.href).toBe(first.href);
+    expect(first.onerror).toBeNull();
+    focus();
+    expect(getPrefetchLinks()).toEqual([retry]);
+
+    retry.remove();
+    focus();
+    expect(getPrefetchLinks()).toHaveLength(0);
+  });
+
   it.each([false, true])("retries after an insertion throws (attached first: %s)", (attachFirst) => {
     document.body.innerHTML = '<a href="/retry/#section" data-cast-prefetch>Post</a>';
     const anchor = document.querySelector("a")!;

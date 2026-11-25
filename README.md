@@ -264,10 +264,10 @@ navigation are unchanged. The theme retains at most 32 owned prefetch nodes/cach
 entries across HTMX swaps, evicting the oldest entry before admitting a new URL.
 Eviction and teardown remove only theme-owned nodes; foreign head links stay in
 place and are reused without adding cache entries. Revisiting an evicted URL may
-prefetch it again. A failed insertion or fetch discards the attempted node and
-allows one further user-triggered attempt, with no automatic retry. After two
-attempts, failures remain suppressed until eviction or teardown resets that
-URL's budget. In-flight and successful retained nodes deduplicate further triggers.
+prefetch it again. If an insertion or fetch fails, or an owned link is detached,
+the next interaction can prefetch that URL again if no matching live link
+exists. Each URL gets up to two attempts until eviction or teardown resets its
+budget. There is no automatic retry.
 The focused regressions run with
 `cd javascript && npx vitest run src/tests/post-link-prefetch.test.ts src/tests/paging-content-visibility.test.ts src/tests/htmx-lifecycle.test.ts`.
 
