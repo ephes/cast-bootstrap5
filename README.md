@@ -652,7 +652,11 @@ comments, before merging; repeated enhancement preserves those nodes. The editor
 id, class, and language) keep quotes separate and preserve attribution and anchors.
 
 `initPostContentEnhancements()` initializes once, waiting for DOMContentLoaded
-when necessary, and enhances HTMX swap targets. Repeated calls are idempotent.
+when necessary, and enhances connected HTMX swap targets. Late events for
+detached targets leave those fragments untouched. When a plain blockquote is the
+swap target, enhancement starts at the first quote in its contiguous sibling
+run and keeps the surrounding semantic and text boundaries. Repeated calls are
+idempotent.
 `destroyPostContentEnhancements()` cancels pending initialization and removes the
 swap listener; it leaves already rendered content in place. Initialization can
 be called again after teardown.

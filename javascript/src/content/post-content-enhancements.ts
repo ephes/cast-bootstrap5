@@ -44,19 +44,28 @@ function isPlainBlockquote(blockquote: HTMLElement): boolean {
   );
 }
 
-function nextPlainBlockquote(blockquote: HTMLElement): HTMLElement | null {
-  let next = blockquote.nextSibling;
-  while (next?.nodeType === Node.TEXT_NODE && /^[\t\n\f\r ]*$/.test(next.textContent ?? "")) {
-    next = next.nextSibling;
+function plainBlockquoteSibling(
+  blockquote: HTMLElement,
+  direction: "previousSibling" | "nextSibling",
+): HTMLElement | null {
+  let sibling = blockquote[direction];
+  while (sibling?.nodeType === Node.TEXT_NODE && /^[\t\n\f\r ]*$/.test(sibling.textContent ?? "")) {
+    sibling = sibling[direction];
   }
-  return next instanceof Element && isBlockquote(next) && isPlainBlockquote(next)
-    ? next : null;
+  return sibling instanceof Element && isBlockquote(sibling) && isPlainBlockquote(sibling)
+    ? sibling : null;
 }
 
 function findBlockquotes(root: ParentNode | Element): HTMLElement[] {
   const blockquotes: HTMLElement[] = [];
-  if (root instanceof Element && isBlockquote(root)) {
-    blockquotes.push(root);
+  if (root instanceof Element && isBlockquote(root) && isPlainBlockquote(root)) {
+    let first = root;
+    let previous = plainBlockquoteSibling(first, "previousSibling");
+    while (previous) {
+      first = previous;
+      previous = plainBlockquoteSibling(first, "previousSibling");
+    }
+    blockquotes.push(first);
   }
 
   blockquotes.push(...Array.from(root.querySelectorAll<HTMLElement>("blockquote")));
@@ -71,7 +80,7 @@ export function mergeConsecutiveBlockquotes(root: ParentNode | Element = documen
       return;
     }
 
-    let next = nextPlainBlockquote(blockquote);
+    let next = plainBlockquoteSibling(blockquote, "nextSibling");
     if (!isBlockquote(next)) {
       return;
     }
@@ -87,7 +96,7 @@ export function mergeConsecutiveBlockquotes(root: ParentNode | Element = documen
       });
 
       const toRemove = next;
-      next = nextPlainBlockquote(next);
+      next = plainBlockquoteSibling(next, "nextSibling");
       toRemove.remove();
     }
 
@@ -104,7 +113,7 @@ function bindAfterSwapHandler(): void {
   afterSwapHandler = (event: Event) => {
     const detail = (event as CustomEvent<{ target?: Element }>).detail;
     const target = detail?.target;
-    if (target instanceof Element) {
+    if (target instanceof Element && target.isConnected) {
       mergeConsecutiveBlockquotes(target);
     }
   };

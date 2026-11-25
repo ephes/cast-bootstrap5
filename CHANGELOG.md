@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Merge a plain blockquote targeted by an HTMX swap with its contiguous plain
+  siblings on either side.
+
+- Skip blockquote enhancement for HTMX swap targets that have been detached.
+
 - Preserve translation publication errors and recovery paths when backup cleanup
   fails, and continue removing the other obsolete copies.
 

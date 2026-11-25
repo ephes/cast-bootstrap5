@@ -80,6 +80,58 @@ describe("post-content-enhancements", () => {
     document.body.dispatchEvent(new CustomEvent("htmx:afterSwap", { detail: { target } }));
     expect(target.querySelectorAll("blockquote")).toHaveLength(2);
   });
+
+  it("enhances only connected HTMX swap targets", () => {
+    vi.spyOn(document, "readyState", "get").mockReturnValue("complete");
+    document.body.innerHTML = "<div></div>";
+    initPostContentEnhancements();
+
+    const target = document.body.firstElementChild!;
+    target.remove();
+    const quotes = "<blockquote>A</blockquote><blockquote>B</blockquote>";
+    target.innerHTML = quotes;
+    document.body.dispatchEvent(new CustomEvent("htmx:afterSwap", { detail: { target } }));
+    expect(target.innerHTML).toBe(quotes);
+
+    document.body.append(target);
+    target.dispatchEvent(new CustomEvent("htmx:afterSwap", { detail: { target }, bubbles: true }));
+    expect(target.querySelectorAll("blockquote")).toHaveLength(1);
+    expect(Array.from(target.querySelectorAll(".cast-blockquote-line"), (line) => line.textContent))
+      .toEqual(["A", "B"]);
+
+    target.remove();
+    target.innerHTML = quotes;
+    mergeConsecutiveBlockquotes(target);
+    expect(target.querySelectorAll("blockquote")).toHaveLength(1);
+  });
+
+  it.each([
+    '<blockquote cite="/source">Attributed</blockquote>',
+    " intervening prose ",
+    "<!-- boundary -->",
+    "&nbsp;",
+  ])("joins both sides of a swapped quote without crossing %s", (boundary) => {
+    vi.spyOn(document, "readyState", "get").mockReturnValue("complete");
+    document.body.innerHTML = "<article></article>";
+    initPostContentEnhancements();
+
+    const article = document.body.firstElementChild!;
+    article.innerHTML = `<blockquote>Separate</blockquote>${boundary}<blockquote>A</blockquote>\n <blockquote>B</blockquote>\t<blockquote>Old</blockquote>\n <blockquote>D</blockquote>`;
+    const [first, , oldQuote] = Array.from(article.querySelectorAll("blockquote")).slice(-4);
+    const target = document.createElement("blockquote");
+    target.textContent = "C";
+    oldQuote.replaceWith(target);
+
+    const initial = article.cloneNode(true) as HTMLElement;
+    mergeConsecutiveBlockquotes(initial);
+    target.dispatchEvent(new CustomEvent("htmx:afterSwap", { detail: { target }, bubbles: true }));
+
+    expect(article.innerHTML).toBe(initial.innerHTML);
+    expect(Array.from(first.querySelectorAll(".cast-blockquote-line"), (line) => line.textContent))
+      .toEqual(["A", "B", "C", "D"]);
+    expect(article.firstElementChild?.outerHTML).toBe("<blockquote>Separate</blockquote>");
+  });
+
   it("merges editor bookkeeping quotes through all HTML whitespace", () => {
     document.body.innerHTML = '<blockquote data-block-key="a">A</blockquote>\t\n\f\r <blockquote data-block-key="b">B</blockquote>';
     mergeConsecutiveBlockquotes();
