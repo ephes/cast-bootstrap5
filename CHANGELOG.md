@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Submit template-theme choices only when the form has an enabled hidden
+  `template_base_dir` field. Preserve the default action for unwired choices.
+
 - Release the paging mask on abort, network error or timeout even if the HTMX
   request trigger has been detached.
 

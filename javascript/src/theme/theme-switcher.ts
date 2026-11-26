@@ -151,7 +151,7 @@ export function syncThemeSwitchers(root: ParentNode | Element = getDocument() as
   });
 }
 
-export function handleThemeSelection(target: Element): void {
+export function handleThemeSelection(target: Element, event?: Event): void {
   const value = target.getAttribute("data-cast-theme-value");
   if (!value) {
     return;
@@ -163,6 +163,7 @@ export function handleThemeSelection(target: Element): void {
       return;
     }
 
+    event?.preventDefault();
     setStoredTheme(mode);
     applyTheme(mode);
 
@@ -179,14 +180,16 @@ export function handleThemeSelection(target: Element): void {
 
   const selectedTheme = value.slice(6);
   const form = target.closest("form");
-  if (!(form instanceof HTMLFormElement)) {
+  if (!selectedTheme || !(form instanceof HTMLFormElement)) {
     return;
   }
 
-  const hidden = form.querySelector<HTMLInputElement>('input[name="template_base_dir"]');
-  if (hidden) {
-    hidden.value = selectedTheme;
+  const hidden = form.querySelector<HTMLInputElement>('input[type="hidden"][name="template_base_dir"]');
+  if (!hidden || hidden.form !== form || hidden.matches(":disabled")) {
+    return;
   }
+  event?.preventDefault();
+  hidden.value = selectedTheme;
   form.requestSubmit();
 }
 
@@ -218,8 +221,7 @@ function bindListeners(): void {
       return;
     }
 
-    event.preventDefault();
-    handleThemeSelection(selected);
+    handleThemeSelection(selected, event);
   };
 
   afterSwapHandler = (event: Event) => {
