@@ -728,9 +728,11 @@ falls back to the stored value, or Auto when none is readable. Other open tabs
 synchronize on localStorage changes (including clearing storage), updating the
 root and all switchers. A denied-write session choice remains authoritative.
 Delegated clicks and bubbling HTMX swap events use the document, so replacing
-the body keeps the new switchers synchronized and interactive. Destroying the
-switcher unregisters those handlers and storage synchronization. Reinitializing
-it on the same page restores the session choice until a preference write succeeds.
+the body keeps the new switchers synchronized and interactive. An `outerHTML`
+swap also updates the replacement switcher's label, icon and pressed state to
+match the current color mode. Destroying the switcher unregisters those handlers
+and storage synchronization. Reinitializing it on the same page restores the
+session choice until a preference write succeeds.
 
 Every element marked `data-cast-theme-switcher` (the navigation menu and the
 styleguide's floating toggle) is driven by `src/theme/theme-switcher.ts`, so all

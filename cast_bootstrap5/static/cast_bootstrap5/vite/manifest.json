@@ -3,6 +3,10 @@
     "file": "body-scroll-qimZiClQ.js",
     "name": "body-scroll"
   },
+  "_htmx-swap-root-DAwFTeXq.js": {
+    "file": "htmx-swap-root-DAwFTeXq.js",
+    "name": "htmx-swap-root"
+  },
   "_ordering-options-GpPxbNf_.js": {
     "file": "ordering-options-GpPxbNf_.js",
     "name": "ordering-options"
@@ -14,10 +18,13 @@
     "isEntry": true
   },
   "src/content/post-content-enhancements.ts": {
-    "file": "postContentEnhancements-BmRArgwR.js",
+    "file": "postContentEnhancements-Dma63T5w.js",
     "name": "postContentEnhancements",
     "src": "src/content/post-content-enhancements.ts",
-    "isEntry": true
+    "isEntry": true,
+    "imports": [
+      "_htmx-swap-root-DAwFTeXq.js"
+    ]
   },
   "src/filters/filter-enhancements-bootstrap.ts": {
     "file": "filterEnhancements-BBCs1alr.js",
@@ -66,9 +73,12 @@
     "isEntry": true
   },
   "src/theme/theme-switcher.ts": {
-    "file": "themeSwitcher-BSXztS20.js",
+    "file": "themeSwitcher-CN9NG_Dd.js",
     "name": "themeSwitcher",
     "src": "src/theme/theme-switcher.ts",
-    "isEntry": true
+    "isEntry": true,
+    "imports": [
+      "_htmx-swap-root-DAwFTeXq.js"
+    ]
   }
 }

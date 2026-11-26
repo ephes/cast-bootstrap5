@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Synchronize replacement theme switchers after HTMX `outerHTML` swaps.
+
 - Merge quote runs around content inserted by HTMX `outerHTML` swaps.
 
 - Restore the standalone ordering select's inline `display` value and
