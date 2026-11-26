@@ -1,14 +1,11 @@
 import { resolveAutoTheme, type ResolvedTheme } from "@/theme/theme-utils";
+import { getConnectedSwapRoot } from "@/utils/htmx-swap-root";
 
 export const THEME_STORAGE_KEY = "cast-theme";
 export const THEME_SWITCHER_SELECTOR = "[data-cast-theme-switcher]";
 const MEDIA_QUERY = "(prefers-color-scheme: dark)";
 
 type ThemeMode = "auto" | ResolvedTheme;
-
-type HtmxAfterSwapDetail = {
-  target?: Element;
-};
 
 // Set only while the last selection could not be persisted; it then overrides storage.
 let sessionMode: ThemeMode | null = null;
@@ -225,14 +222,13 @@ function bindListeners(): void {
   };
 
   afterSwapHandler = (event: Event) => {
-    const detail = (event as CustomEvent<HtmxAfterSwapDetail>).detail;
-    const target = detail?.target;
-    if (!(target instanceof Element)) {
+    const root = getConnectedSwapRoot(event);
+    if (!root) {
       return;
     }
 
-    if (target.matches(THEME_SWITCHER_SELECTOR) || target.querySelector(THEME_SWITCHER_SELECTOR)) {
-      syncThemeSwitchers(target);
+    if (root.matches(THEME_SWITCHER_SELECTOR) || root.querySelector(THEME_SWITCHER_SELECTOR)) {
+      syncThemeSwitchers(root);
     }
   };
 

@@ -105,6 +105,72 @@ describe("post-content-enhancements", () => {
     expect(target.querySelectorAll("blockquote")).toHaveLength(1);
   });
 
+  it("enhances the connected dispatch root when an outer swap retires its target", () => {
+    vi.spyOn(document, "readyState", "get").mockReturnValue("complete");
+    document.body.innerHTML = "<div id='old'><blockquote>Old</blockquote></div>";
+    initPostContentEnhancements();
+
+    const retired = document.querySelector("#old")!;
+    const replacement = document.createElement("div");
+    replacement.innerHTML = "<blockquote>A</blockquote><blockquote>B</blockquote>";
+    retired.replaceWith(replacement);
+    replacement.dispatchEvent(new CustomEvent("htmx:afterSwap", {
+      detail: { target: retired },
+      bubbles: true,
+    }));
+
+    expect(replacement.querySelectorAll("blockquote")).toHaveLength(1);
+    expect(Array.from(replacement.querySelectorAll(".cast-blockquote-line"), (line) => line.textContent))
+      .toEqual(["A", "B"]);
+    expect(retired.innerHTML).toBe("<blockquote>Old</blockquote>");
+  });
+
+  it("merges a direct quote replacement after HTMX removes its transient classes", () => {
+    vi.spyOn(document, "readyState", "get").mockReturnValue("complete");
+    document.body.innerHTML = '<blockquote>A</blockquote><span></span><blockquote>C</blockquote><blockquote class="attributed">Separate</blockquote>';
+    initPostContentEnhancements();
+
+    const retired = document.querySelector("span")!;
+    const quote = document.createElement("blockquote");
+    quote.className = "htmx-added htmx-settling";
+    quote.textContent = "B";
+    retired.replaceWith(quote);
+    const detail = { target: retired };
+    quote.dispatchEvent(new CustomEvent("htmx:afterSwap", { detail, bubbles: true }));
+    expect(quote.isConnected).toBe(true);
+
+    quote.classList.remove("htmx-added", "htmx-settling");
+    quote.dispatchEvent(new CustomEvent("htmx:afterSettle", { detail, bubbles: true }));
+    expect(Array.from(document.querySelectorAll(".cast-blockquote-line"), (line) => line.textContent))
+      .toEqual(["A", "B", "C"]);
+    expect(document.querySelector("blockquote.attributed")?.textContent).toBe("Separate");
+  });
+
+  it("merges top-level quotes inserted into a connected target after HTMX settles", () => {
+    vi.spyOn(document, "readyState", "get").mockReturnValue("complete");
+    document.body.innerHTML = '<article id="target"><blockquote class="">Authored</blockquote></article>';
+    initPostContentEnhancements();
+
+    const target = document.querySelector("#target")!;
+    target.insertAdjacentHTML("beforeend", [
+      '<blockquote class="htmx-added">B</blockquote>',
+      '<blockquote class="htmx-added">C</blockquote>',
+      '<blockquote class="attributed htmx-added">Separate</blockquote>',
+    ].join(""));
+    target.classList.add("htmx-settling");
+    const detail = { target };
+    target.dispatchEvent(new CustomEvent("htmx:afterSwap", { detail, bubbles: true }));
+    expect(target.querySelectorAll("blockquote")).toHaveLength(4);
+
+    target.classList.remove("htmx-settling");
+    target.querySelectorAll("blockquote").forEach((quote) => quote.classList.remove("htmx-added"));
+    target.dispatchEvent(new CustomEvent("htmx:afterSettle", { detail, bubbles: true }));
+    expect(Array.from(target.querySelectorAll("blockquote"), (quote) => quote.textContent))
+      .toEqual(["Authored", "BC", "Separate"]);
+    expect(Array.from(target.querySelectorAll(".cast-blockquote-line"), (line) => line.textContent))
+      .toEqual(["B", "C"]);
+  });
+
   it.each([
     '<blockquote cite="/source">Attributed</blockquote>',
     " intervening prose ",

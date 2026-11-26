@@ -337,6 +337,29 @@ describe("theme-switcher", () => {
     expect(document.getElementById("b")?.querySelector("[data-cast-theme-label]")?.textContent).toBe("Dark");
   });
 
+  it("syncs the connected switcher when an outer swap retires its target", async () => {
+    storageMock.setItem("cast-theme", "dark");
+    document.body.innerHTML = createSwitcherMarkup("original");
+    await loadModule();
+
+    const original = document.getElementById("original")!;
+    original.outerHTML = createSwitcherMarkup("replacement");
+    const retiredLabel = original.querySelector("[data-cast-theme-label]")!;
+    retiredLabel.textContent = "Retired";
+    const replacement = document.getElementById("replacement")!;
+    replacement.dispatchEvent(new CustomEvent("htmx:afterSwap", {
+      detail: { target: original },
+      bubbles: true,
+    }));
+
+    expect(replacement.querySelector("[data-cast-theme-label]")?.textContent).toBe("Dark");
+    expect(replacement.querySelector('[data-cast-theme-mode="dark"]')?.getAttribute("aria-pressed"))
+      .toBe("true");
+    expect(replacement.querySelector<HTMLElement>('[data-cast-theme-icon="dark"]')?.style.display)
+      .toBe("inline-flex");
+    expect(retiredLabel.textContent).toBe("Retired");
+  });
+
   it("handles a replacement body once and retires click and swap handling on destroy", async () => {
     storageMock.setItem("cast-theme", "dark");
     document.body.innerHTML = createSwitcherMarkup("original");

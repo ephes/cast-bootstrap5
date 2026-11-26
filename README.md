@@ -702,11 +702,18 @@ comments, before merging; repeated enhancement preserves those nodes. The editor
 id, class, and language) keep quotes separate and preserve attribution and anchors.
 
 `initPostContentEnhancements()` initializes once, waiting for DOMContentLoaded
-when necessary, and enhances connected HTMX swap targets. Late events for
-detached targets leave those fragments untouched. When a plain blockquote is the
-swap target, enhancement starts at the first quote in its contiguous sibling
-run and keeps the surrounding semantic and text boundaries. Repeated calls are
-idempotent.
+when necessary, and enhances connected HTMX swap roots. For `outerHTML` swaps,
+the inserted element is enhanced when the original target has been detached.
+Quotes that HTMX inserts at the top level of the swap (a direct `outerHTML`
+replacement or the children added by `innerHTML`, `afterbegin` and `beforeend`
+swaps) are checked again once HTMX removes its transient `htmx-added` and
+`htmx-settling` classes. The empty class attribute that cleanup leaves on a
+swap root does not split the run. Quotes that `beforebegin` and `afterend`
+swaps insert next to the target join a run only when the target is itself a
+plain blockquote.
+When the swap root is a plain blockquote, enhancement starts at the first quote
+in its contiguous sibling run and keeps the surrounding semantic and text
+boundaries. Repeated calls are idempotent.
 `destroyPostContentEnhancements()` cancels pending initialization and removes the
 swap listener; it leaves already rendered content in place. Initialization can
 be called again after teardown.
@@ -728,9 +735,11 @@ falls back to the stored value, or Auto when none is readable. Other open tabs
 synchronize on localStorage changes (including clearing storage), updating the
 root and all switchers. A denied-write session choice remains authoritative.
 Delegated clicks and bubbling HTMX swap events use the document, so replacing
-the body keeps the new switchers synchronized and interactive. Destroying the
-switcher unregisters those handlers and storage synchronization. Reinitializing
-it on the same page restores the session choice until a preference write succeeds.
+the body keeps the new switchers synchronized and interactive. An `outerHTML`
+swap also updates the replacement switcher's label, icon and pressed state to
+match the current color mode. Destroying the switcher unregisters those handlers
+and storage synchronization. Reinitializing it on the same page restores the
+session choice until a preference write succeeds.
 
 Every element marked `data-cast-theme-switcher` (the navigation menu and the
 styleguide's floating toggle) is driven by `src/theme/theme-switcher.ts`, so all

@@ -117,6 +117,93 @@ test('a later document listener can cancel HTMX pagination without masking the l
   await expect(page.locator('#paging-area')).not.toHaveAttribute('data-cast-paging-mask-active');
 });
 
+test('HTMX outerHTML swaps merge inserted quotes like an initial render', async ({ page }) => {
+  await page.route('**/quote', route => route.fulfill({ body: '<blockquote>B</blockquote>' }));
+  await page.evaluate(() => {
+    document.body.insertAdjacentHTML('beforeend', `
+      <button id="replace-quote" hx-get="/quote" hx-target="#quote-slot" hx-swap="outerHTML">Replace quote</button>
+      <article id="swapped-quotes">
+        <blockquote>A</blockquote>
+        <span id="quote-slot">Loading</span>
+        <blockquote>C</blockquote>
+        <blockquote cite="/source">Attributed</blockquote>
+      </article>
+      <article id="initial-quotes">
+        <blockquote>A</blockquote>
+        <blockquote>B</blockquote>
+        <blockquote>C</blockquote>
+        <blockquote cite="/source">Attributed</blockquote>
+      </article>`);
+  });
+  await page.addScriptTag({ type: 'module', url: '/src/content/post-content-enhancements.ts' });
+  await page.addScriptTag({ path: resolve('../cast_bootstrap5/static/cast_bootstrap5/js/htmx.min.js') });
+  await page.evaluate(() => (window as any).htmx.process(document.body));
+
+  const initial = page.locator('#initial-quotes blockquote');
+  await expect(initial.first().locator('.cast-blockquote-line')).toHaveText(['A', 'B', 'C']);
+  const initialMarkup = await initial.evaluateAll(quotes => quotes.map(quote => quote.outerHTML));
+
+  await page.locator('#replace-quote').click();
+  const swapped = page.locator('#swapped-quotes blockquote');
+  await expect(page.locator('#quote-slot')).toHaveCount(0);
+  await expect(swapped).toHaveCount(2);
+  expect(await swapped.evaluateAll(quotes => quotes.map(quote => quote.outerHTML))).toEqual(initialMarkup);
+});
+
+test('HTMX innerHTML swaps merge top-level inserted quotes like an initial render', async ({ page }) => {
+  await page.route('**/quotes', route => route.fulfill({
+    body: '<blockquote>A</blockquote><blockquote>B</blockquote><blockquote cite="/source">Attributed</blockquote>',
+  }));
+  await page.evaluate(() => {
+    document.body.insertAdjacentHTML('beforeend', `
+      <button id="load-quotes" hx-get="/quotes" hx-target="#quote-list" hx-swap="innerHTML">Load quotes</button>
+      <article id="quote-list">Loading</article>
+      <article id="initial-list"><blockquote>A</blockquote><blockquote>B</blockquote><blockquote cite="/source">Attributed</blockquote></article>`);
+  });
+  await page.addScriptTag({ type: 'module', url: '/src/content/post-content-enhancements.ts' });
+  await page.addScriptTag({ path: resolve('../cast_bootstrap5/static/cast_bootstrap5/js/htmx.min.js') });
+  await page.evaluate(() => (window as any).htmx.process(document.body));
+
+  const initial = page.locator('#initial-list blockquote');
+  await expect(initial.first().locator('.cast-blockquote-line')).toHaveText(['A', 'B']);
+
+  await page.locator('#load-quotes').click();
+  const swapped = page.locator('#quote-list blockquote');
+  await expect(swapped.first().locator('.cast-blockquote-line')).toHaveText(['A', 'B']);
+  await expect(swapped).toHaveCount(2);
+  await expect(swapped.last()).toHaveAttribute('cite', '/source');
+});
+
+test('HTMX outerHTML swaps sync the new switcher to the selected color mode', async ({ page }) => {
+  const switcher = (id: string) => `
+    <div id="${id}" data-cast-theme-switcher>
+      <span data-cast-theme-label>System</span>
+      <span data-cast-theme-icon="auto" style="display: inline-flex">☀</span>
+      <span data-cast-theme-icon="dark" style="display: none">☾</span>
+      <button type="button" data-cast-theme-value="mode:auto" data-cast-theme-mode="auto" aria-pressed="true"><span>System</span></button>
+      <button type="button" data-cast-theme-value="mode:dark" data-cast-theme-mode="dark" aria-pressed="false"><span>Dark</span></button>
+    </div>`;
+  await page.route('**/switcher', route => route.fulfill({ body: switcher('new-switcher') }));
+  await page.evaluate(markup => document.body.insertAdjacentHTML('beforeend', markup), `
+    <button id="replace-switcher" hx-get="/switcher" hx-target="#old-switcher" hx-swap="outerHTML">Replace switcher</button>
+    ${switcher('old-switcher')}`);
+  await page.addScriptTag({ type: 'module', url: '/src/theme/theme-switcher.ts' });
+  await page.addScriptTag({ path: resolve('../cast_bootstrap5/static/cast_bootstrap5/js/htmx.min.js') });
+  await page.evaluate(() => (window as any).htmx.process(document.body));
+
+  await page.locator('#old-switcher').getByRole('button', { name: 'Dark' }).click();
+  await expect(page.locator('html')).toHaveAttribute('data-bs-theme', 'dark');
+  await page.locator('#replace-switcher').click();
+
+  const replacement = page.locator('#new-switcher');
+  await expect(page.locator('#old-switcher')).toHaveCount(0);
+  await expect(replacement.getByRole('button', { name: 'Dark' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(replacement.getByRole('button', { name: 'System' })).toHaveAttribute('aria-pressed', 'false');
+  await expect(replacement.locator('[data-cast-theme-icon="dark"]')).toBeVisible();
+  await expect(replacement.locator('[data-cast-theme-icon="auto"]')).toBeHidden();
+  await expect(replacement.locator('[data-cast-theme-label]')).toHaveText('Dark');
+});
+
 test('real HTMX cleanup retires ordering controls inside a surviving form', async ({ page }) => {
   await page.route('**/ordering', route => route.fulfill({ body: '<div id="div_id_o"><select name="o"><option value="a">A</option><option value="b" selected>B</option></select></div>' }));
   await page.evaluate(() => {
