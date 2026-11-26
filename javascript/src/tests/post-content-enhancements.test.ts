@@ -125,6 +125,27 @@ describe("post-content-enhancements", () => {
     expect(retired.innerHTML).toBe("<blockquote>Old</blockquote>");
   });
 
+  it("merges a direct quote replacement after HTMX removes its transient classes", () => {
+    vi.spyOn(document, "readyState", "get").mockReturnValue("complete");
+    document.body.innerHTML = '<blockquote>A</blockquote><span></span><blockquote>C</blockquote><blockquote class="attributed">Separate</blockquote>';
+    initPostContentEnhancements();
+
+    const retired = document.querySelector("span")!;
+    const quote = document.createElement("blockquote");
+    quote.className = "htmx-added htmx-settling";
+    quote.textContent = "B";
+    retired.replaceWith(quote);
+    const detail = { target: retired };
+    quote.dispatchEvent(new CustomEvent("htmx:afterSwap", { detail, bubbles: true }));
+    expect(quote.isConnected).toBe(true);
+
+    quote.classList.remove("htmx-added", "htmx-settling");
+    quote.dispatchEvent(new CustomEvent("htmx:afterSettle", { detail, bubbles: true }));
+    expect(Array.from(document.querySelectorAll(".cast-blockquote-line"), (line) => line.textContent))
+      .toEqual(["A", "B", "C"]);
+    expect(document.querySelector("blockquote.attributed")?.textContent).toBe("Separate");
+  });
+
   it.each([
     '<blockquote cite="/source">Attributed</blockquote>',
     " intervening prose ",

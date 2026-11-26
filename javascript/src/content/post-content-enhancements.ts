@@ -1,9 +1,10 @@
 import { getConnectedSwapRoot } from "@/utils/htmx-swap-root";
 
 const LINE_CLASS = "cast-blockquote-line";
+const settledSwapQuotes = new WeakSet<Element>();
 let afterSwapBound = false;
 let pendingInitialize: (() => void) | null = null;
-let afterSwapHandler: ((event: Event) => void) | null = null;
+let swapHandler: ((event: Event) => void) | null = null;
 
 function ensureLineWrapper(blockquote: HTMLElement): void {
   let line: HTMLDivElement | null = null;
@@ -42,7 +43,8 @@ function isBlockquote(element: Element | null): element is HTMLElement {
 // Editor bookkeeping and our own marker do not carry quote semantics.
 function isPlainBlockquote(blockquote: HTMLElement): boolean {
   return Array.from(blockquote.attributes).every((attribute) =>
-    attribute.name === "data-block-key" || attribute.name === "data-cast-blockquote-merged"
+    attribute.name === "data-block-key" || attribute.name === "data-cast-blockquote-merged" ||
+    (attribute.name === "class" && attribute.value === "" && settledSwapQuotes.has(blockquote))
   );
 }
 
@@ -112,13 +114,25 @@ function bindAfterSwapHandler(): void {
     return;
   }
 
-  afterSwapHandler = (event: Event) => {
+  swapHandler = (event: Event) => {
     const root = getConnectedSwapRoot(event);
-    if (root) {
-      mergeConsecutiveBlockquotes(root);
+    if (!root) {
+      return;
     }
+    if (event.type === "htmx:afterSettle") {
+      const target = (event as CustomEvent<{ target?: Element }>).detail?.target;
+      if (!isBlockquote(root) || !(target instanceof Element) || target.isConnected) {
+        return;
+      }
+      // HTMX can leave class="" on an inserted quote after dropping its settling class.
+      if (root.getAttribute("class") === "") {
+        settledSwapQuotes.add(root);
+      }
+    }
+    mergeConsecutiveBlockquotes(root);
   };
-  document.body.addEventListener("htmx:afterSwap", afterSwapHandler);
+  document.body.addEventListener("htmx:afterSwap", swapHandler);
+  document.body.addEventListener("htmx:afterSettle", swapHandler);
   afterSwapBound = true;
 }
 
@@ -149,15 +163,16 @@ export function destroyPostContentEnhancements(): void {
   pendingInitialize = null;
   if (!afterSwapBound || typeof document === "undefined") {
     afterSwapBound = false;
-    afterSwapHandler = null;
+    swapHandler = null;
     return;
   }
 
-  if (afterSwapHandler) {
-    document.body.removeEventListener("htmx:afterSwap", afterSwapHandler);
+  if (swapHandler) {
+    document.body.removeEventListener("htmx:afterSwap", swapHandler);
+    document.body.removeEventListener("htmx:afterSettle", swapHandler);
   }
   afterSwapBound = false;
-  afterSwapHandler = null;
+  swapHandler = null;
 }
 
 if (typeof document !== "undefined") {
