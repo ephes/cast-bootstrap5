@@ -117,6 +117,39 @@ test('a later document listener can cancel HTMX pagination without masking the l
   await expect(page.locator('#paging-area')).not.toHaveAttribute('data-cast-paging-mask-active');
 });
 
+test('HTMX outerHTML swaps merge inserted quotes like an initial render', async ({ page }) => {
+  await page.route('**/quote', route => route.fulfill({ body: '<blockquote>B</blockquote>' }));
+  await page.evaluate(() => {
+    document.body.insertAdjacentHTML('beforeend', `
+      <button id="replace-quote" hx-get="/quote" hx-target="#quote-slot" hx-swap="outerHTML">Replace quote</button>
+      <article id="swapped-quotes">
+        <blockquote>A</blockquote>
+        <span id="quote-slot">Loading</span>
+        <blockquote>C</blockquote>
+        <blockquote cite="/source">Attributed</blockquote>
+      </article>
+      <article id="initial-quotes">
+        <blockquote>A</blockquote>
+        <blockquote>B</blockquote>
+        <blockquote>C</blockquote>
+        <blockquote cite="/source">Attributed</blockquote>
+      </article>`);
+  });
+  await page.addScriptTag({ type: 'module', url: '/src/content/post-content-enhancements.ts' });
+  await page.addScriptTag({ path: resolve('../cast_bootstrap5/static/cast_bootstrap5/js/htmx.min.js') });
+  await page.evaluate(() => (window as any).htmx.process(document.body));
+
+  const initial = page.locator('#initial-quotes blockquote');
+  await expect(initial.first().locator('.cast-blockquote-line')).toHaveText(['A', 'B', 'C']);
+  const initialMarkup = await initial.evaluateAll(quotes => quotes.map(quote => quote.outerHTML));
+
+  await page.locator('#replace-quote').click();
+  const swapped = page.locator('#swapped-quotes blockquote');
+  await expect(page.locator('#quote-slot')).toHaveCount(0);
+  await expect(swapped).toHaveCount(2);
+  expect(await swapped.evaluateAll(quotes => quotes.map(quote => quote.outerHTML))).toEqual(initialMarkup);
+});
+
 test('real HTMX cleanup retires ordering controls inside a surviving form', async ({ page }) => {
   await page.route('**/ordering', route => route.fulfill({ body: '<div id="div_id_o"><select name="o"><option value="a">A</option><option value="b" selected>B</option></select></div>' }));
   await page.evaluate(() => {

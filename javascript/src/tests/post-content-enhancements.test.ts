@@ -105,6 +105,26 @@ describe("post-content-enhancements", () => {
     expect(target.querySelectorAll("blockquote")).toHaveLength(1);
   });
 
+  it("enhances the connected dispatch root when an outer swap retires its target", () => {
+    vi.spyOn(document, "readyState", "get").mockReturnValue("complete");
+    document.body.innerHTML = "<div id='old'><blockquote>Old</blockquote></div>";
+    initPostContentEnhancements();
+
+    const retired = document.querySelector("#old")!;
+    const replacement = document.createElement("div");
+    replacement.innerHTML = "<blockquote>A</blockquote><blockquote>B</blockquote>";
+    retired.replaceWith(replacement);
+    replacement.dispatchEvent(new CustomEvent("htmx:afterSwap", {
+      detail: { target: retired },
+      bubbles: true,
+    }));
+
+    expect(replacement.querySelectorAll("blockquote")).toHaveLength(1);
+    expect(Array.from(replacement.querySelectorAll(".cast-blockquote-line"), (line) => line.textContent))
+      .toEqual(["A", "B"]);
+    expect(retired.innerHTML).toBe("<blockquote>Old</blockquote>");
+  });
+
   it.each([
     '<blockquote cite="/source">Attributed</blockquote>',
     " intervening prose ",

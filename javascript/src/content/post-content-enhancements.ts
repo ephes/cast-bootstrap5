@@ -1,3 +1,5 @@
+import { getConnectedSwapRoot } from "@/utils/htmx-swap-root";
+
 const LINE_CLASS = "cast-blockquote-line";
 let afterSwapBound = false;
 let pendingInitialize: (() => void) | null = null;
@@ -111,10 +113,9 @@ function bindAfterSwapHandler(): void {
   }
 
   afterSwapHandler = (event: Event) => {
-    const detail = (event as CustomEvent<{ target?: Element }>).detail;
-    const target = detail?.target;
-    if (target instanceof Element && target.isConnected) {
-      mergeConsecutiveBlockquotes(target);
+    const root = getConnectedSwapRoot(event);
+    if (root) {
+      mergeConsecutiveBlockquotes(root);
     }
   };
   document.body.addEventListener("htmx:afterSwap", afterSwapHandler);
