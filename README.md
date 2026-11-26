@@ -737,7 +737,9 @@ root and all switchers. A denied-write session choice remains authoritative.
 Delegated clicks and bubbling HTMX swap events use the document, so replacing
 the body keeps the new switchers synchronized and interactive. An `outerHTML`
 swap also updates the replacement switcher's label, icon and pressed state to
-match the current color mode. Destroying the switcher unregisters those handlers
+match the current color mode. Swapping only the menu or a single option inside
+a switcher that stays on the page synchronizes that enclosing switcher too, so
+new controls show the current mode. Destroying the switcher unregisters those handlers
 and storage synchronization. Reinitializing it on the same page restores the
 session choice until a preference write succeeds.
 

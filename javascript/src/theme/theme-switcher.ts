@@ -227,9 +227,21 @@ function bindListeners(): void {
       return;
     }
 
-    if (root.matches(THEME_SWITCHER_SELECTOR) || root.querySelector(THEME_SWITCHER_SELECTOR)) {
-      syncThemeSwitchers(root);
+    // A swap inside a surviving switcher (its menu or one option) replaces controls that
+    // still need the current state, so sync the enclosing switcher as well.
+    const switchers = new Set(findSwitchers(root));
+    const enclosing = root.parentElement?.closest<HTMLElement>(THEME_SWITCHER_SELECTOR);
+    if (enclosing) {
+      switchers.add(enclosing);
     }
+    if (switchers.size === 0) {
+      return;
+    }
+
+    const mode = getCurrentMode();
+    switchers.forEach((switcher) => {
+      syncThemeSwitcher(switcher, mode);
+    });
   };
 
   if (typeof win.matchMedia === "function") {

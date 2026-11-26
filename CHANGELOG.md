@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Synchronize theme controls when HTMX replaces only the menu or an option
+  inside a surviving theme switcher.
+
 - Synchronize replacement theme switchers after HTMX `outerHTML` swaps.
 
 - Merge quote runs around content inserted by HTMX `outerHTML` swaps, and

@@ -360,6 +360,45 @@ describe("theme-switcher", () => {
     expect(retiredLabel.textContent).toBe("Retired");
   });
 
+  it.each(["outerHTML", "innerHTML"])("syncs the enclosing switcher after an %s swap of its menu", async (style) => {
+    storageMock.setItem("cast-theme", "dark");
+    document.body.innerHTML = createSwitcherMarkup("switcher") + "<div id=\"unrelated\"><span>x</span></div>";
+    await loadModule();
+    const switcher = document.getElementById("switcher")!;
+    const sync = vi.spyOn(switcher, "querySelectorAll");
+    const unrelated = document.getElementById("unrelated")!;
+    unrelated.dispatchEvent(new CustomEvent("htmx:afterSwap", { detail: { target: unrelated }, bubbles: true }));
+    expect(sync).not.toHaveBeenCalled();
+
+    const form = switcher.querySelector("form")!;
+    const fresh = createSwitcherMarkup("fresh");
+    const menuHtml = fresh.slice(fresh.indexOf("<form"), fresh.indexOf("</form>") + "</form>".length);
+    let inserted: Element;
+    if (style === "outerHTML") {
+      form.outerHTML = menuHtml;
+      inserted = switcher.querySelector("form")!;
+      inserted.dispatchEvent(new CustomEvent("htmx:afterSwap", { detail: { target: form }, bubbles: true }));
+    } else {
+      form.innerHTML = new DOMParser().parseFromString(menuHtml, "text/html").querySelector("form")!.innerHTML;
+      inserted = form;
+      form.dispatchEvent(new CustomEvent("htmx:afterSwap", { detail: { target: form }, bubbles: true }));
+    }
+
+    const pressed = (mode: string) =>
+      inserted.querySelector(`[data-cast-theme-mode="${mode}"]`)?.getAttribute("aria-pressed");
+    expect(pressed("dark")).toBe("true");
+    expect(pressed("auto")).toBe("false");
+    expect(inserted.querySelector<HTMLElement>('[data-cast-theme-mode="dark"] .cast-theme-check')?.style.opacity)
+      .toBe("1");
+    expect(sync).toHaveBeenCalledWith("[data-cast-theme-mode]");
+    expect(sync.mock.calls.filter(([selector]) => selector === "[data-cast-theme-mode]")).toHaveLength(1);
+
+    (inserted.querySelector('[data-cast-theme-value="mode:light"]') as HTMLButtonElement).click();
+    expect(pressed("light")).toBe("true");
+    expect(pressed("dark")).toBe("false");
+    expect(switcher.querySelector("[data-cast-theme-label]")?.textContent).toBe("Light");
+  });
+
   it("handles a replacement body once and retires click and swap handling on destroy", async () => {
     storageMock.setItem("cast-theme", "dark");
     document.body.innerHTML = createSwitcherMarkup("original");
