@@ -15,6 +15,9 @@ class ControlledXHR extends EventTarget {
   responseURL = window.location.href;
   responseHeaders: Record<string, string> = { 'content-type': 'text/html' };
   onload: (() => void) | null = null;
+  onabort: (() => void) | null = null;
+  onerror: (() => void) | null = null;
+  ontimeout: (() => void) | null = null;
   open() { /* transport is completed explicitly below */ }
   setRequestHeader() {}
   overrideMimeType() {}
@@ -24,6 +27,10 @@ class ControlledXHR extends EventTarget {
   getResponseHeader(name: string) { return this.responseHeaders[name.toLowerCase()] ?? null; }
   send() { ControlledXHR.requests.push(this); }
   finish(html: string) { this.response = this.responseText = html; this.onload?.(); }
+  fail(type: 'abort' | 'error' | 'timeout') {
+    this[`on${type}`]?.();
+    this.dispatchEvent(new Event(type));
+  }
 }
 
 afterEach(() => {
@@ -267,6 +274,47 @@ test('a superseded HTMX response retargeted into paging cannot reclaim ownership
   ControlledXHR.requests[0].responseHeaders['hx-retarget'] = '#paging-area';
   ControlledXHR.requests[0].finish('<p>Late response</p>');
   await older;
+  expect(area.hasAttribute(mask)).toBe(false);
+});
+
+test.each(['abort', 'error', 'timeout'] as const)('a detached source releases only its own paging mask on XHR %s', async type => {
+  document.body.innerHTML = `
+    <div id="source-slot"><button id="detached"></button></div>
+    <button id="older"></button><button id="newer"></button>
+    <div id="paging-area"><podlove-player></podlove-player></div>`;
+  const api = htmx();
+  initPagingContentVisibility();
+  const area = document.getElementById('paging-area')!;
+  const mask = 'data-cast-paging-mask-active';
+  const request = (source: string) => api.ajax('GET', `/${source}`, {
+    source: `#${source}`, target: area,
+  }).catch(() => {});
+  const detached = request('detached');
+  expect(area.getAttribute(mask)).toBe('true');
+
+  const unrelated = api.ajax('GET', '/remove-trigger', {
+    target: '#source-slot', swap: 'innerHTML settle:0ms',
+  });
+  ControlledXHR.requests[1].finish('');
+  await unrelated;
+  expect(document.getElementById('detached')).toBeNull();
+  expect(area.getAttribute(mask)).toBe('true');
+  ControlledXHR.requests[0].fail(type);
+  await detached;
+  expect(area.hasAttribute(mask)).toBe(false);
+
+  const older = request('older');
+  const removed = vi.spyOn(ControlledXHR.requests[2], 'removeEventListener');
+  const newer = request('newer');
+  expect(removed.mock.calls.map(([event]) => event)).toEqual(['abort', 'error', 'timeout']);
+  document.getElementById('older')!.remove();
+  ControlledXHR.requests[2].fail(type);
+  await older;
+  expect(area.getAttribute(mask)).toBe('true');
+
+  // A connected source also delivers the HTMX failure for the same raw event.
+  ControlledXHR.requests[3].fail(type);
+  await newer;
   expect(area.hasAttribute(mask)).toBe(false);
 });
 

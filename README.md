@@ -251,8 +251,9 @@ If the request does not complete, the current content is restored at once: the
 mask, the fade state and the pending unmask timer are cleared for an HTTP error
 response, a network failure (`htmx:sendError`), a timeout (`htmx:timeout`), an
 aborted request and a failed swap. The reader keeps the page they were on and
-can try again. Failures of HTMX requests that target other elements leave the
-paging state alone.
+can try again. Aborts, network errors and timeouts also release the mask if
+the request trigger was removed while the request was pending. Transport
+failures release only their own paging state.
 
 ## Post link prefetching
 

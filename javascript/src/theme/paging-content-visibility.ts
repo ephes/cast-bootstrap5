@@ -3,6 +3,7 @@ const VT_ACTIVE_CLASS = "vt-active";
 const PAGING_MASK_ACTIVE_ATTR = "data-cast-paging-mask-active";
 const PAGING_HAS_PODLOVE_ATTR = "data-cast-podlove-present";
 const PAGING_MASK_SETTLE_DELAY_MS = 300;
+const XHR_FAILURE_EVENTS = ["abort", "error", "timeout"] as const;
 
 let beforeSendHandler: ((event: Event) => void) | null = null;
 let beforeOnLoadHandler: ((event: Event) => void) | null = null;
@@ -141,6 +142,20 @@ function deactivatePagingMask(): void {
   pagingArea.removeAttribute(PAGING_MASK_ACTIVE_ATTR);
 }
 
+function onTransportFailure(event: Event): void {
+  if (event.currentTarget === activeRequest) {
+    retireRequest();
+  }
+}
+
+function releaseActiveRequest(): void {
+  if (!activeRequest) return;
+  for (const eventName of XHR_FAILURE_EVENTS) {
+    activeRequest.removeEventListener(eventName, onTransportFailure);
+  }
+  activeRequest = undefined;
+}
+
 function schedulePagingMaskDeactivation(delayMs: number): void {
   clearPagingMaskTimeout();
   const generation = requestGeneration;
@@ -148,7 +163,7 @@ function schedulePagingMaskDeactivation(delayMs: number): void {
     if (generation !== requestGeneration) return;
     retireAreas();
     deactivatePagingMask();
-    activeRequest = undefined;
+    releaseActiveRequest();
     pagingMaskTimeoutId = null;
   }, delayMs);
 }
@@ -156,7 +171,12 @@ function schedulePagingMaskDeactivation(delayMs: number): void {
 function admitPagingRequest(xhr: XMLHttpRequest, order: number): void {
   clearPagingMaskTimeout();
   retireAreas();
+  releaseActiveRequest();
   activeRequest = xhr;
+  // A detached HTMX trigger cannot bubble transport failures to the document.
+  for (const eventName of XHR_FAILURE_EVENTS) {
+    xhr.addEventListener(eventName, onTransportFailure);
+  }
   latestPagingRequest = order;
   requestGeneration++;
   syncPagingAreaPodlovePresence();
@@ -180,7 +200,7 @@ function retireRequest(): void {
   clearPagingMaskTimeout();
   retireAreas();
   deactivatePagingMask();
-  activeRequest = undefined;
+  releaseActiveRequest();
   requestGeneration++;
   syncPagingAreaPodlovePresence();
 }
@@ -366,7 +386,7 @@ export function destroyPagingContentVisibility(): void {
   clearPagingMaskTimeout();
   clearHistoryScrollTimeout();
   retireAreas();
-  activeRequest = undefined;
+  releaseActiveRequest();
   requestGeneration++;
   requestOrder = new WeakMap();
   beforeSendHandler = null;

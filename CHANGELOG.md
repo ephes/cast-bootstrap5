@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Release the paging mask on abort, network error or timeout even if the HTMX
+  request trigger has been detached.
+
 - Mask mounted players and bypass the view transition for current HTMX responses
   retargeted into the paging area.
 
