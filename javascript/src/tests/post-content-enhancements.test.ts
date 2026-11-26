@@ -146,6 +146,31 @@ describe("post-content-enhancements", () => {
     expect(document.querySelector("blockquote.attributed")?.textContent).toBe("Separate");
   });
 
+  it("merges top-level quotes inserted into a connected target after HTMX settles", () => {
+    vi.spyOn(document, "readyState", "get").mockReturnValue("complete");
+    document.body.innerHTML = '<article id="target"><blockquote class="">Authored</blockquote></article>';
+    initPostContentEnhancements();
+
+    const target = document.querySelector("#target")!;
+    target.insertAdjacentHTML("beforeend", [
+      '<blockquote class="htmx-added">B</blockquote>',
+      '<blockquote class="htmx-added">C</blockquote>',
+      '<blockquote class="attributed htmx-added">Separate</blockquote>',
+    ].join(""));
+    target.classList.add("htmx-settling");
+    const detail = { target };
+    target.dispatchEvent(new CustomEvent("htmx:afterSwap", { detail, bubbles: true }));
+    expect(target.querySelectorAll("blockquote")).toHaveLength(4);
+
+    target.classList.remove("htmx-settling");
+    target.querySelectorAll("blockquote").forEach((quote) => quote.classList.remove("htmx-added"));
+    target.dispatchEvent(new CustomEvent("htmx:afterSettle", { detail, bubbles: true }));
+    expect(Array.from(target.querySelectorAll("blockquote"), (quote) => quote.textContent))
+      .toEqual(["Authored", "BC", "Separate"]);
+    expect(Array.from(target.querySelectorAll(".cast-blockquote-line"), (line) => line.textContent))
+      .toEqual(["B", "C"]);
+  });
+
   it.each([
     '<blockquote cite="/source">Attributed</blockquote>',
     " intervening prose ",

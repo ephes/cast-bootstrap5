@@ -150,6 +150,30 @@ test('HTMX outerHTML swaps merge inserted quotes like an initial render', async 
   expect(await swapped.evaluateAll(quotes => quotes.map(quote => quote.outerHTML))).toEqual(initialMarkup);
 });
 
+test('HTMX innerHTML swaps merge top-level inserted quotes like an initial render', async ({ page }) => {
+  await page.route('**/quotes', route => route.fulfill({
+    body: '<blockquote>A</blockquote><blockquote>B</blockquote><blockquote cite="/source">Attributed</blockquote>',
+  }));
+  await page.evaluate(() => {
+    document.body.insertAdjacentHTML('beforeend', `
+      <button id="load-quotes" hx-get="/quotes" hx-target="#quote-list" hx-swap="innerHTML">Load quotes</button>
+      <article id="quote-list">Loading</article>
+      <article id="initial-list"><blockquote>A</blockquote><blockquote>B</blockquote><blockquote cite="/source">Attributed</blockquote></article>`);
+  });
+  await page.addScriptTag({ type: 'module', url: '/src/content/post-content-enhancements.ts' });
+  await page.addScriptTag({ path: resolve('../cast_bootstrap5/static/cast_bootstrap5/js/htmx.min.js') });
+  await page.evaluate(() => (window as any).htmx.process(document.body));
+
+  const initial = page.locator('#initial-list blockquote');
+  await expect(initial.first().locator('.cast-blockquote-line')).toHaveText(['A', 'B']);
+
+  await page.locator('#load-quotes').click();
+  const swapped = page.locator('#quote-list blockquote');
+  await expect(swapped.first().locator('.cast-blockquote-line')).toHaveText(['A', 'B']);
+  await expect(swapped).toHaveCount(2);
+  await expect(swapped.last()).toHaveAttribute('cite', '/source');
+});
+
 test('HTMX outerHTML swaps sync the new switcher to the selected color mode', async ({ page }) => {
   const switcher = (id: string) => `
     <div id="${id}" data-cast-theme-switcher>

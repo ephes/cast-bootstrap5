@@ -4,7 +4,9 @@
 
 - Synchronize replacement theme switchers after HTMX `outerHTML` swaps.
 
-- Merge quote runs around content inserted by HTMX `outerHTML` swaps.
+- Merge quote runs around content inserted by HTMX `outerHTML` swaps, and
+  merge top-level quotes inserted by `innerHTML`, `afterbegin` and `beforeend`
+  swaps once HTMX settles.
 
 - Restore the standalone ordering select's inline `display` value and
   `!important` priority during HTMX cleanup.

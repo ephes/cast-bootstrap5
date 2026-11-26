@@ -704,8 +704,13 @@ id, class, and language) keep quotes separate and preserve attribution and ancho
 `initPostContentEnhancements()` initializes once, waiting for DOMContentLoaded
 when necessary, and enhances connected HTMX swap roots. For `outerHTML` swaps,
 the inserted element is enhanced when the original target has been detached.
-A directly inserted quote is checked again once HTMX removes its transient
-classes. An empty class attribute left by that cleanup does not split the run.
+Quotes that HTMX inserts at the top level of the swap (a direct `outerHTML`
+replacement or the children added by `innerHTML`, `afterbegin` and `beforeend`
+swaps) are checked again once HTMX removes its transient `htmx-added` and
+`htmx-settling` classes. The empty class attribute that cleanup leaves on a
+swap root does not split the run. Quotes that `beforebegin` and `afterend`
+swaps insert next to the target join a run only when the target is itself a
+plain blockquote.
 When the swap root is a plain blockquote, enhancement starts at the first quote
 in its contiguous sibling run and keeps the surrounding semantic and text
 boundaries. Repeated calls are idempotent.

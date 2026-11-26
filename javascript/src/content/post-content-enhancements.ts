@@ -1,6 +1,8 @@
 import { getConnectedSwapRoot } from "@/utils/htmx-swap-root";
 
 const LINE_CLASS = "cast-blockquote-line";
+const HTMX_TRANSIENT_CLASSES = new Set(["htmx-added", "htmx-settling"]);
+const swappingQuotes = new WeakSet<Element>();
 const settledSwapQuotes = new WeakSet<Element>();
 let afterSwapBound = false;
 let pendingInitialize: (() => void) | null = null;
@@ -109,6 +111,17 @@ export function mergeConsecutiveBlockquotes(root: ParentNode | Element = documen
   });
 }
 
+// Until the swap settles, HTMX marks the swap root with htmx-settling and each
+// node it inserts with htmx-added; the root and its children are checked here.
+function swapQuoteCandidates(root: Element): HTMLElement[] {
+  return [root, ...Array.from(root.children)].filter(isBlockquote);
+}
+
+function carriesOnlyHtmxClasses(quote: HTMLElement): boolean {
+  const tokens = (quote.getAttribute("class") ?? "").split(/\s+/).filter(Boolean);
+  return tokens.length > 0 && tokens.every((token) => HTMX_TRANSIENT_CLASSES.has(token));
+}
+
 function bindAfterSwapHandler(): void {
   if (afterSwapBound || typeof document === "undefined") {
     return;
@@ -119,14 +132,14 @@ function bindAfterSwapHandler(): void {
     if (!root) {
       return;
     }
-    if (event.type === "htmx:afterSettle") {
-      const target = (event as CustomEvent<{ target?: Element }>).detail?.target;
-      if (!isBlockquote(root) || !(target instanceof Element) || target.isConnected) {
-        return;
-      }
-      // HTMX can leave class="" on an inserted quote after dropping its settling class.
-      if (root.getAttribute("class") === "") {
-        settledSwapQuotes.add(root);
+    for (const quote of swapQuoteCandidates(root)) {
+      if (event.type === "htmx:afterSwap") {
+        if (carriesOnlyHtmxClasses(quote)) {
+          swappingQuotes.add(quote);
+        }
+      } else if (swappingQuotes.has(quote) && quote.getAttribute("class") === "") {
+        // HTMX removes htmx-settling without dropping the then-empty class attribute.
+        settledSwapQuotes.add(quote);
       }
     }
     mergeConsecutiveBlockquotes(root);
