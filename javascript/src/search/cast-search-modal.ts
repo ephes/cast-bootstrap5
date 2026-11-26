@@ -144,7 +144,9 @@ function connectOrderingPills(root: ParentNode | Element): () => void {
         select.selectedIndex = index;
         sync();
         select.dispatchEvent(new Event("input", { bubbles: true }));
-        select.dispatchEvent(new Event("change", { bubbles: true }));
+        if (select.isConnected && orderContainer.contains(select) && orderContainer.contains(pillsDiv)) {
+          select.dispatchEvent(new Event("change", { bubbles: true }));
+        }
       }, { signal });
       pillsDiv.appendChild(pill);
     });

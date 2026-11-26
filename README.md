@@ -594,10 +594,12 @@ after enhancement, disabled attributes are refreshed through native `input` or
 Establish the option list before enhancement. An empty native value defaults to
 newest first only when that option is enabled. Clear all also preserves disabled
 selects and skips unavailable reset choices. Enabled selections retain ordinary form
-submission and emit one bubbling `input` followed by `change` when the selection
-changes. External changes dispatched through `input` or `change`, and form
-resets, synchronize the displayed label and active option. Initialization is
-idempotent. Removing the modal releases its ordering pill listeners, including
+submission and emit bubbling `input` followed by `change` for a changed selection.
+If an input handler removes or replaces the select or removes the pill group
+from its ordering container, the sequence ends after `input`. External changes
+dispatched through `input` or `change`, and form resets, synchronize the displayed
+label and active option. Initialization is idempotent. Removing the modal
+releases its ordering pill listeners, including
 the reset listener on an associated external form, and cancels pending reset
 updates. Reconnecting builds one set of pills from the current select value.
 The replacement button's accessible name includes both the field
@@ -612,7 +614,9 @@ Reinitialization is supported after teardown.
 Each ordering enhancement separately owns an `htmx:beforeCleanupElement`
 listener. HTMX cleanup disconnects its observer, removes form/control/menu
 listeners, cancels pending reset work, disposes any Bootstrap dropdown instance
-and restores the native select. Reusing the container can then enhance it exactly once.
+and restores the native select. The standalone dropdown restores the select's
+original inline `display` declaration and its priority. Reusing the container
+can then enhance it exactly once.
 
 ## Enlarged gallery images
 

@@ -135,7 +135,8 @@ export function enhanceOrderingDropdown(container: HTMLElement): void {
   const prior = {
     tabindex: select.getAttribute("tabindex"),
     ariaHidden: select.getAttribute("aria-hidden"),
-    display: select.style.display,
+    display: select.style.getPropertyValue("display"),
+    displayPriority: select.style.getPropertyPriority("display"),
   };
   const cleanup = (event: Event): void => {
     const elt = (event as CustomEvent<{ elt?: Element }>).detail?.elt ?? event.target;
@@ -150,7 +151,7 @@ export function enhanceOrderingDropdown(container: HTMLElement): void {
     for (const [attr, value] of [["tabindex", prior.tabindex], ["aria-hidden", prior.ariaHidden]] as const) {
       if (value === null) select.removeAttribute(attr); else select.setAttribute(attr, value);
     }
-    select.style.display = prior.display;
+    select.style.setProperty("display", prior.display, prior.displayPriority);
     const bootstrap = (window as Window & { bootstrap?: { Dropdown?: BootstrapDropdown } }).bootstrap;
     bootstrap?.Dropdown?.getInstance(button)?.dispose();
     dropdown.remove();

@@ -60,6 +60,24 @@ describe("ordering-dropdown", () => {
     vi.useRealTimers();
   });
 
+  it("restores the native display declaration and its priority on HTMX cleanup", () => {
+    document.body.innerHTML = `
+      <style>#id_o:not([aria-hidden="true"]) { display: block !important; }</style>
+      ${buildOrderingMarkup()}
+    `;
+    const select = document.querySelector("select")!;
+    select.style.setProperty("display", "inline-block", "important");
+    expect(getComputedStyle(select).display).toBe("inline-block");
+
+    initOrderingDropdowns();
+    expect(getComputedStyle(select).display).toBe("none");
+    select.dispatchEvent(new CustomEvent("htmx:beforeCleanupElement", { bubbles: true }));
+
+    expect(select.style.getPropertyValue("display")).toBe("inline-block");
+    expect(getComputedStyle(select).display).toBe("inline-block");
+    expect(select.style.getPropertyPriority("display")).toBe("important");
+  });
+
   it("names the button with the field label and current value through change and reset", async () => {
     document.body.innerHTML = `<form>${buildOrderingMarkup()}</form>`;
     initOrderingDropdowns();

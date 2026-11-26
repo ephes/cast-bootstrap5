@@ -57,6 +57,37 @@ describe("modal ordering native parity", () => {
     expect(events).toEqual(["input", "change"]);
   });
 
+  it("skips change when input replaces the native select", () => {
+    const { select, form, pill } = fixture();
+    const replacement = select.cloneNode(true) as HTMLSelectElement;
+    const detachedChange = vi.fn();
+    const formChange = vi.fn();
+    select.addEventListener("change", detachedChange);
+    form.addEventListener("change", formChange);
+    select.addEventListener("input", () => select.replaceWith(replacement), { once: true });
+
+    pill("visible_date").click();
+
+    expect(form.querySelector("select")).toBe(replacement);
+    expect(detachedChange).not.toHaveBeenCalled();
+    expect(formChange).not.toHaveBeenCalled();
+  });
+
+  it("skips change when input removes the pill group but keeps the select", () => {
+    const { select, pill } = fixture();
+    const button = pill("visible_date");
+    const group = button.closest(".cast-ordering-pills")!;
+    const change = vi.fn();
+    select.addEventListener("change", change);
+    select.addEventListener("input", () => group.remove(), { once: true });
+
+    button.click();
+
+    expect(group.isConnected).toBe(false);
+    expect(select.isConnected).toBe(true);
+    expect(change).not.toHaveBeenCalled();
+  });
+
   it("syncs native events, changing disabled state, and form reset", async () => {
     vi.useFakeTimers();
     const { select, form, pill } = fixture();
