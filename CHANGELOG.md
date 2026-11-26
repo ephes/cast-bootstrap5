@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Restore the standalone ordering select's inline `display` value and
+  `!important` priority during HTMX cleanup.
+
 - Skip the search-modal ordering select's `change` event when its `input`
   handler retires the select or pill group.
 

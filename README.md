@@ -614,7 +614,9 @@ Reinitialization is supported after teardown.
 Each ordering enhancement separately owns an `htmx:beforeCleanupElement`
 listener. HTMX cleanup disconnects its observer, removes form/control/menu
 listeners, cancels pending reset work, disposes any Bootstrap dropdown instance
-and restores the native select. Reusing the container can then enhance it exactly once.
+and restores the native select. The standalone dropdown restores the select's
+original inline `display` declaration and its priority. Reusing the container
+can then enhance it exactly once.
 
 ## Enlarged gallery images
 
