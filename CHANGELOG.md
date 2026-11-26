@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- Release the paging mask on abort, network error or timeout even if the HTMX
+  request trigger has been detached.
+
+- Mask mounted players and bypass the view transition for current HTMX responses
+  retargeted into the paging area.
+
+- Skip the ordering select's `change` event when an `input` handler retires
+  the select or its enhancement.
+
+- Dispose the Bootstrap dropdown instance when HTMX retires an ordering control.
+
 - Release the paging mask when a host vetoes an HTMX response using
   `htmx:before-swap`, preserving any newer request's mask.
 

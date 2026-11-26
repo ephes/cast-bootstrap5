@@ -238,6 +238,9 @@ If a listener cancels response processing at `htmx:beforeOnLoad` or
 dispatching. The kebab-case aliases `htmx:before-on-load` and `htmx:before-swap`
 have the same cleanup behavior.
 Each request owns its state through HTMX's public `detail.xhr` identity.
+When `HX-Retarget` directs a current response into `#paging-area`, the theme
+masks mounted players before the swap and skips the view transition. A newer
+paging navigation takes precedence even after it has settled.
 When `HX-Retarget` directs a response elsewhere, its settle event still
 releases the original paging mask and refreshes player presence in the
 current paging area. A late transition, settle, error or unmask timer from an
@@ -248,8 +251,9 @@ If the request does not complete, the current content is restored at once: the
 mask, the fade state and the pending unmask timer are cleared for an HTTP error
 response, a network failure (`htmx:sendError`), a timeout (`htmx:timeout`), an
 aborted request and a failed swap. The reader keeps the page they were on and
-can try again. Failures of HTMX requests that target other elements leave the
-paging state alone.
+can try again. Aborts, network errors and timeouts also release the mask if
+the request trigger was removed while the request was pending. Transport
+failures release only their own paging state.
 
 ## Post link prefetching
 
@@ -577,6 +581,9 @@ It also rechecks native option node identity before every selection, so a stale
 menu item cannot select a replacement option. Programmatic selectedIndex/value
 changes still require native `input` or `change` events. Changes to an enclosing
 fieldset's disabled state are rechecked on native events and before selection.
+A changed selection emits bubbling `input` followed by `change` while the
+enhancement still owns the connected select. An input handler that replaces the
+select or retires the enhancement ends the sequence after `input`.
 A select disabled at initialization stays native until
 enhancement is run again.
 Search-modal ordering pills share the same disabled-option policy and native
@@ -603,8 +610,8 @@ the document listener, leaving already rendered controls in place.
 Reinitialization is supported after teardown.
 Each ordering enhancement separately owns an `htmx:beforeCleanupElement`
 listener. HTMX cleanup disconnects its observer, removes form/control/menu
-listeners, cancels pending reset work and restores the native select. Reusing
-the container can then enhance it exactly once.
+listeners, cancels pending reset work, disposes any Bootstrap dropdown instance
+and restores the native select. Reusing the container can then enhance it exactly once.
 
 ## Enlarged gallery images
 

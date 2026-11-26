@@ -124,6 +124,51 @@ describe("ordering-dropdown", () => {
     expect(new FormData(form).get('o')).toBe('visible_date');
   });
 
+  it.each([true, false])("skips change when input replaces the select (HTMX cleanup: %s)", (cleanup) => {
+    document.body.innerHTML = buildOrderingMarkup();
+    initOrderingDropdowns();
+    const select = document.querySelector("select")!;
+    const change = vi.fn();
+    select.addEventListener("change", change);
+    select.addEventListener("input", () => {
+      if (cleanup) {
+        select.dispatchEvent(new CustomEvent("htmx:beforeCleanupElement", { bubbles: true }));
+      }
+      document.body.innerHTML = buildOrderingMarkup();
+      initOrderingDropdowns();
+    }, { once: true });
+
+    document.querySelector<HTMLButtonElement>('[data-order-value="visible_date"]')!.click();
+
+    expect(select.isConnected).toBe(false);
+    expect(change).not.toHaveBeenCalled();
+    const replacement = document.querySelector("select")!;
+    const events: string[] = [];
+    for (const type of ["input", "change"]) {
+      replacement.addEventListener(type, event => events.push(event.type));
+    }
+    document.querySelector<HTMLButtonElement>('[data-order-value="visible_date"]')!.click();
+    expect(events).toEqual(["input", "change"]);
+  });
+
+  it("skips change when input retires an enhancement and reuses the same select", () => {
+    document.body.innerHTML = buildOrderingMarkup();
+    initOrderingDropdowns();
+    const select = document.querySelector("select")!;
+    const change = vi.fn();
+    select.addEventListener("change", change);
+    select.addEventListener("input", () => {
+      select.dispatchEvent(new CustomEvent("htmx:beforeCleanupElement", { bubbles: true }));
+      initOrderingDropdowns();
+    }, { once: true });
+
+    document.querySelector<HTMLButtonElement>('[data-order-value="visible_date"]')!.click();
+
+    expect(select.isConnected).toBe(true);
+    expect(change).not.toHaveBeenCalled();
+    expect(document.querySelectorAll(".dropdown-toggle")).toHaveLength(1);
+  });
+
   it("syncs external changes and resets after the native reset completes", async () => {
     document.body.innerHTML = `<form>${buildOrderingMarkup()}</form>`;
     initOrderingDropdowns();

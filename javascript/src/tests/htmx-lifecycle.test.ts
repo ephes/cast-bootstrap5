@@ -15,6 +15,9 @@ class ControlledXHR extends EventTarget {
   responseURL = window.location.href;
   responseHeaders: Record<string, string> = { 'content-type': 'text/html' };
   onload: (() => void) | null = null;
+  onabort: (() => void) | null = null;
+  onerror: (() => void) | null = null;
+  ontimeout: (() => void) | null = null;
   open() { /* transport is completed explicitly below */ }
   setRequestHeader() {}
   overrideMimeType() {}
@@ -24,6 +27,10 @@ class ControlledXHR extends EventTarget {
   getResponseHeader(name: string) { return this.responseHeaders[name.toLowerCase()] ?? null; }
   send() { ControlledXHR.requests.push(this); }
   finish(html: string) { this.response = this.responseText = html; this.onload?.(); }
+  fail(type: 'abort' | 'error' | 'timeout') {
+    this[`on${type}`]?.();
+    this.dispatchEvent(new Event(type));
+  }
 }
 
 afterEach(() => {
@@ -33,6 +40,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
   delete (window as any).htmx;
+  delete (window as any).bootstrap;
 });
 
 function htmx() {
@@ -204,6 +212,112 @@ test('real HTMX retargeted settle releases the paging mask and refreshes player 
   expect(area.hasAttribute(presence)).toBe(false);
 });
 
+test.each(['transition', 'plain', 'veto'])('a real HTMX response retargeted into paging masks the player: %s', async mode => {
+  vi.useFakeTimers();
+  document.body.innerHTML = '<button id="source"></button><div id="other"></div><div id="paging-area"><podlove-player></podlove-player></div>';
+  const api = htmx();
+  initPagingContentVisibility();
+  const area = document.getElementById('paging-area')!;
+  const mask = 'data-cast-paging-mask-active';
+  const transition = vi.fn((event: Event) => [event.defaultPrevented, area.getAttribute(mask)]);
+  const veto = vi.fn((event: Event) => {
+    event.preventDefault();
+    return area.getAttribute(mask);
+  });
+  const request = api.ajax('GET', '/retarget', {
+    source: '#source', target: '#other',
+    swap: `innerHTML transition:${mode === 'transition'} settle:0ms`,
+  });
+  expect(area.hasAttribute(mask)).toBe(false);
+  document.addEventListener('htmx:beforeTransition', transition, { once: true });
+  if (mode === 'veto') document.addEventListener('htmx:before-swap', veto, { once: true });
+  try {
+    const xhr = ControlledXHR.requests[0];
+    xhr.responseHeaders['hx-retarget'] = '#paging-area';
+    xhr.finish('<p>Retargeted page</p>');
+    await request;
+    if (mode === 'veto') {
+      expect(veto).toHaveReturnedWith('true');
+      expect(area.querySelector('podlove-player')).not.toBeNull();
+      expect(area.hasAttribute(mask)).toBe(false);
+    } else {
+      if (mode === 'transition') expect(transition).toHaveReturnedWith([true, 'true']);
+      expect(area.textContent).toBe('Retargeted page');
+      expect(area.getAttribute(mask)).toBe('true');
+      vi.advanceTimersByTime(300);
+      expect(area.hasAttribute(mask)).toBe(false);
+    }
+  } finally {
+    document.removeEventListener('htmx:beforeTransition', transition);
+    document.removeEventListener('htmx:before-swap', veto);
+  }
+});
+
+test('a superseded HTMX response retargeted into paging cannot reclaim ownership', async () => {
+  vi.useFakeTimers();
+  document.body.innerHTML = '<button id="older"></button><button id="newer"></button><div id="other"></div><div id="paging-area"><podlove-player></podlove-player></div>';
+  const api = htmx();
+  initPagingContentVisibility();
+  const area = document.getElementById('paging-area')!;
+  const mask = 'data-cast-paging-mask-active';
+  const request = (source: string, target: string) => api.ajax('GET', `/${source}`, {
+    source: `#${source}`, target, swap: 'innerHTML settle:0ms',
+  });
+
+  const older = request('older', '#other');
+  const newer = request('newer', '#paging-area');
+  ControlledXHR.requests[1].finish('<podlove-player></podlove-player>');
+  await newer;
+  vi.advanceTimersByTime(300);
+  expect(area.hasAttribute(mask)).toBe(false);
+
+  ControlledXHR.requests[0].responseHeaders['hx-retarget'] = '#paging-area';
+  ControlledXHR.requests[0].finish('<p>Late response</p>');
+  await older;
+  expect(area.hasAttribute(mask)).toBe(false);
+});
+
+test.each(['abort', 'error', 'timeout'] as const)('a detached source releases only its own paging mask on XHR %s', async type => {
+  document.body.innerHTML = `
+    <div id="source-slot"><button id="detached"></button></div>
+    <button id="older"></button><button id="newer"></button>
+    <div id="paging-area"><podlove-player></podlove-player></div>`;
+  const api = htmx();
+  initPagingContentVisibility();
+  const area = document.getElementById('paging-area')!;
+  const mask = 'data-cast-paging-mask-active';
+  const request = (source: string) => api.ajax('GET', `/${source}`, {
+    source: `#${source}`, target: area,
+  }).catch(() => {});
+  const detached = request('detached');
+  expect(area.getAttribute(mask)).toBe('true');
+
+  const unrelated = api.ajax('GET', '/remove-trigger', {
+    target: '#source-slot', swap: 'innerHTML settle:0ms',
+  });
+  ControlledXHR.requests[1].finish('');
+  await unrelated;
+  expect(document.getElementById('detached')).toBeNull();
+  expect(area.getAttribute(mask)).toBe('true');
+  ControlledXHR.requests[0].fail(type);
+  await detached;
+  expect(area.hasAttribute(mask)).toBe(false);
+
+  const older = request('older');
+  const removed = vi.spyOn(ControlledXHR.requests[2], 'removeEventListener');
+  const newer = request('newer');
+  expect(removed.mock.calls.map(([event]) => event)).toEqual(['abort', 'error', 'timeout']);
+  document.getElementById('older')!.remove();
+  ControlledXHR.requests[2].fail(type);
+  await older;
+  expect(area.getAttribute(mask)).toBe('true');
+
+  // A connected source also delivers the HTMX failure for the same raw event.
+  ControlledXHR.requests[3].fail(type);
+  await newer;
+  expect(area.hasAttribute(mask)).toBe(false);
+});
+
 test('a late beforeRequest veto neither starts paging nor retires an active request', async () => {
   vi.useFakeTimers();
   document.body.innerHTML = '<button id="a"></button><button id="b"></button><div id="paging-area"><podlove-player></podlove-player></div>';
@@ -238,14 +352,24 @@ test('real HTMX cleanup releases reset listeners before replacing controls in a 
   const remove = vi.spyOn(form, 'removeEventListener');
   const slot = document.getElementById('slot')!;
   slot.innerHTML = markup;
+  window.eval(readFileSync(resolve('../cast_bootstrap5/static/cast_bootstrap5/js/bootstrap5/bootstrap.bundle.min.js'), 'utf8'));
+  const Dropdown = (window as any).bootstrap.Dropdown;
+  const disconnect = vi.spyOn(MutationObserver.prototype, 'disconnect');
   initOrderingDropdowns();
   for (let i = 0; i < 3; i++) {
+    const toggle = slot.querySelector<HTMLButtonElement>('.dropdown-toggle')!;
+    const observerCount = disconnect.mock.calls.length;
+    toggle.click();
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    expect(Dropdown.getInstance(toggle)).not.toBeNull();
     form.reset();
     const removedBefore = remove.mock.calls.filter(([name]) => name === 'reset').length;
     const request = api.ajax('GET', '/ordering', { source: '#source', target: '#slot', swap: 'innerHTML settle:0ms' });
     ControlledXHR.requests[i].finish(markup);
     await request;
     expect(remove.mock.calls.filter(([name]) => name === 'reset')).toHaveLength(removedBefore + 1);
+    expect(Dropdown.getInstance(toggle)).toBeNull();
+    expect(disconnect).toHaveBeenCalledTimes(observerCount + 1);
     initOrderingDropdowns(slot);
     expect(slot.querySelectorAll('.dropdown')).toHaveLength(1);
     vi.runAllTimers();

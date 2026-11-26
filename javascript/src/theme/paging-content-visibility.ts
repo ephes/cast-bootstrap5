@@ -3,6 +3,7 @@ const VT_ACTIVE_CLASS = "vt-active";
 const PAGING_MASK_ACTIVE_ATTR = "data-cast-paging-mask-active";
 const PAGING_HAS_PODLOVE_ATTR = "data-cast-podlove-present";
 const PAGING_MASK_SETTLE_DELAY_MS = 300;
+const XHR_FAILURE_EVENTS = ["abort", "error", "timeout"] as const;
 
 let beforeSendHandler: ((event: Event) => void) | null = null;
 let beforeOnLoadHandler: ((event: Event) => void) | null = null;
@@ -23,6 +24,9 @@ type HtmxEventDetail = {
 
 let activeRequest: XMLHttpRequest | undefined;
 let requestGeneration = 0;
+let requestOrder = new WeakMap<XMLHttpRequest, number>();
+let sentRequests = 0;
+let latestPagingRequest = 0;
 const ownedAreas = new Set<HTMLElement>();
 
 function ownsRequest(event: Event): boolean {
@@ -42,27 +46,13 @@ function getDocument(): Document | null {
   return typeof document === "undefined" ? null : document;
 }
 
-function asElement(value: unknown): Element | null {
-  return value instanceof Element ? value : null;
-}
-
-function isPagingAreaElement(element: Element | null): boolean {
-  return element?.id === "paging-area";
+function targetsPagingArea(target: EventTarget | null | undefined): boolean {
+  return target != null && target === getPagingArea();
 }
 
 function eventTargetsPagingArea(event: Event): boolean {
   const detail = (event as CustomEvent<HtmxEventDetail>).detail;
-  const detailTarget = asElement(detail?.target);
-  if (isPagingAreaElement(detailTarget)) {
-    return true;
-  }
-
-  const detailElement = asElement(detail?.elt);
-  if (isPagingAreaElement(detailElement)) {
-    return true;
-  }
-
-  return false;
+  return targetsPagingArea(detail?.target ?? detail?.elt);
 }
 
 function getPagingArea(): HTMLElement | null {
@@ -152,6 +142,20 @@ function deactivatePagingMask(): void {
   pagingArea.removeAttribute(PAGING_MASK_ACTIVE_ATTR);
 }
 
+function onTransportFailure(event: Event): void {
+  if (event.currentTarget === activeRequest) {
+    retireRequest();
+  }
+}
+
+function releaseActiveRequest(): void {
+  if (!activeRequest) return;
+  for (const eventName of XHR_FAILURE_EVENTS) {
+    activeRequest.removeEventListener(eventName, onTransportFailure);
+  }
+  activeRequest = undefined;
+}
+
 function schedulePagingMaskDeactivation(delayMs: number): void {
   clearPagingMaskTimeout();
   const generation = requestGeneration;
@@ -159,9 +163,36 @@ function schedulePagingMaskDeactivation(delayMs: number): void {
     if (generation !== requestGeneration) return;
     retireAreas();
     deactivatePagingMask();
-    activeRequest = undefined;
+    releaseActiveRequest();
     pagingMaskTimeoutId = null;
   }, delayMs);
+}
+
+function admitPagingRequest(xhr: XMLHttpRequest, order: number): void {
+  clearPagingMaskTimeout();
+  retireAreas();
+  releaseActiveRequest();
+  activeRequest = xhr;
+  // A detached HTMX trigger cannot bubble transport failures to the document.
+  for (const eventName of XHR_FAILURE_EVENTS) {
+    xhr.addEventListener(eventName, onTransportFailure);
+  }
+  latestPagingRequest = order;
+  requestGeneration++;
+  syncPagingAreaPodlovePresence();
+  if (pagingAreaContainsPodlovePlayer()) {
+    activatePagingMask();
+  }
+}
+
+function admitRetargetedRequest(xhr: XMLHttpRequest | undefined): void {
+  if (!xhr) return;
+  const order = requestOrder.get(xhr);
+  // Remember the latest admission even after settling so a late response
+  // cannot reclaim the mask from a newer paging navigation.
+  if (order !== undefined && order > latestPagingRequest) {
+    admitPagingRequest(xhr, order);
+  }
 }
 
 function retireRequest(): void {
@@ -169,7 +200,7 @@ function retireRequest(): void {
   clearPagingMaskTimeout();
   retireAreas();
   deactivatePagingMask();
-  activeRequest = undefined;
+  releaseActiveRequest();
   requestGeneration++;
   syncPagingAreaPodlovePresence();
 }
@@ -196,18 +227,12 @@ export function initPagingContentVisibility(): void {
     beforeSendHandler = (event: Event) => {
       // HTMX emits beforeSend only after beforeRequest has finished without a veto.
       const xhr = (event as CustomEvent<HtmxEventDetail>).detail?.xhr;
-      if (!xhr || !eventTargetsPagingArea(event)) {
-        return;
+      if (!xhr) return;
+      const order = ++sentRequests;
+      requestOrder.set(xhr, order);
+      if (eventTargetsPagingArea(event)) {
+        admitPagingRequest(xhr, order);
       }
-      clearPagingMaskTimeout();
-      retireAreas();
-      activeRequest = xhr;
-      requestGeneration++;
-      syncPagingAreaPodlovePresence();
-      if (!pagingAreaContainsPodlovePlayer()) {
-        return;
-      }
-      activatePagingMask();
     };
     doc.addEventListener("htmx:beforeSend", beforeSendHandler);
   }
@@ -232,9 +257,10 @@ export function initPagingContentVisibility(): void {
 
   if (!beforeTransitionHandler) {
     beforeTransitionHandler = (event: Event) => {
-      if (!eventTargetsPagingArea(event) || !ownsRequest(event)) {
-        return;
-      }
+      if (!eventTargetsPagingArea(event)) return;
+      const detail = (event as CustomEvent<HtmxEventDetail>).detail;
+      admitRetargetedRequest(detail?.xhr);
+      if (!ownsRequest(event)) return;
       syncPagingAreaPodlovePresence();
       if (pagingAreaContainsPodlovePlayer()) {
         event.preventDefault();
@@ -251,6 +277,10 @@ export function initPagingContentVisibility(): void {
     beforeSwapHandler = (event: Event) => {
       const detail = (event as CustomEvent<HtmxEventDetail>).detail;
       const xhr = detail?.xhr;
+      // HTMX dispatches on the original target and exposes HX-Retarget in detail.target.
+      if (detail?.shouldSwap && !event.defaultPrevented && targetsPagingArea(detail.target)) {
+        admitRetargetedRequest(xhr);
+      }
       if (!xhr || xhr !== activeRequest) {
         return;
       }
@@ -356,8 +386,9 @@ export function destroyPagingContentVisibility(): void {
   clearPagingMaskTimeout();
   clearHistoryScrollTimeout();
   retireAreas();
-  activeRequest = undefined;
+  releaseActiveRequest();
   requestGeneration++;
+  requestOrder = new WeakMap();
   beforeSendHandler = null;
   beforeOnLoadHandler = null;
   beforeTransitionHandler = null;

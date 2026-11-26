@@ -125,6 +125,7 @@ test('real HTMX cleanup retires ordering controls inside a surviving form', asyn
     document.addEventListener('htmx:afterSwap', () => { document.body.dataset.swaps = String(++swaps); });
   });
   await page.addScriptTag({ path: resolve('../cast_bootstrap5/static/cast_bootstrap5/js/htmx.min.js') });
+  await page.addScriptTag({ path: resolve('../cast_bootstrap5/static/cast_bootstrap5/js/bootstrap5/bootstrap.bundle.min.js') });
   await page.evaluate(() => (window as any).htmx.process(document.body));
   for (let i = 0; i < 3; i++) {
     await page.locator('#replace').click();
@@ -133,6 +134,17 @@ test('real HTMX cleanup retires ordering controls inside a surviving form', asyn
     await page.locator('form').evaluate(form => (form as HTMLFormElement).reset());
     await expect(page.locator('#slot .dropdown')).toHaveCount(1);
   }
+  const toggle = page.locator('#slot .dropdown-toggle');
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  expect(await toggle.evaluate(async oldToggle => {
+    const { bootstrap, htmx } = window as any;
+    const opened = bootstrap.Dropdown.getInstance(oldToggle) !== null;
+    await htmx.ajax('GET', '/ordering', { source: '#replace', target: '#slot' });
+    return { opened, disposed: bootstrap.Dropdown.getInstance(oldToggle) === null };
+  })).toEqual({ opened: true, disposed: true });
+  await expect(page.locator('#slot .dropdown')).toHaveCount(1);
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
 });
 
 test('dynamic facets carry keyboard focus to the live link and then Tab', async ({ page }) => {
