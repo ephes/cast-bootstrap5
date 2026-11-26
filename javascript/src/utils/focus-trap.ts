@@ -84,6 +84,7 @@ export type FocusTrapController = {
 };
 
 const activeTraps: { container: HTMLElement; onKeydown: (event: KeyboardEvent) => void }[] = [];
+const temporaryTabindex = new WeakSet<HTMLElement>();
 
 export function activeFocusTrap(): HTMLElement | null {
   for (let index = activeTraps.length - 1; index >= 0; index--) {
@@ -108,7 +109,6 @@ function onActiveKeydown(event: KeyboardEvent): void {
 
 export function createFocusTrap(container: HTMLElement): FocusTrapController {
   let isActive = false;
-  let addedTabindex = false;
 
   const onKeydown = (event: KeyboardEvent): void => {
     if (!isActive || !container.isConnected || event.defaultPrevented || event.key !== "Tab") {
@@ -167,11 +167,13 @@ export function createFocusTrap(container: HTMLElement): FocusTrapController {
       if (isActive) {
         return;
       }
-      addedTabindex = !container.hasAttribute("tabindex");
-      if (addedTabindex) container.setAttribute("tabindex", "-1");
       activeTraps.push(owner);
       if (activeTraps.length === 1) document.addEventListener("keydown", onActiveKeydown);
       isActive = true;
+      if (!temporaryTabindex.has(container) && !container.hasAttribute("tabindex")) {
+        temporaryTabindex.add(container);
+        container.setAttribute("tabindex", "-1");
+      }
     },
     deactivate() {
       if (!isActive) {
@@ -179,11 +181,11 @@ export function createFocusTrap(container: HTMLElement): FocusTrapController {
       }
       activeTraps.splice(activeTraps.indexOf(owner), 1);
       if (activeTraps.length === 0) document.removeEventListener("keydown", onActiveKeydown);
-      if (addedTabindex && container.getAttribute("tabindex") === "-1") {
+      isActive = false;
+      if (!activeTraps.some((trap) => trap.container === container) &&
+          temporaryTabindex.delete(container) && container.getAttribute("tabindex") === "-1") {
         container.removeAttribute("tabindex");
       }
-      addedTabindex = false;
-      isActive = false;
     },
   };
 }

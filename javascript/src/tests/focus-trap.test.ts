@@ -405,6 +405,41 @@ describe("focus-trap", () => {
     expect(pressTab(modal)).toBe(false);
   });
 
+  it("keeps a shared container focusable until the last trap releases it", () => {
+    document.body.innerHTML = '<button id="outside">Outside</button><div id="modal"></div>';
+    const modal = document.getElementById("modal")!;
+    const outside = document.getElementById("outside")!;
+    const older = createFocusTrap(modal);
+    const newer = createFocusTrap(modal);
+
+    older.activate();
+    newer.activate();
+    older.deactivate();
+    outside.focus();
+    expect(pressTab(outside)).toBe(true);
+    expect(document.activeElement).toBe(modal);
+    expect(modal.getAttribute("tabindex")).toBe("-1");
+
+    newer.deactivate();
+    expect(modal.hasAttribute("tabindex")).toBe(false);
+    expect(pressTab(outside)).toBe(false);
+  });
+
+  it.each([null, "-1"])("preserves author tabindex with initial value %s", (initial) => {
+    const modal = document.createElement("div");
+    document.body.replaceChildren(modal);
+    if (initial !== null) modal.setAttribute("tabindex", initial);
+    const older = createFocusTrap(modal);
+    const newer = createFocusTrap(modal);
+    older.activate();
+    newer.activate();
+
+    if (initial === null) modal.tabIndex = 0;
+    newer.deactivate();
+    older.deactivate();
+    expect(modal.getAttribute("tabindex")).toBe(initial ?? "0");
+  });
+
   it("registers one listener however often it is activated", () => {
     document.body.innerHTML = `
       <div id="modal">

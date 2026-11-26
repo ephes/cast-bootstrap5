@@ -378,9 +378,10 @@ control set, not a general focus manager for shadow DOM or embedded documents.
 If replacement, hiding, or disabling leaves focus outside the current set, the
 next Tab enters the first control (Shift+Tab enters the last). If no supported
 stops remain, Tab stays on the modal container until controls return. The trap
-makes an otherwise non-focusable container temporarily focusable while active
-and removes that attribute on deactivation. Focus on the dialog background
-also restarts at the first/last control on the next Tab/Shift+Tab.
+makes a container without `tabindex` temporarily focusable. Traps on the same
+container share the injected `tabindex="-1"` until the last one deactivates.
+Any original attribute or later change to its value is preserved. Focus on
+the dialog background restarts at the first/last control on the next Tab/Shift+Tab.
 
 When theme focus traps overlap, only the most recently activated connected
 container handles Tab. Closing it restores the previous connected trap;
