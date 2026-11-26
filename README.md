@@ -238,6 +238,9 @@ If a listener cancels response processing at `htmx:beforeOnLoad` or
 dispatching. The kebab-case aliases `htmx:before-on-load` and `htmx:before-swap`
 have the same cleanup behavior.
 Each request owns its state through HTMX's public `detail.xhr` identity.
+When `HX-Retarget` directs a current response into `#paging-area`, the theme
+masks mounted players before the swap and skips the view transition. A newer
+paging navigation takes precedence even after it has settled.
 When `HX-Retarget` directs a response elsewhere, its settle event still
 releases the original paging mask and refreshes player presence in the
 current paging area. A late transition, settle, error or unmask timer from an

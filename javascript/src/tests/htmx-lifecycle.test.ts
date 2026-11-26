@@ -205,6 +205,71 @@ test('real HTMX retargeted settle releases the paging mask and refreshes player 
   expect(area.hasAttribute(presence)).toBe(false);
 });
 
+test.each(['transition', 'plain', 'veto'])('a real HTMX response retargeted into paging masks the player: %s', async mode => {
+  vi.useFakeTimers();
+  document.body.innerHTML = '<button id="source"></button><div id="other"></div><div id="paging-area"><podlove-player></podlove-player></div>';
+  const api = htmx();
+  initPagingContentVisibility();
+  const area = document.getElementById('paging-area')!;
+  const mask = 'data-cast-paging-mask-active';
+  const transition = vi.fn((event: Event) => [event.defaultPrevented, area.getAttribute(mask)]);
+  const veto = vi.fn((event: Event) => {
+    event.preventDefault();
+    return area.getAttribute(mask);
+  });
+  const request = api.ajax('GET', '/retarget', {
+    source: '#source', target: '#other',
+    swap: `innerHTML transition:${mode === 'transition'} settle:0ms`,
+  });
+  expect(area.hasAttribute(mask)).toBe(false);
+  document.addEventListener('htmx:beforeTransition', transition, { once: true });
+  if (mode === 'veto') document.addEventListener('htmx:before-swap', veto, { once: true });
+  try {
+    const xhr = ControlledXHR.requests[0];
+    xhr.responseHeaders['hx-retarget'] = '#paging-area';
+    xhr.finish('<p>Retargeted page</p>');
+    await request;
+    if (mode === 'veto') {
+      expect(veto).toHaveReturnedWith('true');
+      expect(area.querySelector('podlove-player')).not.toBeNull();
+      expect(area.hasAttribute(mask)).toBe(false);
+    } else {
+      if (mode === 'transition') expect(transition).toHaveReturnedWith([true, 'true']);
+      expect(area.textContent).toBe('Retargeted page');
+      expect(area.getAttribute(mask)).toBe('true');
+      vi.advanceTimersByTime(300);
+      expect(area.hasAttribute(mask)).toBe(false);
+    }
+  } finally {
+    document.removeEventListener('htmx:beforeTransition', transition);
+    document.removeEventListener('htmx:before-swap', veto);
+  }
+});
+
+test('a superseded HTMX response retargeted into paging cannot reclaim ownership', async () => {
+  vi.useFakeTimers();
+  document.body.innerHTML = '<button id="older"></button><button id="newer"></button><div id="other"></div><div id="paging-area"><podlove-player></podlove-player></div>';
+  const api = htmx();
+  initPagingContentVisibility();
+  const area = document.getElementById('paging-area')!;
+  const mask = 'data-cast-paging-mask-active';
+  const request = (source: string, target: string) => api.ajax('GET', `/${source}`, {
+    source: `#${source}`, target, swap: 'innerHTML settle:0ms',
+  });
+
+  const older = request('older', '#other');
+  const newer = request('newer', '#paging-area');
+  ControlledXHR.requests[1].finish('<podlove-player></podlove-player>');
+  await newer;
+  vi.advanceTimersByTime(300);
+  expect(area.hasAttribute(mask)).toBe(false);
+
+  ControlledXHR.requests[0].responseHeaders['hx-retarget'] = '#paging-area';
+  ControlledXHR.requests[0].finish('<p>Late response</p>');
+  await older;
+  expect(area.hasAttribute(mask)).toBe(false);
+});
+
 test('a late beforeRequest veto neither starts paging nor retires an active request', async () => {
   vi.useFakeTimers();
   document.body.innerHTML = '<button id="a"></button><button id="b"></button><div id="paging-area"><podlove-player></podlove-player></div>';

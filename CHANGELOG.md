@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Mask mounted players and bypass the view transition for current HTMX responses
+  retargeted into the paging area.
+
 - Skip the ordering select's `change` event when an `input` handler retires
   the select or its enhancement.
 
