@@ -360,6 +360,52 @@ describe("theme-switcher", () => {
     expect(retiredLabel.textContent).toBe("Retired");
   });
 
+  it("follows a later cross-tab preference once storage recovers from a failed write", async () => {
+    vi.spyOn(storageMock, "setItem").mockImplementationOnce(() => {
+      throw new Error("denied");
+    });
+    document.body.innerHTML = createSwitcherMarkup("a");
+    await loadModule();
+    (document.querySelector('[data-cast-theme-value="mode:dark"]') as HTMLButtonElement).click();
+    expect(document.documentElement.getAttribute("data-bs-theme")).toBe("dark");
+    const storageEvent = (key: string | null, newValue: string | null) =>
+      window.dispatchEvent(new StorageEvent("storage", { key, newValue }));
+
+    // Unreadable storage, a stale event and a clear keep the session choice.
+    const read = vi.spyOn(storageMock, "getItem").mockImplementationOnce(() => {
+      throw new Error("denied");
+    });
+    storageMock.setItem("cast-theme", "light");
+    storageEvent("cast-theme", "light");
+    expect(document.documentElement.getAttribute("data-bs-theme")).toBe("dark");
+    storageEvent("cast-theme", "auto");
+    expect(document.documentElement.getAttribute("data-bs-theme")).toBe("dark");
+    storageMock.clear();
+    storageEvent(null, null);
+    expect(document.documentElement.getAttribute("data-bs-theme")).toBe("dark");
+
+    // Another tab confirms a new preference in recovered storage.
+    storageMock.setItem("cast-theme", "light");
+    storageEvent("cast-theme", "light");
+    expect(document.documentElement.getAttribute("data-bs-theme")).toBe("light");
+    expect(document.querySelector("[data-cast-theme-label]")?.textContent).toBe("Light");
+    storageMock.setItem("cast-theme", "auto");
+    storageEvent("cast-theme", "auto");
+    matchMediaMock.dispatch(true);
+    expect(document.documentElement.getAttribute("data-bs-theme")).toBe("dark");
+    expect(document.querySelector("[data-cast-theme-label]")?.textContent).toBe("System");
+
+    const switcher = document.getElementById("a")!;
+    const form = switcher.querySelector("form")!;
+    const fresh = createSwitcherMarkup("fresh");
+    form.outerHTML = fresh.slice(fresh.indexOf("<form"), fresh.indexOf("</form>") + "</form>".length);
+    const inserted = switcher.querySelector("form")!;
+    inserted.dispatchEvent(new CustomEvent("htmx:afterSwap", { detail: { target: form }, bubbles: true }));
+    expect(inserted.querySelector('[data-cast-theme-mode="auto"]')?.getAttribute("aria-pressed")).toBe("true");
+    expect(inserted.querySelector('[data-cast-theme-mode="dark"]')?.getAttribute("aria-pressed")).toBe("false");
+    expect(read).toHaveBeenCalled();
+  });
+
   it.each(["outerHTML", "innerHTML"])("syncs the enclosing switcher after an %s swap of its menu", async (style) => {
     storageMock.setItem("cast-theme", "dark");
     document.body.innerHTML = createSwitcherMarkup("switcher") + "<div id=\"unrelated\"><span>x</span></div>";

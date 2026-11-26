@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Follow a new color mode stored by another tab after a failed write in this
+  tab, once storage is readable again.
+
 - Synchronize theme controls when HTMX replaces only the menu or an option
   inside a surviving theme switcher.
 

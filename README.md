@@ -733,7 +733,9 @@ exceeded quota), the choice still applies for the rest of the page session,
 including system color-scheme changes and HTMX swaps; the next full page load
 falls back to the stored value, or Auto when none is readable. Other open tabs
 synchronize on localStorage changes (including clearing storage), updating the
-root and all switchers. A denied-write session choice remains authoritative.
+root and all switchers. A denied-write session choice remains authoritative
+until a later write succeeds or another tab stores a new preference that this
+tab can read back; unreadable storage, clears and stale events keep it.
 Delegated clicks and bubbling HTMX swap events use the document, so replacing
 the body keeps the new switchers synchronized and interactive. An `outerHTML`
 swap also updates the replacement switcher's label, icon and pressed state to

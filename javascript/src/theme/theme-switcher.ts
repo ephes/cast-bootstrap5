@@ -7,7 +7,8 @@ const MEDIA_QUERY = "(prefers-color-scheme: dark)";
 
 type ThemeMode = "auto" | ResolvedTheme;
 
-// Set only while the last selection could not be persisted; it then overrides storage.
+// Set only while the last selection could not be persisted; it then overrides storage
+// until a write here succeeds or another tab confirms a newer stored preference.
 let sessionMode: ThemeMode | null = null;
 let listenersBound = false;
 let mediaQueryList: MediaQueryList | null = null;
@@ -260,6 +261,16 @@ function bindListeners(): void {
       if (event.storageArea && event.storageArea !== win.localStorage) return;
     } catch {
       return;
+    }
+    // Another tab confirmed a new preference in readable storage: that new generation
+    // replaces a session choice kept after a failed write here.
+    if (
+      sessionMode !== null &&
+      event.key === THEME_STORAGE_KEY &&
+      isThemeMode(event.newValue) &&
+      getStoredTheme() === event.newValue
+    ) {
+      sessionMode = null;
     }
     applyTheme(getCurrentMode());
     syncThemeSwitchers(doc);
