@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Skip the search-modal ordering select's `change` event when its `input`
+  handler retires the select or pill group.
+
 - Keep a shared focus trap's fallback `tabindex` until the final trap on the
   container deactivates, preserving author-supplied values.
 
