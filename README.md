@@ -577,6 +577,9 @@ It also rechecks native option node identity before every selection, so a stale
 menu item cannot select a replacement option. Programmatic selectedIndex/value
 changes still require native `input` or `change` events. Changes to an enclosing
 fieldset's disabled state are rechecked on native events and before selection.
+A changed selection emits bubbling `input` followed by `change` while the
+enhancement still owns the connected select. An input handler that replaces the
+select or retires the enhancement ends the sequence after `input`.
 A select disabled at initialization stays native until
 enhancement is run again.
 Search-modal ordering pills share the same disabled-option policy and native
@@ -603,8 +606,8 @@ the document listener, leaving already rendered controls in place.
 Reinitialization is supported after teardown.
 Each ordering enhancement separately owns an `htmx:beforeCleanupElement`
 listener. HTMX cleanup disconnects its observer, removes form/control/menu
-listeners, cancels pending reset work and restores the native select. Reusing
-the container can then enhance it exactly once.
+listeners, cancels pending reset work, disposes any Bootstrap dropdown instance
+and restores the native select. Reusing the container can then enhance it exactly once.
 
 ## Enlarged gallery images
 

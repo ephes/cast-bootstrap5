@@ -1,5 +1,9 @@
 import { isOrderingOptionDisabled } from "@/utils/ordering-options";
 
+type BootstrapDropdown = {
+  getInstance(element: Element): { dispose(): void } | null;
+};
+
 const CONTAINER_SELECTOR = "#div_id_o";
 
 function availableId(base: string): string {
@@ -104,7 +108,9 @@ export function enhanceOrderingDropdown(container: HTMLElement): void {
     select.selectedIndex = nativeIndex;
     sync();
     select.dispatchEvent(new Event("input", { bubbles: true }));
-    select.dispatchEvent(new Event("change", { bubbles: true }));
+    if (select.isConnected && container.contains(select) && container.contains(dropdown)) {
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+    }
   };
   menu.addEventListener("click", onClick);
   const observer = new MutationObserver(sync);
@@ -145,6 +151,8 @@ export function enhanceOrderingDropdown(container: HTMLElement): void {
       if (value === null) select.removeAttribute(attr); else select.setAttribute(attr, value);
     }
     select.style.display = prior.display;
+    const bootstrap = (window as Window & { bootstrap?: { Dropdown?: BootstrapDropdown } }).bootstrap;
+    bootstrap?.Dropdown?.getInstance(button)?.dispose();
     dropdown.remove();
     delete container.dataset.castOrderingEnhanced;
   };

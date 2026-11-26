@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Skip the ordering select's `change` event when an `input` handler retires
+  the select or its enhancement.
+
+- Dispose the Bootstrap dropdown instance when HTMX retires an ordering control.
+
 - Release the paging mask when a host vetoes an HTMX response using
   `htmx:before-swap`, preserving any newer request's mask.
 

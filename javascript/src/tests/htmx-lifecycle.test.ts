@@ -33,6 +33,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
   delete (window as any).htmx;
+  delete (window as any).bootstrap;
 });
 
 function htmx() {
@@ -238,14 +239,24 @@ test('real HTMX cleanup releases reset listeners before replacing controls in a 
   const remove = vi.spyOn(form, 'removeEventListener');
   const slot = document.getElementById('slot')!;
   slot.innerHTML = markup;
+  window.eval(readFileSync(resolve('../cast_bootstrap5/static/cast_bootstrap5/js/bootstrap5/bootstrap.bundle.min.js'), 'utf8'));
+  const Dropdown = (window as any).bootstrap.Dropdown;
+  const disconnect = vi.spyOn(MutationObserver.prototype, 'disconnect');
   initOrderingDropdowns();
   for (let i = 0; i < 3; i++) {
+    const toggle = slot.querySelector<HTMLButtonElement>('.dropdown-toggle')!;
+    const observerCount = disconnect.mock.calls.length;
+    toggle.click();
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    expect(Dropdown.getInstance(toggle)).not.toBeNull();
     form.reset();
     const removedBefore = remove.mock.calls.filter(([name]) => name === 'reset').length;
     const request = api.ajax('GET', '/ordering', { source: '#source', target: '#slot', swap: 'innerHTML settle:0ms' });
     ControlledXHR.requests[i].finish(markup);
     await request;
     expect(remove.mock.calls.filter(([name]) => name === 'reset')).toHaveLength(removedBefore + 1);
+    expect(Dropdown.getInstance(toggle)).toBeNull();
+    expect(disconnect).toHaveBeenCalledTimes(observerCount + 1);
     initOrderingDropdowns(slot);
     expect(slot.querySelectorAll('.dropdown')).toHaveLength(1);
     vi.runAllTimers();
