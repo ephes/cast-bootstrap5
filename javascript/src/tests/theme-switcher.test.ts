@@ -255,6 +255,37 @@ describe("theme-switcher", () => {
     expect(directSubmit).not.toHaveBeenCalled();
   });
 
+  it("submits only the wired theme choice in swapped fragments", async () => {
+    await loadModule();
+    const target = document.createElement("div");
+    target.innerHTML = createSwitcherMarkup("complete") + createSwitcherMarkup("partial") + `
+      <button type="button" data-cast-theme-value="mode:dark">Dark</button>
+      <a href="#fallback" data-cast-theme-value="mode:unknown">Fallback</a>
+    `;
+    target.querySelector('#partial input[name="template_base_dir"]')!.remove();
+    document.body.append(target);
+    target.dispatchEvent(new CustomEvent("htmx:afterSwap", { bubbles: true, detail: { target } }));
+
+    const submissions: FormData[] = [];
+    target.addEventListener("submit", (event) => {
+      event.preventDefault();
+      submissions.push(new FormData(event.target as HTMLFormElement));
+    });
+    const click = (selector: string) =>
+      target.querySelector(selector)!.dispatchEvent(new MouseEvent("click", {
+        bubbles: true, cancelable: true,
+      }));
+
+    expect(click(':scope > [data-cast-theme-value="mode:dark"]')).toBe(false);
+    expect(document.documentElement.getAttribute("data-bs-theme")).toBe("dark");
+
+    const partialClickAllowed = click('#partial [data-cast-theme-value="theme:alt"]');
+    expect(click('#complete [data-cast-theme-value="theme:alt"]')).toBe(false);
+    expect(submissions.map((data) => data.get("template_base_dir"))).toEqual(["alt"]);
+    expect(partialClickAllowed).toBe(true);
+    expect(click('[data-cast-theme-value="mode:unknown"]')).toBe(true);
+  });
+
   it("reacts to system changes only when in auto mode", async () => {
     window.localStorage.setItem("cast-theme", "auto");
     document.body.innerHTML = createSwitcherMarkup("a");

@@ -378,9 +378,10 @@ control set, not a general focus manager for shadow DOM or embedded documents.
 If replacement, hiding, or disabling leaves focus outside the current set, the
 next Tab enters the first control (Shift+Tab enters the last). If no supported
 stops remain, Tab stays on the modal container until controls return. The trap
-makes an otherwise non-focusable container temporarily focusable while active
-and removes that attribute on deactivation. Focus on the dialog background
-also restarts at the first/last control on the next Tab/Shift+Tab.
+makes a container without `tabindex` temporarily focusable. Traps on the same
+container share the injected `tabindex="-1"` until the last one deactivates.
+Any original attribute or later change to its value is preserved. Focus on
+the dialog background restarts at the first/last control on the next Tab/Shift+Tab.
 
 When theme focus traps overlap, only the most recently activated connected
 container handles Tab. Closing it restores the previous connected trap;
@@ -708,10 +709,12 @@ be called again after teardown.
 
 ## Theme preference
 
-Selecting a template theme emits a native `submit` event on the theme form.
-By default the form posts the selected `template_base_dir`, CSRF token and
-return URL. Host pages can handle the event and call `preventDefault()` to
-keep the current page open. Color-mode selections apply locally.
+Selecting a template theme emits a native `submit` event when the enclosing
+form owns an enabled, hidden `template_base_dir` input. By default the form
+posts the selected theme, CSRF token and return URL. Host pages can handle the
+submit event and call `preventDefault()` to keep the current page open.
+Incomplete fragments and unrecognized choices retain the clicked control's
+default action. Auto, Light and Dark apply locally, including outside a form.
 
 The color mode (Auto, Light, or Dark) is stored in localStorage under
 `cast-theme`. If the browser refuses the write (private or restricted contexts,

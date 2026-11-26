@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Keep a shared focus trap's fallback `tabindex` until the final trap on the
+  container deactivates, preserving author-supplied values.
+
+- Submit template-theme choices only when the form has an enabled hidden
+  `template_base_dir` field. Preserve the default action for unwired choices.
+
 - Release the paging mask on abort, network error or timeout even if the HTMX
   request trigger has been detached.
 
