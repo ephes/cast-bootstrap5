@@ -1575,6 +1575,60 @@ describe("cast-search-modal", () => {
     }
   });
 
+  it("uses the reconnected facet endpoint and reuses its cache across ordering changes", async () => {
+    vi.useFakeTimers();
+    document.body.innerHTML = buildModalMarkup({ dynamic: true });
+    const facets = (count: number) => ({ mode: "modal", result_count: count, groups: {
+      tag_facets: { selected: "python", all_count: count, options: [{ slug: "python", name: "Python", count }] },
+    } });
+    let finishCurrentRequest!: (response: Response) => void;
+    const fetchMock = vi.fn<(url: string) => Promise<Response>>()
+      .mockImplementationOnce(() => jsonResponse(facets(7)))
+      .mockImplementationOnce(() => new Promise(resolve => { finishCurrentRequest = resolve; }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const modal = getModalElement();
+    const input = modal.querySelector<HTMLInputElement>('input[name="search"]')!;
+    const ordering = modal.querySelector<HTMLSelectElement>('select[name="o"]')!;
+    const tags = modal.querySelector('[data-cast-facet-group="tag_facets"]')!;
+    const refresh = async () => {
+      input.dispatchEvent(new Event("input"));
+      await vi.advanceTimersByTimeAsync(FACET_DEBOUNCE_MS);
+    };
+    modal.openModal();
+    input.value = "python";
+    await refresh();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(tags.textContent).toContain("Python (7)");
+
+    modal.remove();
+    modal.setAttribute("data-cast-dynamic-facets-url", "/api/facet_counts/2/");
+    tags.querySelector("a.selected")!.textContent = "Python (3)";
+    document.body.append(modal);
+    modal.openModal();
+    await refresh();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const originalUrl = new URL(fetchMock.mock.calls[0][0]);
+    const currentUrl = new URL(fetchMock.mock.calls[1][0]);
+    expect(originalUrl.pathname).toBe("/api/facet_counts/1/");
+    expect(currentUrl.pathname).toBe("/api/facet_counts/2/");
+    expect(currentUrl.search).toBe(originalUrl.search);
+    expect(tags.textContent).toContain("Python (3)");
+    expect(tags.textContent).not.toContain("Python (7)");
+    finishCurrentRequest(new Response(JSON.stringify(facets(11))));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(tags.textContent).toContain("Python (11)");
+
+    modal.remove();
+    tags.querySelector("a.selected")!.textContent = "Python (3)";
+    document.body.append(modal);
+    modal.openModal();
+    ordering.value = "visible_date";
+    await refresh();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(tags.textContent).toContain("Python (11)");
+  });
+
   it("clears debounce timer and aborts request on disconnect", async () => {
     vi.useFakeTimers();
     document.body.innerHTML = buildModalMarkup({ dynamic: true });

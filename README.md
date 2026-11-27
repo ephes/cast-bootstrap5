@@ -289,6 +289,8 @@ usable, and a later filter or query change can retry. Superseding a request,
 closing the modal or removing it cancels pending work silently.
 If the same modal element is reconnected, reopening it restarts an interrupted
 facet update using the current form values.
+Cached counts are scoped to the resolved facet endpoint and current filters.
+Changing only the result ordering still allows the modal to reuse cached counts.
 
 Native form resets reconcile search text, ordering, facet selections and links
 with the controls after the browser applies their defaults. Hidden facet values
