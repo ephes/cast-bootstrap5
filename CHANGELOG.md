@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Scope cached search facet counts to the current endpoint after reconnecting.
+
+- Resume interrupted facet updates when a reconnected search modal is reopened.
+
 - Follow a new color mode stored by another tab after a failed write in this
   tab, once storage is readable again.
 

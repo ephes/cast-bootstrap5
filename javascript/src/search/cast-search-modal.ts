@@ -448,6 +448,7 @@ export default class CastSearchModal extends HTMLElement {
     }
     this.releaseBodyScroll?.();
     this.releaseBodyScroll = null;
+    this.refreshFacetsOnOpen ||= this.state.debounceTimer !== null || this.state.inFlight !== null;
     this.clearDebounceTimer();
     this.clearLoadingTimer();
     this.state.requestSeq += 1;
@@ -475,6 +476,8 @@ export default class CastSearchModal extends HTMLElement {
     this.typeahead?.facetStateChanged();
     if (this.refreshFacetsOnOpen) {
       this.refreshFacetsOnOpen = false;
+      // The form may have changed without input events while the modal was closed.
+      this.captureStateFromForm();
       this.scheduleFacetRecalculation();
     }
   }
@@ -906,7 +909,7 @@ export default class CastSearchModal extends HTMLElement {
       // Bound fetch and body parsing even if either ignores the abort signal.
       const payload: unknown = await Promise.race([
         (async () => {
-          const response = await fetchSearchResponse(this.buildRequestUrl().toString(), controller.signal);
+          const response = await fetchSearchResponse(this.buildRequestUrl(this.buildRequestParams(true)).href, controller.signal);
           return readBoundedJson(response, controller.signal, FACET_MAX_RESPONSE_BYTES);
         })(),
         aborted,
@@ -943,15 +946,21 @@ export default class CastSearchModal extends HTMLElement {
     }
   }
 
-  private buildRequestUrl(): URL {
+  private buildRequestUrl(params: URLSearchParams): URL {
     const url = new URL(this.dynamicFacetsUrl ?? "", window.location.href);
-    const params = this.buildRequestParams(true);
     url.search = params.toString();
+    url.hash = "";
     return url;
   }
 
   private buildRequestKey(): string {
-    return this.buildRequestParams(false).toString();
+    const params = this.buildRequestParams(false);
+    try {
+      return this.buildRequestUrl(params).href;
+    } catch {
+      // Keep malformed endpoints on the existing request failure path.
+      return params.toString();
+    }
   }
 
   private buildRequestParams(includeOrdering: boolean): URLSearchParams {
