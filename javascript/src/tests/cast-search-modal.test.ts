@@ -1532,6 +1532,49 @@ describe("cast-search-modal", () => {
     expect(Array.from(root.querySelectorAll<HTMLElement>(".cast-date-facet-item")).every((item) => !item.hidden)).toBe(true);
   });
 
+  it.each(["debounce", "request"])("restarts an interrupted facet %s when the reconnected modal opens", async phase => {
+    vi.useFakeTimers();
+    document.body.innerHTML = buildModalMarkup({ dynamic: true });
+    let finishRetiredRequest!: (response: Response) => void;
+    const retiredResponse = new Promise<Response>(resolve => { finishRetiredRequest = resolve; });
+    const fetchMock = vi.fn((_url: string, _init: RequestInit) => jsonResponse(modalResponse()));
+    if (phase === "request") fetchMock.mockReturnValueOnce(retiredResponse);
+    vi.stubGlobal("fetch", fetchMock);
+
+    const modal = getModalElement();
+    const input = modal.querySelector<HTMLInputElement>('input[name="search"]')!;
+    const tags = modal.querySelector('[data-cast-facet-group="tag_facets"]')!;
+    modal.openModal();
+    input.value = "original";
+    input.dispatchEvent(new Event("input"));
+    const retiredRequests = phase === "request" ? 1 : 0;
+    if (retiredRequests) await vi.advanceTimersByTimeAsync(FACET_DEBOUNCE_MS);
+    expect(fetchMock).toHaveBeenCalledTimes(retiredRequests);
+
+    modal.remove();
+    if (retiredRequests) expect(fetchMock.mock.calls[0][1].signal?.aborted).toBe(true);
+    input.value = "current";
+    document.body.append(modal);
+    await vi.advanceTimersByTimeAsync(FACET_DEBOUNCE_MS);
+    expect(fetchMock).toHaveBeenCalledTimes(retiredRequests);
+
+    modal.openModal();
+    await vi.advanceTimersByTimeAsync(FACET_DEBOUNCE_MS);
+    expect(fetchMock).toHaveBeenCalledTimes(retiredRequests + 1);
+    const [url, init] = fetchMock.mock.calls[retiredRequests];
+    expect(new URL(url).searchParams.get("search")).toBe("current");
+    expect(init.signal?.aborted).toBe(false);
+    expect(tags.textContent).toContain("django (1)");
+
+    if (retiredRequests) {
+      finishRetiredRequest(new Response(JSON.stringify({ mode: "modal", result_count: 0, groups: {
+        tag_facets: { selected: "", all_count: 0, options: [] },
+      } })));
+      await vi.advanceTimersByTimeAsync(0);
+      expect(tags.textContent).toContain("django (1)");
+    }
+  });
+
   it("clears debounce timer and aborts request on disconnect", async () => {
     vi.useFakeTimers();
     document.body.innerHTML = buildModalMarkup({ dynamic: true });

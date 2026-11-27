@@ -287,6 +287,8 @@ and never cached. Expiry clears loading and announces “Could not refresh filte
 You can still search.” The current filters and ordinary form submission remain
 usable, and a later filter or query change can retry. Superseding a request,
 closing the modal or removing it cancels pending work silently.
+If the same modal element is reconnected, reopening it restarts an interrupted
+facet update using the current form values.
 
 Native form resets reconcile search text, ordering, facet selections and links
 with the controls after the browser applies their defaults. Hidden facet values

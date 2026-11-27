@@ -448,6 +448,7 @@ export default class CastSearchModal extends HTMLElement {
     }
     this.releaseBodyScroll?.();
     this.releaseBodyScroll = null;
+    this.refreshFacetsOnOpen ||= this.state.debounceTimer !== null || this.state.inFlight !== null;
     this.clearDebounceTimer();
     this.clearLoadingTimer();
     this.state.requestSeq += 1;

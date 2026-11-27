@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Resume interrupted facet updates when a reconnected search modal is reopened.
+
 - Follow a new color mode stored by another tab after a failed write in this
   tab, once storage is readable again.
 
