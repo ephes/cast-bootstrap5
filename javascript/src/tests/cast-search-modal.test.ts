@@ -1553,8 +1553,9 @@ describe("cast-search-modal", () => {
 
     modal.remove();
     if (retiredRequests) expect(fetchMock.mock.calls[0][1].signal?.aborted).toBe(true);
-    input.value = "current";
     document.body.append(modal);
+    // Changed without an input event after reconnecting, before reopening.
+    input.value = "current";
     await vi.advanceTimersByTimeAsync(FACET_DEBOUNCE_MS);
     expect(fetchMock).toHaveBeenCalledTimes(retiredRequests);
 

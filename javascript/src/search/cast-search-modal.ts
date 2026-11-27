@@ -476,6 +476,8 @@ export default class CastSearchModal extends HTMLElement {
     this.typeahead?.facetStateChanged();
     if (this.refreshFacetsOnOpen) {
       this.refreshFacetsOnOpen = false;
+      // The form may have changed without input events while the modal was closed.
+      this.captureStateFromForm();
       this.scheduleFacetRecalculation();
     }
   }
